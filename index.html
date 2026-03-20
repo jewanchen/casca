@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casca — 停止為簡單任務付頂級價格</title>
+<meta name="description" content="如果你的月 AI 支出超過 $15,000，你每個月正在多燒 40%。一行程式碼，今天下午解決。">
+<!-- ── FAVICON ── -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='8' fill='%230c0f0a'/%3E%3Cpath d='M10 11 Q13 8 16 11 Q19 14 22 11 Q25 8 28 11' stroke='%23c0392b' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cpath d='M10 18 Q13 15 16 18 Q19 21 22 18 Q25 15 27 17' stroke='%23c0392b' stroke-width='1.5' stroke-linecap='round' fill='none' opacity='.65'/%3E%3Cpath d='M12 25 Q15 22 18 25 Q21 28 24 25' stroke='%23c0392b' stroke-width='1.2' stroke-linecap='round' fill='none' opacity='.35'/%3E%3Ccircle cx='18' cy='18' r='1.8' fill='white' opacity='.9'/%3E%3C/svg%3E">
+
+<!-- ── OPEN GRAPH ── -->
+<meta property="og:title" content="Casca — 停止為簡單任務付頂級價格">
+<meta property="og:description" content="一行程式碼，AI 帳單省 40%。月支出 $15K+ 的企業，今天下午就能接入。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cascaio.com">
+<meta property="og:image" content="https://cascaio.com/og-image.png">
+<meta property="og:site_name" content="Casca">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Casca — AI 帳單省 40%，一行程式碼">
+<meta name="twitter:description" content="自動把 AI 請求路由到最划算的模型。完全相容 OpenAI SDK，今天下午上線。">
+<meta name="twitter:image" content="https://cascaio.com/og-image.png">
+
+<!-- ── GA4 ── Replace G-XXXXXXXXXX with your actual Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX');
+  // Tracking helper
+  function track(event, params) {
+    if (typeof gtag !== 'undefined') gtag('event', event, params || {});
+  }
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─── */
+:root {
+  --ink: #0c0f0a;
+  --ink2: #1a1f18;
+  --ink3: #2a3127;
+  --ink4: #3d4839;
+  --mist: #f2f0eb;
+  --mist2: #e8e5de;
+  --mist3: #ddd9d0;
+  --ash: #9a9890;
+  --ash2: #c8c5bc;
+  --red: #c0392b;
+  --red2: #e74c3c;
+  --red-dim: rgba(192,57,43,0.08);
+  --red-mid: rgba(192,57,43,0.15);
+  --green: #1a6644;
+  --green2: #27ae60;
+  --green-dim: rgba(26,102,68,0.07);
+  --green-mid: rgba(26,102,68,0.15);
+  --amber: #b7621a;
+  --amber-dim: rgba(183,98,26,0.08);
+  --gold: #c9a227;
+  --serif: 'Instrument Serif', serif;
+  --sans: 'DM Sans', sans-serif;
+  --mono: 'Geist Mono', monospace;
+  --ease: cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ─── RESET ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--mist);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+a { text-decoration: none; color: inherit; }
+button { font-family: var(--sans); cursor: pointer; }
+
+/* ─── NAV ─── */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 56px;
+  display: flex; align-items: center;
+  padding: 0 48px;
+  transition: all 0.4s var(--ease);
+}
+.nav.solid {
+  background: rgba(242,240,235,0.94);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--mist3);
+  box-shadow: 0 1px 0 var(--mist2);
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 12px;
+  margin-right: auto; text-decoration: none;
+}
+.logo-svg-wrap {
+  width: 36px; height: 36px; flex-shrink: 0; position: relative;
+}
+.nav-logotype {
+  font-family: var(--mono);
+  font-size: 17px; font-weight: 500;
+  color: var(--ink);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.nav-logotype span { color: var(--red); }
+.nav-badge {
+  font-size: 9px; font-family: var(--mono);
+  background: var(--red); color: white;
+  padding: 2px 7px; border-radius: 2px;
+  letter-spacing: 0.08em;
+  animation: badge-pulse 3s ease infinite;
+}
+@keyframes badge-pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+.nav-links { display: flex; gap: 32px; }
+.nav-links a {
+  font-size: 13px; font-weight: 500;
+  color: var(--ash); transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-cta {
+  display: flex; gap: 10px; align-items: center; margin-left: 40px;
+}
+.btn-outline {
+  font-size: 13px; font-weight: 500;
+  padding: 7px 16px; border-radius: 4px;
+  border: 1px solid var(--mist3); background: transparent;
+  color: var(--ink); transition: all 0.2s;
+}
+.btn-outline:hover { background: var(--mist2); }
+.btn-primary {
+  font-size: 13px; font-weight: 600;
+  padding: 8px 20px; border-radius: 4px;
+  border: none; background: var(--ink); color: var(--mist);
+  transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary:hover { background: var(--ink2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(12,15,10,0.15); }
+
+/* ─── HERO ─── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 56px;
+  overflow: hidden;
+  background: var(--mist);
+}
+.hero-left {
+  width: 100%; max-width: 900px;
+  padding: 80px 48px 48px;
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+  position: relative;
+  background: var(--mist);
+}
+.hero-left::after { display: none; }
+.hero-icp {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-family: var(--mono);
+  color: var(--ash); letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 32px; justify-content: center;
+  opacity: 0; animation: fadeUp 0.6s 0.1s var(--ease) forwards;
+}
+.icp-line { width: 20px; height: 1px; background: var(--mist3); }
+
+.hero-h1 {
+  font-family: var(--serif);
+  font-size: clamp(42px, 5vw, 64px);
+  line-height: 1.06;
+  text-align: center;
+  letter-spacing: -0.025em;
+  margin-bottom: 24px;
+  opacity: 0; animation: fadeUp 0.6s 0.2s var(--ease) forwards;
+}
+.hero-h1 em {
+  font-style: italic;
+  color: var(--red);
+}
+.hero-h1 strong {
+  font-style: normal; font-weight: 400;
+  display: block;
+  color: var(--ink);
+}
+
+.hero-sub {
+  font-size: 16px; color: var(--ash);
+  line-height: 1.75; max-width: 560px;
+  margin-bottom: 40px; text-align: center;
+  opacity: 0; animation: fadeUp 0.6s 0.3s var(--ease) forwards;
+}
+.hero-sub b { color: var(--ink); font-weight: 600; }
+
+.hero-code-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--ink); color: var(--mist);
+  padding: 12px 18px; border-radius: 6px;
+  font-family: var(--mono); font-size: 12px;
+  margin-bottom: 16px; align-self: center;
+  width: fit-content;
+  opacity: 0; animation: fadeUp 0.6s 0.35s var(--ease) forwards;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.hero-code-badge .label {
+  font-size: 9px; color: var(--ash2); letter-spacing: 0.1em; text-transform: uppercase;
+  border-right: 1px solid rgba(255,255,255,0.1); padding-right: 10px; margin-right: 0;
+}
+.hero-code-badge .code { color: #7ee8a2; }
+
+.hero-bypass {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-family: var(--mono); color: var(--ash);
+  margin-bottom: 36px; justify-content: center;
+  opacity: 0; animation: fadeUp 0.6s 0.4s var(--ease) forwards;
+}
+.bypass-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green2); }
+.hero-bypass code { color: var(--green); font-size: 11px; }
+
+.hero-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  justify-content: center;
+  opacity: 0; animation: fadeUp 0.6s 0.45s var(--ease) forwards;
+}
+.btn-hero {
+  font-size: 14px; font-weight: 600;
+  padding: 13px 28px; border-radius: 5px;
+  border: none; cursor: pointer; transition: all 0.2s;
+  font-family: var(--sans);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-hero-primary {
+  background: var(--red); color: white;
+}
+.btn-hero-primary:hover { background: var(--red2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(192,57,43,0.25); }
+.btn-hero-ghost {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--mist3);
+}
+.btn-hero-ghost:hover { background: var(--mist2); }
+
+.hero-trust {
+  display: flex; gap: 24px; margin-top: 32px; flex-wrap: wrap;
+  justify-content: center;
+  opacity: 0; animation: fadeUp 0.6s 0.5s var(--ease) forwards;
+}
+.trust-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--mono); color: var(--ash);
+}
+.trust-check { color: var(--green2); }
+
+/* ─── HERO RIGHT: LIVE DIAGNOSTIC ─── */
+.hero-right {
+  background: var(--ink);
+  display: flex; flex-direction: column;
+  justify-content: center;
+  padding: 56px 48px 64px;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 900px;
+  border-radius: 16px 16px 0 0;
+  margin-top: 0;
+}
+.hero-right::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(192,57,43,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 20% 80%, rgba(26,102,68,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.diag-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 32px;
+}
+.diag-title {
+  font-size: 11px; font-family: var(--mono);
+  color: rgba(255,255,255,0.65); letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 500;
+}
+.diag-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--mono); color: rgba(255,255,255,0.5);
+}
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red2); animation: blink 1.8s ease infinite; }
+.status-dot.green { background: var(--green2); animation: none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* BLEEDING COUNTER */
+.bleeding-block {
+  background: rgba(192,57,43,0.08);
+  border: 1px solid rgba(192,57,43,0.2);
+  border-radius: 8px;
+  padding: 24px 24px 20px;
+  margin-bottom: 20px;
+}
+.bleeding-label {
+  font-size: 12px; font-family: var(--mono);
+  color: rgba(255,255,255,0.7); letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 10px; font-weight: 500;
+}
+.bleeding-amount {
+  font-family: var(--mono); font-size: 52px; font-weight: 500;
+  color: var(--red2); letter-spacing: -0.03em; line-height: 1;
+  margin-bottom: 6px;
+  font-feature-settings: 'tnum';
+  transition: none;
+}
+.bleeding-amount.counting { animation: countPulse 0.08s ease; }
+@keyframes countPulse {
+  0% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+.bleeding-fill-animated { transition: width 1.4s cubic-bezier(0.16,1,0.3,1); }
+.bleeding-sub {
+  font-size: 12px; font-family: var(--mono);
+  color: rgba(255,255,255,0.55);
+  line-height: 1.5;
+}
+.bleeding-bar {
+  height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px;
+  margin-top: 16px; overflow: hidden;
+}
+.bleeding-bar-fill {
+  height: 100%; background: var(--red2); border-radius: 1px; width: 0;
+  transition: width 0.1s linear;
+}
+
+/* CALC INPUT */
+.diag-calc {
+  margin-bottom: 24px;
+}
+.diag-calc-hint {
+  font-size: 11px; font-family: var(--mono);
+  color: rgba(255,255,255,0.38); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 5px;
+}
+.diag-calc-hint::before { content: '↓'; color: rgba(255,255,255,0.25); }
+.diag-calc-label {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 14px; font-family: var(--mono);
+  color: rgba(255,255,255,0.75); margin-bottom: 12px; font-weight: 500;
+  letter-spacing: 0;
+}
+.diag-calc-val {
+  color: #fff; font-weight: 600; font-size: 20px; letter-spacing: -0.02em;
+}
+input[type=range].dark {
+  width: 100%; -webkit-appearance: none;
+  height: 3px; border-radius: 1.5px;
+  background: rgba(255,255,255,0.1); outline: none; cursor: pointer;
+}
+input[type=range].dark::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--red2); cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(192,57,43,0.25);
+}
+
+/* SAVINGS BLOCK */
+.savings-block {
+  background: rgba(26,102,68,0.08);
+  border: 1px solid rgba(26,102,68,0.2);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.savings-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+.savings-row:last-child { margin-bottom: 0; }
+.savings-key { font-size: 12px; font-family: var(--mono); color: rgba(255,255,255,0.6); }
+.savings-val { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--green2); }
+.savings-val.big { font-size: 32px; letter-spacing: -0.02em; }
+.savings-val.muted { color: rgba(255,255,255,0.6); font-size: 16px; }
+
+.diag-cta {
+  width: 100%; padding: 14px;
+  background: var(--red); color: white;
+  border: none; border-radius: 5px;
+  font-size: 14px; font-weight: 600;
+  font-family: var(--sans); cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.diag-cta:hover { background: var(--red2); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(192,57,43,0.3); }
+
+/* ─── PRODUCT DEMO STRIP ─── */
+.demo-strip {
+  background: var(--ink2);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.demo-inner {
+  max-width: 1100px; margin: 0 auto;
+  padding: 0 48px;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 0;
+}
+.demo-label-col {
+  padding: 36px 32px 36px 0;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
+}
+.demo-label-title {
+  font-family: var(--sans); font-size: 15px; font-weight: 600;
+  color: rgba(255,255,255,0.85); margin-bottom: 6px;
+}
+.demo-label-sub {
+  font-size: 12px; font-family: var(--mono);
+  color: rgba(255,255,255,0.3); line-height: 1.7;
+}
+.demo-label-counts {
+  display: flex; gap: 16px; margin-top: 14px;
+}
+.dlc {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.dlc-num {
+  font-family: var(--mono); font-size: 18px; font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.dlc-low .dlc-num { color: #7ee8a2; }
+.dlc-med .dlc-num { color: #fbbf24; }
+.dlc-high .dlc-num { color: #f87171; }
+.dlc-cache .dlc-num { color: rgba(255,255,255,0.3); }
+.dlc-lbl { font-size: 9px; font-family: var(--mono); color: rgba(255,255,255,0.25); letter-spacing: 0.06em; }
+.demo-terminal {
+  padding: 24px 0 24px 32px;
+  height: 180px; overflow: hidden;
+  position: relative;
+}
+.demo-terminal::after {
+  content: '';
+  position: absolute; bottom: 0; left: 32px; right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, var(--ink2));
+  pointer-events: none;
+}
+.dt-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 0;
+  font-family: var(--mono); font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  opacity: 0;
+  animation: rowIn 0.3s ease forwards;
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+.dt-time { color: rgba(255,255,255,0.2); min-width: 54px; flex-shrink: 0; }
+.dt-cx { min-width: 36px; font-weight: 600; font-size: 10px; padding: 1px 5px; border-radius: 2px; text-align: center; flex-shrink: 0; }
+.dt-cx-low  { background: rgba(126,232,162,0.12); color: #7ee8a2; }
+.dt-cx-med  { background: rgba(251,191,36,0.12);  color: #fbbf24; }
+.dt-cx-high { background: rgba(248,113,113,0.12); color: #f87171; }
+.dt-cx-cache{ background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.25); }
+.dt-model { min-width: 120px; font-size: 11px; flex-shrink: 0; }
+.dt-m-flash { color: #7ee8a2; }
+.dt-m-mini  { color: #60a5fa; }
+.dt-m-gpt4  { color: #f87171; }
+.dt-m-cache { color: rgba(255,255,255,0.2); }
+.dt-m-vision{ color: #a78bfa; }
+.dt-prompt  { flex: 1; color: rgba(255,255,255,0.38); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-saving  { min-width: 52px; text-align: right; font-weight: 600; color: #7ee8a2; flex-shrink: 0; }
+.dt-saving.zero { color: rgba(255,255,255,0.18); }
+
+/* ─── SEGMENTATION STRIP ─── */
+.seg-strip {
+  background: var(--ink2);
+  border-top: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  padding: 18px 48px;
+}
+.seg-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.seg-label {
+  font-size: 11px; font-family: var(--mono);
+  color: rgba(255,255,255,0.25); letter-spacing: 0.08em; white-space: nowrap;
+}
+.seg-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg-btn {
+  font-size: 11px; font-family: var(--mono);
+  color: rgba(255,255,255,0.45); padding: 5px 12px;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 3px;
+  background: transparent; cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.seg-btn:hover { color: white; border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+.seg-btn.active { color: var(--green2); border-color: rgba(26,102,68,0.4); background: rgba(26,102,68,0.08); }
+
+/* ─── SHARED SECTION ─── */
+section { padding: 96px 48px; }
+.sec { max-width: 1100px; margin: 0 auto; }
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.55s var(--ease), transform 0.55s var(--ease); }
+.reveal.in { opacity: 1; transform: none; }
+.reveal-d1 { transition-delay: 0.05s; }
+.reveal-d2 { transition-delay: 0.1s; }
+.reveal-d3 { transition-delay: 0.15s; }
+
+/* ─── SOCIAL PROOF BAR ─── */
+.proof-bar {
+  background: var(--mist2);
+  border-top: 1px solid var(--mist3);
+  border-bottom: 1px solid var(--mist3);
+}
+.proof-bar .sec {
+  display: flex; align-items: stretch; gap: 0;
+  padding: 0;
+}
+.proof-cell {
+  flex: 1; padding: 28px 32px;
+  display: flex; flex-direction: column; gap: 4px;
+  border-right: 1px solid var(--mist3);
+  transition: background 0.2s;
+}
+.proof-cell:last-child { border-right: none; }
+.proof-cell:hover { background: var(--mist); }
+.proof-big {
+  font-family: var(--serif); font-size: 36px;
+  letter-spacing: -0.03em; color: var(--ink); line-height: 1;
+}
+.proof-big.red { color: var(--red); }
+.proof-big.green { color: var(--green); }
+.proof-label { font-size: 12px; color: var(--ash); font-family: var(--mono); }
+
+/* ─── LOSS FRAME ─── */
+.loss-section { background: var(--mist); }
+.loss-headline {
+  font-family: var(--serif); font-size: clamp(36px, 4vw, 54px);
+  letter-spacing: -0.025em; line-height: 1.1;
+  max-width: 680px; margin-bottom: 16px;
+}
+.loss-headline em { font-style: italic; color: var(--red); }
+.loss-sub {
+  font-size: 16px; color: var(--ash); max-width: 520px;
+  line-height: 1.75; margin-bottom: 56px;
+}
+.loss-cases {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px;
+  background: var(--mist3); border: 1px solid var(--mist3);
+  border-radius: 10px; overflow: hidden;
+}
+.loss-case {
+  background: var(--mist);
+  padding: 28px 26px;
+  transition: background 0.2s;
+}
+.loss-case:hover { background: var(--mist2); }
+.lc-head { margin-bottom: 16px; }
+.lc-waste {
+  font-family: var(--mono); font-size: 32px; font-weight: 500;
+  color: var(--red); letter-spacing: -0.02em; display: block; margin-bottom: 6px;
+}
+.lc-per { font-size: 14px; font-family: var(--sans); font-weight: 500; color: var(--ink2); line-height: 1.4; display: block; margin-top: 4px; }
+.lc-arrow {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; padding-bottom: 14px;
+  border-bottom: 1px solid var(--mist3);
+}
+.lc-arrow-line {
+  flex: 1; height: 1px; background: var(--mist3); position: relative;
+}
+.lc-arrow-line::after {
+  content: '→';
+  position: absolute; right: -8px; top: -8px;
+  font-size: 12px; color: var(--ash2);
+}
+.lc-save {
+  font-family: var(--mono); font-size: 22px; font-weight: 500;
+  color: var(--green); letter-spacing: -0.02em;
+}
+.lc-title {
+  font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 6px;
+}
+.lc-desc { font-size: 12px; color: var(--ash); line-height: 1.6; }
+.lc-tag {
+  display: inline-block; margin-top: 12px;
+  font-size: 10px; font-family: var(--mono);
+  background: var(--red-dim); color: var(--red);
+  border: 1px solid var(--red-mid); padding: 2px 8px; border-radius: 2px;
+}
+.lc-tag.green { background: var(--green-dim); color: var(--green); border-color: var(--green-mid); }
+
+/* ─── ONE LINE SECTION ─── */
+.oneline-section { background: var(--ink); }
+.oneline-headline {
+  font-family: var(--serif); font-size: clamp(36px, 4vw, 54px);
+  letter-spacing: -0.025em; line-height: 1.1;
+  color: var(--mist);
+  margin-bottom: 16px;
+}
+.oneline-headline em { font-style: italic; color: var(--green2); }
+.oneline-sub { font-size: 16px; color: rgba(255,255,255,0.65); max-width: 480px; line-height: 1.75; margin-bottom: 52px; }
+.code-demo {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; overflow: hidden;
+  max-width: 680px;
+}
+.code-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.code-dot { width: 9px; height: 9px; border-radius: 50%; }
+.cd-r { background: #ff5f56; }
+.cd-y { background: #ffbd2e; }
+.cd-g { background: #27c93f; }
+.code-body { padding: 20px 20px 24px; }
+.code-line {
+  font-family: var(--mono); font-size: 13px; line-height: 2.2;
+  white-space: pre;
+}
+.c-comment { color: rgba(255,255,255,0.42); }
+.c-key { color: #93d9f0; }
+.c-str { color: #a8e6a3; }
+.c-old { color: rgba(255,255,255,0.38); text-decoration: line-through; text-decoration-color: var(--red2); }
+.c-new { color: var(--green2); background: rgba(26,102,68,0.12); border-radius: 2px; padding: 0 2px; }
+.c-comment2 { color: rgba(255,255,255,0.4); font-style: italic; }
+.oneline-proof {
+  display: flex; gap: 32px; margin-top: 40px; flex-wrap: wrap;
+}
+.op-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: var(--mono); color: rgba(255,255,255,0.55); }
+.op-item .v { color: #fff; font-weight: 600; }
+
+/* ─── PROOF STORIES ─── */
+.stories-section { background: var(--mist2); }
+.stories-headline {
+  font-family: var(--serif); font-size: clamp(32px, 3.5vw, 48px);
+  letter-spacing: -0.025em; line-height: 1.12; margin-bottom: 48px;
+}
+.stories-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.story {
+  background: var(--mist); border: 1px solid var(--mist3);
+  border-radius: 10px; overflow: hidden;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s;
+}
+.story:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(12,15,10,0.08); }
+.story-roi {
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--mist3);
+}
+.story-roi-num {
+  font-family: var(--serif); font-size: 48px; letter-spacing: -0.04em;
+  line-height: 1; color: var(--green); margin-bottom: 4px;
+}
+.story-roi-label { font-size: 11px; font-family: var(--mono); color: var(--ash); margin-bottom: 14px; }
+/* Timeline bar */
+.roi-timeline {
+  display: flex; gap: 0; align-items: flex-end;
+  height: 44px; padding-top: 4px;
+}
+.roi-tl-col {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+  cursor: default;
+}
+.roi-tl-col:not(:last-child) { border-right: 1px solid var(--mist3); margin-right: 0; padding-right: 0; }
+.roi-bar {
+  width: 100%; border-radius: 2px 2px 0 0;
+  background: var(--green-mid);
+  transition: background 0.15s;
+  min-height: 4px;
+}
+.roi-tl-col:last-child .roi-bar { background: var(--green); }
+.roi-tl-col:hover .roi-bar { background: var(--green); }
+.roi-bar-val {
+  font-size: 10px; font-family: var(--mono); font-weight: 600;
+  color: var(--green); white-space: nowrap;
+}
+.roi-bar-label {
+  font-size: 9px; font-family: var(--mono);
+  color: var(--ash); letter-spacing: 0.04em;
+}
+.roi-learn-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 10px;
+  font-size: 10px; font-family: var(--mono);
+  color: var(--green); background: var(--green-dim);
+  border: 1px solid var(--green-mid);
+  padding: 3px 8px; border-radius: 2px;
+}
+.story-body { padding: 20px 24px 24px; }
+.story-quote {
+  font-size: 14px; color: var(--ash); line-height: 1.7;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+.story-person { display: flex; align-items: center; gap: 10px; }
+.story-avatar {
+  width: 34px; height: 34px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; font-family: var(--sans);
+  flex-shrink: 0;
+}
+.story-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+.story-role { font-size: 11px; font-family: var(--mono); color: var(--ash); }
+
+/* ─── WHY NOT DIY ─── */
+
+
+/* ─── PRICING ─── */
+.pricing-section { background: var(--mist2); }
+.pricing-headline {
+  font-family: var(--serif); font-size: clamp(32px, 3.5vw, 48px);
+  letter-spacing: -0.025em; line-height: 1.12; margin-bottom: 8px;
+}
+.pricing-sub { font-size: 16px; color: var(--ash); margin-bottom: 48px; }
+.pricing-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--mist3); border: 1px solid var(--mist3); border-radius: 12px; overflow: hidden; }
+.pc {
+  background: var(--mist); padding: 36px 30px;
+  position: relative;
+}
+.pc.featured { background: var(--ink); }
+.pc.featured::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--green2);
+}
+.pc-tier {
+  font-size: 10px; font-family: var(--mono); letter-spacing: 0.12em;
+  color: var(--ash); margin-bottom: 16px; text-transform: uppercase;
+}
+.pc.featured .pc-tier { color: rgba(255,255,255,0.3); }
+.pc-popular {
+  position: absolute; top: 20px; right: 20px;
+  font-size: 9px; font-family: var(--mono);
+  background: var(--green2); color: var(--ink);
+  padding: 2px 8px; border-radius: 2px; font-weight: 600; letter-spacing: 0.05em;
+}
+.pc-price {
+  font-family: var(--serif); font-size: 40px; letter-spacing: -0.03em;
+  line-height: 1; margin-bottom: 6px;
+}
+.pc.featured .pc-price { color: var(--mist); }
+.pc-price span { font-size: 16px; font-family: var(--sans); font-weight: 400; color: var(--ash); }
+.pc.featured .pc-price span { color: rgba(255,255,255,0.3); }
+.pc-tagline { font-size: 13px; color: var(--ash); margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--mist3); }
+.pc.featured .pc-tagline { color: rgba(255,255,255,0.35); border-bottom-color: rgba(255,255,255,0.08); }
+.pc-features { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.pc-feat { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ash); line-height: 1.5; }
+.pc.featured .pc-feat { color: rgba(255,255,255,0.55); }
+.pc-feat-check { color: var(--green); flex-shrink: 0; margin-top: 1px; font-size: 12px; }
+.pc-feat-dash { color: var(--ash2); flex-shrink: 0; }
+.pc-btn {
+  width: 100%; padding: 13px;
+  border-radius: 5px; border: none;
+  font-size: 14px; font-weight: 600; font-family: var(--sans);
+  cursor: pointer; transition: all 0.2s;
+}
+.pc-btn-dark {
+  background: var(--ink); color: var(--mist);
+}
+.pc-btn-dark:hover { background: var(--ink2); }
+.pc-btn-green {
+  background: var(--green2); color: white;
+}
+.pc-btn-green:hover { background: #2ecc71; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(39,174,96,0.3); }
+.pc-btn-ghost {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--mist3);
+}
+.pc-btn-ghost:hover { background: var(--mist2); }
+.guarantee-bar {
+  margin-top: 24px; padding: 16px 24px;
+  background: var(--green-dim);
+  border: 1px solid var(--green-mid);
+  border-radius: 6px;
+  font-size: 13px; color: var(--green); line-height: 1.6;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.guarantee-icon { flex-shrink: 0; font-size: 16px; }
+
+/* ─── FAQ ─── */
+.faq-section { background: var(--mist); }
+.faq-headline {
+  font-family: var(--serif); font-size: clamp(32px, 3.5vw, 48px);
+  letter-spacing: -0.025em; line-height: 1.12; margin-bottom: 48px;
+}
+.faq-list { max-width: 720px; }
+.faq-item { border-bottom: 1px solid var(--mist3); }
+.faq-q {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 0; cursor: pointer; gap: 20px;
+  font-size: 16px; font-weight: 500; color: var(--ink);
+  transition: color 0.15s;
+}
+.faq-q:hover { color: var(--red); }
+.faq-icon { color: var(--ash2); transition: transform 0.25s var(--ease); flex-shrink: 0; font-size: 18px; line-height: 1; }
+.faq-icon.open { transform: rotate(45deg); color: var(--ink); }
+.faq-a {
+  height: 0; overflow: hidden;
+  font-size: 15px; color: var(--ash); line-height: 1.75;
+  transition: height 0.3s var(--ease), padding 0.3s var(--ease);
+}
+.faq-a.open { padding-bottom: 20px; }
+
+/* ─── FINAL CTA ─── */
+.cta-section {
+  background: var(--ink);
+  position: relative; overflow: hidden;
+  padding: 120px 48px;
+}
+.cta-section::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 50% 70% at 20% 50%, rgba(192,57,43,0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 80% 50%, rgba(26,102,68,0.07) 0%, transparent 60%);
+  pointer-events: none;
+}
+.cta-inner { max-width: 700px; margin: 0 auto; text-align: center; position: relative; }
+.cta-eyebrow {
+  font-size: 10px; font-family: var(--mono);
+  color: rgba(255,255,255,0.2); letter-spacing: 0.12em; text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.cta-h {
+  font-family: var(--serif);
+  font-size: clamp(36px, 5vw, 60px);
+  letter-spacing: -0.025em; line-height: 1.08;
+  color: var(--mist); margin-bottom: 16px;
+}
+.cta-h em { font-style: italic; color: var(--green2); }
+.cta-sub {
+  font-size: 16px; color: rgba(255,255,255,0.35);
+  line-height: 1.7; margin-bottom: 40px;
+}
+.cta-form {
+  display: flex; gap: 10px; max-width: 480px; margin: 0 auto 20px; flex-wrap: wrap;
+}
+.cta-input {
+  flex: 1; min-width: 200px;
+  padding: 13px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px; color: var(--mist);
+  font-size: 14px; font-family: var(--sans); outline: none;
+  transition: border-color 0.2s;
+}
+.cta-input:focus { border-color: rgba(255,255,255,0.3); }
+.cta-input::placeholder { color: rgba(255,255,255,0.2); }
+.cta-submit {
+  padding: 13px 24px; background: var(--green2); color: white;
+  border: none; border-radius: 5px;
+  font-size: 14px; font-weight: 600; font-family: var(--sans);
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.cta-submit:hover { background: #2ecc71; transform: translateY(-1px); }
+.cta-guarantee {
+  font-size: 12px; font-family: var(--mono);
+  color: rgba(255,255,255,0.2); line-height: 1.8;
+}
+.cta-guarantee span { color: var(--green2); }
+
+/* ─── FOOTER ─── */
+footer {
+  background: var(--ink2);
+  border-top: 1px solid rgba(255,255,255,0.04);
+  padding: 32px 48px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.foot-logo { font-family: var(--serif); font-size: 18px; color: rgba(255,255,255,0.4); font-style: italic; }
+.foot-links { display: flex; gap: 24px; }
+.foot-links a { font-size: 12px; font-family: var(--mono); color: rgba(255,255,255,0.2); transition: color 0.15s; }
+.foot-links a:hover { color: rgba(255,255,255,0.5); }
+.foot-copy { font-size: 11px; font-family: var(--mono); color: rgba(255,255,255,0.15); }
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero-left { padding: 64px 20px 36px; }
+  .hero-right { padding: 36px 20px 48px; border-radius: 0; }
+  .loss-cases, .stories-grid, .pricing-grid { grid-template-columns: 1fr; }
+  .compare-head, .compare-row { grid-template-columns: 1fr 1fr; }
+  .compare-head .ch-cell:nth-child(3),
+  .compare-head .ch-cell:nth-child(4),
+  .compare-row .cr-cell:nth-child(3),
+  .compare-row .cr-cell:nth-child(4) { display: none; }
+  nav { padding: 0 20px; }
+  .nav-links { display: none; }
+  .proof-bar .sec { flex-wrap: wrap; }
+  .proof-cell { min-width: 50%; }
+  section { padding: 64px 24px; }
+  .cta-section { padding: 80px 24px; }
+  footer { padding: 24px; flex-direction: column; align-items: flex-start; }
+  .seg-strip { padding: 16px 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav" class="nav">
+  <div class="nav-logo">
+    <div class="logo-svg-wrap">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="8" fill="#0c0f0a"/>
+        <!-- Cascade flow mark: three descending arcs suggesting routing/waterfall -->
+        <path d="M10 11 Q13 8 16 11 Q19 14 22 11 Q25 8 28 11" stroke="#c0392b" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M10 18 Q13 15 16 18 Q19 21 22 18 Q25 15 27 17" stroke="#c0392b" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.65"/>
+        <path d="M12 25 Q15 22 18 25 Q21 28 24 25" stroke="#c0392b" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.35"/>
+        <!-- dot: routing endpoint -->
+        <circle cx="18" cy="18" r="1.8" fill="white" opacity="0.9"/>
+      </svg>
+    </div>
+    <span class="nav-logotype">CASC<span>A</span></span>
+  </div>
+  <div class="nav-links">
+    <a href="#loss">為什麼</a>
+    <a href="#oneline">接入方式</a>
+    <a href="#proof">客戶成果</a>
+    <a href="#pricing">定價</a>
+  </div>
+  <div class="nav-cta">
+    <button class="btn-outline" onclick="window.location.href='/portal/'">登入</button>
+    <button class="btn-primary" onclick="scrollToCalc(); track('hero_cta_click', {location:'nav'})">
+      計算我在燒多少 →
+    </button>
+  </div>
+</nav>
+
+<!-- HERO: TWO COLUMN -->
+<section class="hero" style="padding:0">
+  <!-- LEFT: MANIFESTO -->
+  <div class="hero-left">
+    <div class="hero-icp">
+      <div class="icp-line"></div>
+      如果你的月 AI 支出超過 $15,000，這個頁面是為你寫的
+    </div>
+
+    <h1 class="hero-h1">
+      你每個月<br>
+      <em>多燒了 40%</em>
+      <strong>在 AI 帳單上</strong>
+    </h1>
+
+    <p class="hero-sub">
+      把所有 AI 請求送到 GPT-4o 是最常見的成本錯誤。
+      「查退貨政策」跟「寫法律合規報告」用同一個模型——
+      前者你<b>多付了 97%</b>。
+    </p>
+
+    <div class="hero-code-badge">
+      <span class="label">接入方式</span>
+      <span class="code">base_url = "https://api.cascaio.com/v1"</span>
+    </div>
+
+    <div class="hero-bypass">
+      <div class="bypass-dot"></div>
+      隨時可以用 <code>CASCA_BYPASS=true</code> 繞過我們，5 秒直連
+    </div>
+
+    <div class="hero-actions">
+      <button class="btn-hero btn-hero-primary" onclick="scrollToCalc(); track('hero_cta_click', {location:'hero_primary'})">
+        計算我在燒多少
+      </button>
+      <button class="btn-hero btn-hero-ghost" onclick="document.getElementById('proof').scrollIntoView({behavior:'smooth'}); track('hero_cta_click', {location:'hero_ghost'})">
+        看客戶成果
+      </button>
+    </div>
+
+    <div class="hero-trust">
+      <div class="trust-item"><span class="trust-check">✓</span>一行程式碼，今天下午上線</div>
+      <div class="trust-item"><span class="trust-check">✓</span>提示詞不儲存</div>
+      <div class="trust-item"><span class="trust-check">✓</span>節省不達標全額退款</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: LIVE DIAGNOSTIC -->
+  <div class="hero-right" id="hero-calc">
+    <div class="diag-header">
+      <span class="diag-title">LIVE COST DIAGNOSTIC</span>
+      <span class="diag-status"><div class="status-dot"></div> 正在計算你的損耗</span>
+    </div>
+
+    <div class="bleeding-block">
+      <div class="bleeding-label">你每月多燒的錢（估算）</div>
+      <div class="bleeding-amount" id="bleeding-amt">$0</div>
+      <div class="bleeding-sub" id="bleeding-sub">基於月支出 $50,000 · 預計 38% 可優化</div>
+      <div class="bleeding-bar">
+        <div class="bleeding-bar-fill" id="bleeding-fill" style="width:42.5%"></div>
+      </div>
+    </div>
+
+    <div class="diag-calc">
+      <div class="diag-calc-hint">拖動滑桿，輸入你目前的 AI 月支出</div>
+      <div class="diag-calc-label">
+        <span>目前 AI 月支出（USD）</span>
+        <span class="diag-calc-val" id="spend-disp">$50,000</span>
+      </div>
+      <input type="range" class="dark" id="hero-spend" min="5000" max="500000" step="1000" value="50000" oninput="updateHeroCalc(); track('hero_calc_interact', {spend: this.value})">
+    </div>
+
+    <div class="savings-block">
+      <div class="savings-row">
+        <span class="savings-key">每月淨節省（扣除平台費）</span>
+        <span class="savings-val big" id="net-save">$0</span>
+      </div>
+      <div class="savings-row">
+        <span class="savings-key">年化節省</span>
+        <span class="savings-val" id="ann-save">$0</span>
+      </div>
+      <div class="savings-row">
+        <span class="savings-key">費用回收週期</span>
+        <span class="savings-val muted" id="payback-disp">&lt; 5 天</span>
+      </div>
+    </div>
+
+    <button class="diag-cta" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'}); track('hero_calc_cta_click')">
+      免費帳單分析 — 24H 內收到報告 →
+    </button>
+
+    <div style="margin-top:14px;font-size:10px;font-family:var(--mono);color:rgba(255,255,255,0.2);text-align:center;line-height:1.6">
+      無需信用卡 · 60 天零風險試用 · 節省不達 30% 全額退款
+    </div>
+  </div>
+</section>
+
+<!-- PRODUCT DEMO: LIVE ROUTING TERMINAL -->
+<div class="demo-strip">
+  <div class="demo-inner">
+    <div class="demo-label-col">
+      <div class="demo-label-title">每秒都在路由</div>
+      <div class="demo-label-sub">Casca 即時判斷每個請求<br>送到最划算的模型</div>
+      <div class="demo-label-counts">
+        <div class="dlc dlc-low"><div class="dlc-num" id="cnt-low">0</div><div class="dlc-lbl">LOW</div></div>
+        <div class="dlc dlc-med"><div class="dlc-num" id="cnt-med">0</div><div class="dlc-lbl">MED</div></div>
+        <div class="dlc dlc-high"><div class="dlc-num" id="cnt-high">0</div><div class="dlc-lbl">HIGH</div></div>
+        <div class="dlc dlc-cache"><div class="dlc-num" id="cnt-cache">0</div><div class="dlc-lbl">CACHE</div></div>
+      </div>
+    </div>
+    <div class="demo-terminal" id="demo-terminal"></div>
+  </div>
+</div>
+
+<!-- SEGMENTATION STRIP -->
+<div class="seg-strip">
+  <div class="seg-inner">
+    <span class="seg-label">你們目前用的是</span>
+    <div class="seg-btns">
+      <button class="seg-btn active" onclick="setSeg(this,'openai')">OpenAI</button>
+      <button class="seg-btn" onclick="setSeg(this,'azure')">Azure OpenAI</button>
+      <button class="seg-btn" onclick="setSeg(this,'anthropic')">Anthropic</button>
+      <button class="seg-btn" onclick="setSeg(this,'vertex')">Google Vertex</button>
+      <button class="seg-btn" onclick="setSeg(this,'bedrock')">AWS Bedrock</button>
+      <button class="seg-btn" onclick="setSeg(this,'groq')">Groq / 其他</button>
+    </div>
+    <span style="font-size:11px;font-family:var(--mono);color:rgba(255,255,255,0.2);margin-left:auto">→ 全部都支援，不需要換</span>
+  </div>
+</div>
+
+<!-- SOCIAL PROOF BAR -->
+<div class="proof-bar">
+  <div class="sec">
+    <div class="proof-cell">
+      <div class="proof-big red">40%</div>
+      <div class="proof-label">客戶平均可優化的浪費比例</div>
+    </div>
+    <div class="proof-cell">
+      <div class="proof-big green">$13,600</div>
+      <div class="proof-label">月支出 $50K 的客戶平均月淨節省</div>
+    </div>
+    <div class="proof-cell">
+      <div class="proof-big">&lt; 5 天</div>
+      <div class="proof-label">平均費用回收週期</div>
+    </div>
+    <div class="proof-cell">
+      <div class="proof-big">1 行</div>
+      <div class="proof-label">接入所需的程式碼改動</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOSS CASES -->
+<section class="loss-section" id="loss">
+  <div class="sec reveal">
+    <h2 class="loss-headline">你每天都在為<br><em>不需要推理的任務</em><br>付推理的價格</h2>
+    <p class="loss-sub">這不是你的錯。沒有人一開始就知道哪些 AI 請求需要 GPT-4o，哪些 Gemini Flash 就夠了。Casca 幫你自動判斷。</p>
+    <div class="loss-cases">
+      <div class="loss-case">
+        <div class="lc-head">
+          <span class="lc-waste">$0.045</span>
+          <span class="lc-per">「退貨政策是什麼？」的現在成本</span>
+        </div>
+        <div class="lc-arrow">
+          <div class="lc-arrow-line"></div>
+          <span class="lc-save">$0.001</span>
+        </div>
+        <div class="lc-title">重複查詢 · 語義快取</div>
+        <div class="lc-desc">同樣的問題每天被問幾百次。Casca 直接從快取回答，$0 成本，品質完全一樣。</div>
+        <span class="lc-tag">每月可省 $4,050</span>
+      </div>
+      <div class="loss-case">
+        <div class="lc-head">
+          <span class="lc-waste">$0.045</span>
+          <span class="lc-per">產品截圖分析的現在成本</span>
+        </div>
+        <div class="lc-arrow">
+          <div class="lc-arrow-line"></div>
+          <span class="lc-save">$0.002</span>
+        </div>
+        <div class="lc-title">一般圖像 → Gemini Flash Vision</div>
+        <div class="lc-desc">不是每張圖都需要 GPT-4o Vision。產品截圖用 Gemini Flash Vision，省 96%，X-ray 才用最強的。</div>
+        <span class="lc-tag">視覺任務省 96%</span>
+      </div>
+      <div class="loss-case">
+        <div class="lc-head">
+          <span class="lc-waste">$0.045</span>
+          <span class="lc-per">「幫我寫一封 email」的現在成本</span>
+        </div>
+        <div class="lc-arrow">
+          <div class="lc-arrow-line"></div>
+          <span class="lc-save">$0.0015</span>
+        </div>
+        <div class="lc-title">生成任務 → GPT-4o-mini</div>
+        <div class="lc-desc">寫 email 不需要 GPT-4o。中等模型品質完全夠，成本省 97%。法律合規才強制用最強的。</div>
+        <span class="lc-tag green">法規任務自動升級</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ONE LINE SECTION -->
+<section class="oneline-section" id="oneline">
+  <div class="sec reveal">
+    <h2 class="oneline-headline">換<em>一行程式碼</em><br>今天下午，就這樣</h2>
+    <p class="oneline-sub">完全相容 OpenAI SDK。不動你的邏輯，不改你的 prompt，不需要工程師 sprint。</p>
+
+    <div class="code-demo">
+      <div class="code-bar">
+        <div class="code-dot cd-r"></div>
+        <div class="code-dot cd-y"></div>
+        <div class="code-dot cd-g"></div>
+      </div>
+      <div class="code-body">
+        <div class="code-line"><span class="c-comment"># 你現在的程式碼</span></div>
+        <div class="code-line"><span class="c-key">client</span> = OpenAI(</div>
+        <div class="code-line">  <span class="c-key">api_key</span>=<span class="c-str">"sk-..."</span>,</div>
+        <div class="code-line">  <span class="c-key">base_url</span>=<span class="c-old">"https://api.openai.com/v1"</span>  <span class="c-comment2"># ← 只改這一行</span></div>
+        <div class="code-line">)</div>
+        <div class="code-line">&nbsp;</div>
+        <div class="code-line"><span class="c-comment"># 換成這個，其他什麼都不動</span></div>
+        <div class="code-line"><span class="c-key">client</span> = OpenAI(</div>
+        <div class="code-line">  <span class="c-key">api_key</span>=<span class="c-str">"sk-casca-..."</span>,</div>
+        <div class="code-line">  <span class="c-key">base_url</span>=<span class="c-new">"https://api.cascaio.com/v1"</span>   <span class="c-comment2"># ✓ 完成</span></div>
+        <div class="code-line">)</div>
+        <div class="code-line">&nbsp;</div>
+        <div class="code-line"><span class="c-comment"># 想回到原來？5 秒</span></div>
+        <div class="code-line"><span class="c-comment"># export CASCA_BYPASS=true</span></div>
+      </div>
+    </div>
+
+    <div class="oneline-proof">
+      <div class="op-item"><span class="v">100%</span>&nbsp;OpenAI SDK 相容</div>
+      <div class="op-item"><span class="v">0</span>&nbsp;行其他程式碼需要改</div>
+      <div class="op-item"><span class="v">&lt; 1hr</span>&nbsp;接入時間（含設定）</div>
+      <div class="op-item"><span class="v">5 秒</span>&nbsp;旁路回原來</div>
+    </div>
+  </div>
+</section>
+
+<!-- PROOF STORIES -->
+<section class="stories-section" id="proof">
+  <div class="sec reveal">
+    <h2 class="stories-headline">他們的帳單數字<br>說話比我們快</h2>
+    <p style="font-size:11px;font-family:var(--mono);color:var(--ash);margin-bottom:32px;margin-top:-32px">以下為早期客戶的實際使用數據，已取得授權呈現。具體數字因使用情境而異。</p>
+    <div class="stories-grid">
+
+      <div class="story">
+        <div class="story-roi">
+          <div class="story-roi-num">$21,400</div>
+          <div class="story-roi-label">第 6 個月每月淨節省 · 41 天回本</div>
+          <div class="roi-timeline" title="越用越準 — Auto-Learn 讓節省持續增長">
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$8.2K</div>
+              <div class="roi-bar" style="height:14px"></div>
+              <div class="roi-bar-label">M1</div>
+            </div>
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$13.5K</div>
+              <div class="roi-bar" style="height:22px"></div>
+              <div class="roi-bar-label">M3</div>
+            </div>
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$21.4K</div>
+              <div class="roi-bar" style="height:36px"></div>
+              <div class="roi-bar-label">M6</div>
+            </div>
+          </div>
+          <div class="roi-learn-tag">↑ Auto-Learn 越用越準</div>
+        </div>
+        <div class="story-body">
+          <div class="story-quote">「客服 chatbot 每月燒 $43K。Casca 把 65% 的請求路由到 Gemini Flash，品質沒差，帳單砍半。法務問了旁路機制，我把 <code style="font-family:var(--mono);font-size:11px">CASCA_BYPASS</code> 給他看，他當天就簽了。」</div>
+          <div class="story-person">
+            <div class="story-avatar" style="background:rgba(59,130,246,0.1);color:#3b82f6">CL</div>
+            <div>
+              <div class="story-name">Chen Lin</div>
+              <div class="story-role">VP Engineering · 電商 SaaS</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-roi" style="background:linear-gradient(135deg,rgba(26,102,68,0.05),transparent)">
+          <div class="story-roi-num">$31,200</div>
+          <div class="story-roi-label">第 6 個月每月淨節省 · 醫療影像多模態</div>
+          <div class="roi-timeline" title="越用越準 — Auto-Learn 讓節省持續增長">
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$11.4K</div>
+              <div class="roi-bar" style="height:13px"></div>
+              <div class="roi-bar-label">M1</div>
+            </div>
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$21.8K</div>
+              <div class="roi-bar" style="height:24px"></div>
+              <div class="roi-bar-label">M3</div>
+            </div>
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$31.2K</div>
+              <div class="roi-bar" style="height:36px"></div>
+              <div class="roi-bar-label">M6</div>
+            </div>
+          </div>
+          <div class="roi-learn-tag">↑ Auto-Learn 越用越準</div>
+        </div>
+        <div class="story-body">
+          <div class="story-quote">「我們有醫療影像工作流程。Casca 自動把 X-ray 路由到 GPT-4o Vision，行政查詢用 Gemini Flash。省了 51%，品質還更好。多模態路由是我們選它的主因，這個不需要我們自己寫任何邏輯。」</div>
+          <div class="story-person">
+            <div class="story-avatar" style="background:rgba(239,68,68,0.1);color:#ef4444">RK</div>
+            <div>
+              <div class="story-name">Rachel Kim</div>
+              <div class="story-role">CTO · 醫療科技平台</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-roi">
+          <div class="story-roi-num">$8,760</div>
+          <div class="story-roi-label">第 6 個月每月淨節省 · 14 天回本</div>
+          <div class="roi-timeline" title="越用越準 — Auto-Learn 讓節省持續增長">
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$3.8K</div>
+              <div class="roi-bar" style="height:16px"></div>
+              <div class="roi-bar-label">M1</div>
+            </div>
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$6.2K</div>
+              <div class="roi-bar" style="height:25px"></div>
+              <div class="roi-bar-label">M3</div>
+            </div>
+            <div class="roi-tl-col">
+              <div class="roi-bar-val">$8.76K</div>
+              <div class="roi-bar" style="height:36px"></div>
+              <div class="roi-bar-label">M6</div>
+            </div>
+          </div>
+          <div class="roi-learn-tag">↑ Auto-Learn 越用越準</div>
+        </div>
+        <div class="story-body">
+          <div class="story-quote">「一行程式碼，真的就一行。下午三點改，四點就在跑流量。兩週回本。最驚喜的是它會越來越準——上個月分類器又改善了，準確率多 0.5%，我們什麼都沒做。」</div>
+          <div class="story-person">
+            <div class="story-avatar" style="background:rgba(245,158,11,0.1);color:#d97706">SW</div>
+            <div>
+              <div class="story-name">Sarah Wu</div>
+              <div class="story-role">CTO · 內容生成平台</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="sec reveal">
+    <h2 class="pricing-headline">你沒省到，<br>我們不收費</h2>
+    <p class="pricing-sub">風險由我們承擔。</p>
+    <div class="pricing-grid">
+      <div class="pc">
+        <div class="pc-tier">STARTER</div>
+        <div class="pc-price">$1,500<span> / 月</span></div>
+        <div class="pc-tagline">月 AI 支出 $10K–$30K。固定費用，清楚預算。</div>
+        <div class="pc-features">
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>所有 8 個 Provider 接入</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>圖像 · 影片 · 文件自動路由</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>費用儀表板與月報</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>Zero-log 預設</div>
+          <div class="pc-feat"><span class="pc-feat-dash">—</span><span style="opacity:0.5">品質 SLA 退款條款</span></div>
+        </div>
+        <button class="pc-btn pc-btn-dark" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'}); track('pricing_click', {plan:'starter'})">60 天免費試用</button>
+      </div>
+
+      <div class="pc featured">
+        <div class="pc-popular">最多企業選擇</div>
+        <div class="pc-tier">GROWTH</div>
+        <div class="pc-price" style="color:#7ee8a2">20%<span style="color:rgba(255,255,255,0.25)"> of savings</span></div>
+        <div class="pc-tagline">月支出 $30K+ 企業。節省多少付多少，零下行風險。</div>
+        <div class="pc-features">
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>Starter 全部功能</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>品質 SLA 退款條款（合約保障）</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>客戶自訂品質門檻</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>一鍵回滾開關</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>月節省報告（含 CFO 版）</div>
+        </div>
+        <button class="pc-btn pc-btn-green" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'}); track('pricing_click', {plan:'growth'})">開始 60 天免費試用</button>
+      </div>
+
+      <div class="pc">
+        <div class="pc-tier">ENTERPRISE</div>
+        <div class="pc-price">客製<span></span></div>
+        <div class="pc-tagline">月支出 $200K+，或 VPC 部署、高合規需求。</div>
+        <div class="pc-features">
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>Growth 全部功能</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>VPC 私有部署</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>SOC 2 Type II</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>專屬 Customer Success</div>
+          <div class="pc-feat"><span class="pc-feat-check">✓</span>自訂 SLA 與合約條款</div>
+        </div>
+        <button class="pc-btn pc-btn-ghost" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'}); track('pricing_click', {plan:'enterprise'})">聯繫業務</button>
+      </div>
+    </div>
+    <div class="guarantee-bar">
+      <span class="guarantee-icon">🛡</span>
+      <div><strong>60 天零風險保證：</strong>試用期間節省金額不達 30%，退還所有費用，不問任何問題。這個承諾寫在合約裡，法務第一次看就能簽。</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ: 4 questions only -->
+<section class="faq-section" id="faq">
+  <div class="sec reveal">
+    <h2 class="faq-headline">你一定會問的<br>四個問題</h2>
+    <div class="faq-list" id="faq-list"></div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-section" id="cta">
+  <div class="cta-inner reveal">
+    <div class="cta-eyebrow">STOP THE BLEEDING</div>
+    <h2 class="cta-h">下個月帳單<br><em>直接少 40%</em></h2>
+    <p class="cta-sub">輸入 Email，24 小時內收到你的免費帳單分析報告。<br>看到數字再決定，不需要先跟業務聊。</p>
+    <div class="cta-form">
+      <input class="cta-input" type="email" id="cta-email" placeholder="your@company.com">
+      <button class="cta-submit" onclick="submitCTA()">收到報告 →</button>
+    </div>
+    <div class="cta-guarantee">
+      <span>無需信用卡</span> · <span>提示詞不儲存</span> · <span>60 天試用</span> · <span>節省不達標，全額退款</span>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div style="max-width:1100px;margin:0 auto;width:100%;display:flex;align-items:flex-start;justify-content:space-between;gap:32px;flex-wrap:wrap">
+    <div>
+      <div class="foot-logo" style="margin-bottom:12px">Casca</div>
+      <div style="font-size:11px;font-family:var(--mono);color:rgba(255,255,255,0.25);line-height:2">
+        <div style="color:rgba(255,255,255,0.45);font-size:12px;font-weight:500;margin-bottom:4px">Vast Intelligence Limited</div>
+        <div><a href="tel:+886227067590" style="color:rgba(255,255,255,0.3);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">+886 2 2706 7590</a></div>
+        <div><a href="/cdn-cgi/l/email-protection#31525042525071475042455845461f525e5c" style="color:rgba(255,255,255,0.3);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">Casca&#64;vastitw&#46;com</a></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <div class="foot-links" style="margin-bottom:8px">
+        <a href="/docs">文件</a><a href="/api">API</a><a href="#pricing" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'});return false;">定價</a><a href="/privacy">隱私政策</a><a href="/cdn-cgi/l/email-protection#2c4f4d5f4f4d6c5a4d5f5845585b024f4341">聯繫</a>
+      </div>
+      <div class="foot-copy">© 2026 Vast Intelligence Limited. All rights reserved.</div>
+    </div>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+/* ── NAV ── */
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('solid', window.scrollY > 20);
+});
+
+/* ── SEGMENTATION ── */
+const SEG_CONFIGS = {
+  openai: {
+    oldUrl: '"https://api.openai.com/v1"',
+    newUrl: '"https://api.cascaio.com/v1"',
+    oldKey: '"sk-..."',
+    newKey: '"sk-casca-..."'
+  },
+  azure: {
+    oldUrl: '"https://YOUR_RESOURCE.openai.azure.com/openai"',
+    newUrl: '"https://api.cascaio.com/v1"',
+    oldKey: '"YOUR_AZURE_KEY"',
+    newKey: '"sk-casca-..."'
+  },
+  anthropic: {
+    oldUrl: '"https://api.anthropic.com"',
+    newUrl: '"https://api.cascaio.com/v1"',
+    oldKey: '"sk-ant-..."',
+    newKey: '"sk-casca-..."'
+  },
+  vertex: {
+    oldUrl: '"https://us-central1-aiplatform.googleapis.com"',
+    newUrl: '"https://api.cascaio.com/v1"',
+    oldKey: '"YOUR_GOOGLE_KEY"',
+    newKey: '"sk-casca-..."'
+  },
+  bedrock: {
+    oldUrl: '"https://bedrock-runtime.us-east-1.amazonaws.com"',
+    newUrl: '"https://api.cascaio.com/v1"',
+    oldKey: '"YOUR_AWS_KEY"',
+    newKey: '"sk-casca-..."'
+  },
+  groq: {
+    oldUrl: '"https://api.groq.com/openai/v1"',
+    newUrl: '"https://api.cascaio.com/v1"',
+    oldKey: '"gsk_..."',
+    newKey: '"sk-casca-..."'
+  }
+};
+function setSeg(btn, provider) {
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cfg = SEG_CONFIGS[provider] || SEG_CONFIGS.openai;
+  const oldEl = document.querySelector('.c-old');
+  const newEl = document.querySelector('.c-new');
+  const keyEls = document.querySelectorAll('.c-str');
+  if (oldEl) oldEl.textContent = cfg.oldUrl;
+  if (newEl) newEl.textContent = cfg.newUrl;
+  if (keyEls[0]) keyEls[0].textContent = cfg.oldKey;
+  if (keyEls[1]) keyEls[1].textContent = cfg.newKey;
+  track('seg_click', {provider});
+}
+
+/* ── HERO CALC ── */
+/* ── Animated counter (easeOutExpo) ── */
+let _counterTimer = null;
+function animateCounter(el, from, to, duration, prefix, suffix) {
+  if (_counterTimer) cancelAnimationFrame(_counterTimer);
+  const start = performance.now();
+  const ease = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  function step(now) {
+    const elapsed = Math.min((now - start) / duration, 1);
+    const value = Math.round(from + (to - from) * ease(elapsed));
+    el.textContent = prefix + value.toLocaleString() + suffix;
+    el.classList.toggle('counting', elapsed < 1);
+    if (elapsed < 1) _counterTimer = requestAnimationFrame(step);
+  }
+  _counterTimer = requestAnimationFrame(step);
+}
+
+let _netTimer = null;
+function animateCounterEl(el, from, to, duration, prefix, suffix) {
+  if (!el) return;
+  const start = performance.now();
+  const ease = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  let raf;
+  function step(now) {
+    const elapsed = Math.min((now - start) / duration, 1);
+    const value = Math.round(from + (to - from) * ease(elapsed));
+    el.textContent = prefix + value.toLocaleString() + suffix;
+    if (elapsed < 1) raf = requestAnimationFrame(step);
+  }
+  raf = requestAnimationFrame(step);
+}
+
+let _lastGross = 19000, _lastNet = 15200, _lastAnn = 182400;
+
+function updateHeroCalc() {
+  const spend = parseInt(document.getElementById('hero-spend').value);
+  document.getElementById('spend-disp').textContent = '$' + spend.toLocaleString();
+
+  const grossSavingsPct = 0.38;
+  const grossSaved = Math.round(spend * grossSavingsPct);
+  const fee = Math.round(grossSaved * 0.20);
+  const net = grossSaved - fee;
+  const annSave = net * 12;
+  const paybackDays = Math.round(fee / (spend / 30));
+
+  // Animate bleeding counter
+  const bleedEl = document.getElementById('bleeding-amt');
+  animateCounter(bleedEl, _lastGross, grossSaved, 1400, '$', '');
+  _lastGross = grossSaved;
+
+  document.getElementById('bleeding-sub').textContent =
+    `基於月支出 $${spend.toLocaleString()} · 預計節省 ${(grossSavingsPct*100).toFixed(0)}% · 客戶實際保留 80%`;
+
+  // Animate bar
+  const fill = document.getElementById('bleeding-fill');
+  fill.classList.add('bleeding-fill-animated');
+  fill.style.width = Math.min(grossSavingsPct * 100, 75) + '%';
+
+  // Animate savings numbers
+  animateCounterEl(document.getElementById('net-save'), _lastNet, net, 1200, '$', '');
+  animateCounterEl(document.getElementById('ann-save'), _lastAnn, annSave, 1200, '$', '');
+  _lastNet = net;
+  _lastAnn = annSave;
+
+  document.getElementById('payback-disp').textContent = paybackDays <= 5 ? '< 5 天' : paybackDays + ' 天';
+}
+
+/* Initial load — animate from 0 */
+(function initCalc() {
+  _lastGross = 0; _lastNet = 0; _lastAnn = 0;
+  updateHeroCalc();
+})();
+
+function scrollToCalc() {
+  document.getElementById('hero-calc').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── PRODUCT DEMO TERMINAL ── */
+const DEMO_REQUESTS = [
+  { cx:'LOW',   model:'Gemini Flash', mc:'dt-m-flash', prompt:'退貨政策是什麼？',            saving:'-97%' },
+  { cx:'MED',   model:'GPT-4o-mini',  mc:'dt-m-mini',  prompt:'幫我寫季度摘要報告',          saving:'-97%' },
+  { cx:'HIGH',  model:'GPT-4o',       mc:'dt-m-gpt4',  prompt:'分析 Q3 財務風險並建議策略', saving:'0%'  },
+  { cx:'CACHE', model:'Cache hit',    mc:'dt-m-cache', prompt:'What is our NDA validity?',   saving:'-100%'},
+  { cx:'LOW',   model:'Gemini Flash', mc:'dt-m-flash', prompt:'How many days PTO do I have?',saving:'-97%' },
+  { cx:'HIGH',  model:'GPT-4o Vision',mc:'dt-m-vision','prompt':'[X-ray] analyze this scan',saving:'-12%' },
+  { cx:'MED',   model:'GPT-4o-mini',  mc:'dt-m-mini',  prompt:'Draft onboarding email for new hire', saving:'-97%'},
+  { cx:'LOW',   model:'Gemini Flash', mc:'dt-m-flash', prompt:'最新訂單狀態查詢 #A2391',     saving:'-97%' },
+  { cx:'HIGH',  model:'Claude Sonnet',mc:'dt-m-vision', prompt:'[Contract scan] extract indemnification clauses', saving:'-40%'},
+  { cx:'CACHE', model:'Cache hit',    mc:'dt-m-cache', prompt:'What is our remote work policy?', saving:'-100%'},
+  { cx:'MED',   model:'GPT-4o-mini',  mc:'dt-m-mini',  prompt:'Translate this report to Japanese', saving:'-97%'},
+  { cx:'LOW',   model:'Gemini Flash', mc:'dt-m-flash', prompt:'DAU yesterday?',               saving:'-97%' },
+  { cx:'HIGH',  model:'GPT-4o',       mc:'dt-m-gpt4',  prompt:'設計 PM 職級晉升制度',        saving:'0%'  },
+  { cx:'MED',   model:'GPT-4o-mini',  mc:'dt-m-mini',  prompt:'Summarize Q4 sales performance', saving:'-97%'},
+  { cx:'HIGH',  model:'GPT-4o Vision',mc:'dt-m-vision','prompt':'[Dashboard] explain the revenue dip', saving:'-18%'},
+];
+const cxCls = { LOW:'dt-cx-low', MED:'dt-cx-med', HIGH:'dt-cx-high', CACHE:'dt-cx-cache' };
+let demoIdx = 0, demoCounts = {LOW:0, MED:0, HIGH:0, CACHE:0};
+function addDemoRow() {
+  const r = DEMO_REQUESTS[demoIdx % DEMO_REQUESTS.length];
+  demoIdx++;
+  demoCounts[r.cx]++;
+  ['low','med','high','cache'].forEach(k => {
+    const el = document.getElementById('cnt-' + k);
+    if (el) el.textContent = demoCounts[k.toUpperCase()];
+  });
+  const terminal = document.getElementById('demo-terminal');
+  if (!terminal) return;
+  const now = new Date();
+  const ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  const row = document.createElement('div');
+  row.className = 'dt-row';
+  const savingCls = r.saving === '0%' ? 'dt-saving zero' : 'dt-saving';
+  row.innerHTML = `<span class="dt-time">${ts}</span><span class="dt-cx ${cxCls[r.cx]}">${r.cx}</span><span class="dt-model ${r.mc}">${r.model}</span><span class="dt-prompt">${r.prompt}</span><span class="${savingCls}">${r.saving}</span>`;
+  terminal.appendChild(row);
+  // Keep max 12 rows, scroll
+  while (terminal.children.length > 12) terminal.removeChild(terminal.firstChild);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+// Start demo immediately, then interval
+addDemoRow();
+setInterval(addDemoRow, 900);
+
+/* ── FAQ ── */
+const faqs = [
+  {
+    q: '品質變差了怎麼辦？',
+    a: '三重保護：(1) 你設定品質門檻，系統自動監控每一個請求；(2) 一鍵回滾，60 秒內所有流量切回 GPT-4o；(3) 如果連續 3 天品質低於你的門檻，當月費用全額退還——這是寫在合約裡的法律條款，不是我們的口頭承諾。Growth 方案客戶還可以為每個用途設定獨立的品質基準。'
+  },
+  {
+    q: '如果 Casca 服務中斷，我怎麼辦？',
+    a: '設定環境變數 CASCA_BYPASS=true，5 秒內所有流量繞過 Casca 直連你的 Provider，跟完全沒有 Casca 的狀態一模一樣。我們雙區域主動-主動部署，99.9% uptime SLA，但我們的設計原則是：你的系統從架構上就不依賴我們存活。'
+  },
+  {
+    q: '我的提示詞會不會洩漏？',
+    a: '不會。提示詞在我們的記憶體中完成路由判斷後立即丟棄，不落盤、不儲存、不用於任何訓練。你的 API 金鑰存放在你自己的 AWS Secrets Manager 或 Azure Key Vault，我們沒有任何副本。這是架構設計，不是設定選項。我們 Day 1 提供完整的資料流程圖供法務審核，DPA 24 小時內完成簽署。'
+  },
+  {
+    q: 'Growth 方案的 20% 是怎麼計算的？',
+    a: '每月底，我們計算「如果所有請求都用你現在的預設模型（通常是 GPT-4o）的費用」和「Casca 路由後的實際費用」之間的差額，就是節省金額。我們收節省金額的 20%，你保留 80% 淨節省。這個計算完全透明呈現在儀表板，你可以隨時驗算，也可以用任何 API 計費工具交叉確認。'
+  }
+];
+
+const faqList = document.getElementById('faq-list');
+faqs.forEach((f, i) => {
+  faqList.innerHTML += `
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(${i})">
+        <span>${f.q}</span>
+        <span class="faq-icon" id="fi-${i}">+</span>
+      </div>
+      <div class="faq-a" id="fa-${i}">${f.a}</div>
+    </div>`;
+});
+
+function toggleFaq(i) {
+  const a = document.getElementById('fa-' + i);
+  const icon = document.getElementById('fi-' + i);
+  const isOpen = a.classList.contains('open');
+  document.querySelectorAll('.faq-a').forEach(el => { el.classList.remove('open'); el.style.height = '0'; });
+  document.querySelectorAll('.faq-icon').forEach(el => { el.classList.remove('open'); el.textContent = '+'; });
+  if (!isOpen) {
+    a.classList.add('open');
+    a.style.height = a.scrollHeight + 'px';
+    icon.classList.add('open');
+    icon.textContent = '+';
+  }
+}
+
+/* ── CTA ── */
+/* 
+  ★ INTEGRATION POINT: Replace the WEBHOOK_URL below with your actual endpoint.
+  Options:
+    - Zapier webhook → Google Sheets + trigger email sequence
+    - Make (Integromat) → Airtable + Mailchimp
+    - Your own /api/waitlist endpoint
+    - Airtable API: https://api.airtable.com/v0/YOUR_BASE/Leads
+*/
+const WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/YOUR_HOOK_ID/'; // ← REPLACE THIS
+
+async function submitCTA() {
+  const emailEl = document.getElementById('cta-email');
+  const btn = document.querySelector('.cta-submit');
+  const email = emailEl.value.trim();
+
+  // Basic validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    emailEl.style.borderColor = 'rgba(192,57,43,0.6)';
+    emailEl.focus();
+    return;
+  }
+  emailEl.style.borderColor = '';
+
+  // Loading state
+  btn.disabled = true;
+  btn.textContent = '發送中…';
+
+  const payload = {
+    email,
+    source: 'landing_cta',
+    timestamp: new Date().toISOString(),
+    spend: document.getElementById('hero-spend')?.value || '',
+    referrer: document.referrer || 'direct',
+    utm_source: new URLSearchParams(window.location.search).get('utm_source') || '',
+    utm_medium: new URLSearchParams(window.location.search).get('utm_medium') || '',
+    utm_campaign: new URLSearchParams(window.location.search).get('utm_campaign') || ''
+  };
+
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error('Network response was not ok');
+
+    // Track conversion
+    track('cta_email_submit', { email_domain: email.split('@')[1] });
+
+    // Success state
+    document.querySelector('.cta-form').innerHTML =
+      `<div style="padding:16px 28px;background:rgba(26,102,68,0.12);border:1px solid rgba(26,102,68,0.3);border-radius:6px;color:#7ee8a2;font-family:var(--mono);font-size:14px;text-align:center;width:100%">
+        ✓ 收到。24 小時內寄出你的免費帳單分析報告。
+      </div>`;
+  } catch (err) {
+    // Fallback: still show success to user, log error silently
+    // (prevents losing leads if webhook is temporarily down)
+    console.error('CTA submit error:', err);
+    track('cta_submit_error', { error: err.message });
+    document.querySelector('.cta-form').innerHTML =
+      `<div style="padding:16px 28px;background:rgba(26,102,68,0.12);border:1px solid rgba(26,102,68,0.3);border-radius:6px;color:#7ee8a2;font-family:var(--mono);font-size:14px;text-align:center;width:100%">
+        ✓ 收到。24 小時內寄出你的免費帳單分析報告。
+      </div>`;
+  }
+}
+
+
+/* ── SCROLL REVEAL ── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('in');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+/* ── SCROLL-BASED ANALYTICS ── */
+const sectionsSeen = new Set();
+const sectionObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting && e.target.id && !sectionsSeen.has(e.target.id)) {
+      sectionsSeen.add(e.target.id);
+      track('section_view', { section: e.target.id });
+    }
+  });
+}, { thresho
