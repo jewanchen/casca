@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casca Admin — Internal Operations</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --bg:#f5f3ef;
+  --bg1:#ffffff;
+  --bg2:#f0ede8;
+  --bg3:#e8e4de;
+  --bg4:#ddd9d2;
+  --ink:#1a1714;
+  --ink2:#3d3830;
+  --ink3:#6b6358;
+  --ink4:#9d9488;
+  --ink5:#c4bcb2;
+  --line:#e2ddd7;
+  --line2:#d0cac2;
+  --teal:#007a5e;
+  --teal-bg:#e8f5f1;
+  --teal-mid:#c2e4da;
+  --amber:#a05c00;
+  --amber-bg:#fdf3e3;
+  --amber-mid:#f8d8a0;
+  --red:#b91c1c;
+  --red-bg:#fef2f2;
+  --red-mid:#fecaca;
+  --blue:#1d4ed8;
+  --blue-bg:#eff6ff;
+  --blue-mid:#bfdbfe;
+  --purple:#6d28d9;
+  --purple-bg:#f5f3ff;
+  --font:'DM Sans',sans-serif;
+  --display:'Fraunces',serif;
+  --mono:'Geist Mono',monospace;
+  --r3:3px;--r5:5px;--r8:8px;--r12:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13px;line-height:1.5;height:100%;display:flex;flex-direction:column}
+
+/* ── TOP BAR ── */
+.topbar{height:48px;background:var(--ink);display:flex;align-items:center;padding:0 20px;gap:0;flex-shrink:0;z-index:200}
+.tb-logo{display:flex;align-items:center;gap:8px;margin-right:28px;padding-right:20px;border-right:1px solid #ffffff18}
+.tb-logotype{font-family:var(--display);font-size:16px;font-weight:600;color:#fff;letter-spacing:-0.01em}
+.tb-badge{font-size:9px;font-family:var(--mono);background:#ffffff18;color:#ffffff88;padding:1px 6px;border-radius:2px;letter-spacing:0.06em;text-transform:uppercase}
+.tb-nav{display:flex;gap:1px;flex:1}
+.tb-tab{padding:6px 14px;font-size:12px;font-weight:400;color:#ffffff66;cursor:pointer;border-radius:3px;transition:all 0.12s;white-space:nowrap;font-family:var(--font);border:none;background:transparent}
+.tb-tab:hover{color:#ffffffcc;background:#ffffff12}
+.tb-tab.active{color:#fff;background:#ffffff1e;font-weight:500}
+.tb-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.tb-user{display:flex;align-items:center;gap:7px;font-size:11px;font-family:var(--mono)}
+.tb-avatar{width:22px;height:22px;border-radius:3px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff}
+.tb-uname{color:#ffffffaa}
+.tb-signal{display:flex;align-items:center;gap:5px;font-size:10px;font-family:var(--mono);color:#ffffff55}
+.signal-dot{width:5px;height:5px;border-radius:50%;background:#22c55e;animation:blink 2.5s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── LAYOUT ── */
+.body-wrap{display:flex;flex:1;overflow:hidden}
+.sidebar{width:188px;flex-shrink:0;background:var(--bg1);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
+.sb-section{padding:16px 12px 4px;font-size:9px;font-family:var(--mono);color:var(--ink4);letter-spacing:0.1em;text-transform:uppercase}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12px;color:var(--ink3);cursor:pointer;border-left:2px solid transparent;transition:all 0.1s;font-weight:400}
+.sb-item:hover{color:var(--ink);background:var(--bg2)}
+.sb-item.active{color:var(--ink);background:var(--bg2);border-left-color:var(--ink);font-weight:500}
+.sb-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.sb-badge{margin-left:auto;font-size:9px;font-family:var(--mono);background:var(--red);color:#fff;padding:1px 5px;border-radius:8px;min-width:16px;text-align:center;font-weight:600}
+.sb-footer{margin-top:auto;padding:12px;border-top:1px solid var(--line);font-size:10px;font-family:var(--mono);color:var(--ink4)}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;background:var(--bg)}
+.page{display:none;padding:24px 28px;max-width:1200px}
+.page.active{display:block}
+.ph{margin-bottom:20px}
+.ph-title{font-family:var(--display);font-size:22px;font-weight:600;color:var(--ink);letter-spacing:-0.02em;margin-bottom:3px}
+.ph-sub{font-size:12px;color:var(--ink3);font-family:var(--mono)}
+
+/* ── METRIC CARDS ── */
+.metric-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.mc{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r8);padding:14px 16px}
+.mc-label{font-size:10px;font-family:var(--mono);color:var(--ink4);margin-bottom:8px;letter-spacing:0.04em;text-transform:uppercase}
+.mc-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--ink);line-height:1;margin-bottom:4px}
+.mc-sub{font-size:10px;font-family:var(--mono);color:var(--ink4);display:flex;align-items:center;gap:4px}
+.delta{font-size:10px;font-family:var(--mono);padding:1px 5px;border-radius:2px}
+.d-up{background:var(--teal-bg);color:var(--teal)}
+.d-dn{background:var(--red-bg);color:var(--red)}
+
+/* ── CARDS ── */
+.card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r8);overflow:hidden;margin-bottom:14px}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-title{font-size:13px;font-weight:500;color:var(--ink)}
+.card-sub{font-size:10px;font-family:var(--mono);color:var(--ink4)}
+.card-body{padding:16px 18px}
+.card-body-flush{padding:0}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{font-size:9px;font-family:var(--mono);color:var(--ink4);letter-spacing:0.07em;text-transform:uppercase;padding:10px 18px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;background:var(--bg2);font-weight:400}
+.data-table th:not(:first-child){text-align:right}
+.data-table td{padding:10px 18px;border-bottom:1px solid var(--line);vertical-align:middle;color:var(--ink2)}
+.data-table td:not(:first-child){text-align:right;font-family:var(--mono);font-size:11px}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--bg2)}
+.data-table .fw{font-weight:500;color:var(--ink)}
+
+/* ── CHIPS/TAGS ── */
+.tag{display:inline-flex;font-size:10px;font-weight:500;padding:2px 7px;border-radius:2px;font-family:var(--mono);letter-spacing:0.02em}
+.tag-low{background:var(--teal-bg);color:var(--teal)}
+.tag-med{background:var(--amber-bg);color:var(--amber)}
+.tag-high{background:var(--red-bg);color:var(--red)}
+.tag-ambig{background:var(--purple-bg);color:var(--purple)}
+.tag-ok{background:var(--teal-bg);color:var(--teal)}
+.tag-warn{background:var(--amber-bg);color:var(--amber)}
+.tag-err{background:var(--red-bg);color:var(--red)}
+.tag-trial{background:var(--blue-bg);color:var(--blue)}
+.tag-neutral{background:var(--bg3);color:var(--ink3)}
+.plan-badge{font-size:9px;font-family:var(--mono);padding:2px 7px;border-radius:2px}
+.plan-growth{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+.plan-starter{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-mid)}
+.plan-enterprise{background:var(--purple-bg);color:var(--purple);border:1px solid #c4b5fd}
+
+/* ── BUTTONS ── */
+.btn{padding:6px 14px;font-size:12px;font-family:var(--font);font-weight:500;border-radius:var(--r5);cursor:pointer;border:1px solid var(--line2);background:var(--bg1);color:var(--ink2);transition:all 0.1s}
+.btn:hover{background:var(--bg2);border-color:var(--line2)}
+.btn-primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn-primary:hover{background:var(--ink2)}
+.btn-teal{background:var(--teal);color:#fff;border-color:var(--teal)}
+.btn-teal:hover{background:#006650}
+.btn-red{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:10px}
+
+/* ── ANNOTATION QUEUE ── */
+.annot-item{border:1px solid var(--line);border-radius:var(--r8);padding:14px 16px;margin-bottom:8px;background:var(--bg1);transition:all 0.15s;position:relative}
+.annot-item:hover{border-color:var(--line2);box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.annot-prompt{font-size:12px;color:var(--ink2);font-style:italic;margin-bottom:8px;line-height:1.6;padding-right:60px}
+.annot-meta{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.annot-uc{font-size:10px;font-family:var(--mono);background:var(--bg2);padding:1px 6px;border-radius:2px;color:var(--ink3)}
+.annot-rule{font-size:10px;font-family:var(--mono);color:var(--ink4)}
+.annot-time{font-size:10px;font-family:var(--mono);color:var(--ink5);margin-left:auto}
+.annot-btns{display:flex;gap:6px;align-items:center}
+.annot-btn{padding:5px 14px;font-size:11px;font-family:var(--mono);font-weight:500;border-radius:3px;cursor:pointer;border:1px solid;transition:all 0.1s}
+.ab-low{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-mid)}
+.ab-low:hover{background:var(--teal);color:#fff}
+.ab-med{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-mid)}
+.ab-med:hover{background:var(--amber);color:#fff}
+.ab-high{background:var(--red-bg);color:var(--red);border-color:var(--red-mid)}
+.ab-high:hover{background:var(--red);color:#fff}
+.ab-skip{background:var(--bg2);color:var(--ink4);border-color:var(--line)}
+.ab-skip:hover{background:var(--bg3)}
+.conf-pill{position:absolute;top:14px;right:14px;font-size:9px;font-family:var(--mono);padding:2px 7px;border-radius:10px;font-weight:600}
+.conf-low{background:var(--red-bg);color:var(--red)}
+.conf-mid{background:var(--amber-bg);color:var(--amber)}
+.conf-high{background:var(--teal-bg);color:var(--teal)}
+.annot-empty{text-align:center;padding:40px 20px;color:var(--ink4);font-family:var(--mono);font-size:12px}
+
+/* ── PROGRESS BAR ── */
+.prog-wrap{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:4px 0}
+.prog-fill{height:100%;border-radius:2px;transition:width 0.8s ease}
+
+/* ── TOGGLES ── */
+.toggle{cursor:pointer;flex-shrink:0}
+.tog-track{width:32px;height:18px;border-radius:9px;background:var(--bg3);border:1px solid var(--line2);position:relative;transition:all 0.2s}
+.tog-track.on{background:var(--teal);border-color:var(--teal)}
+.tog-thumb{width:12px;height:12px;border-radius:6px;background:var(--ink4);position:absolute;top:2px;left:2px;transition:all 0.2s}
+.tog-track.on .tog-thumb{left:16px;background:#fff}
+
+/* ── FORM INPUTS ── */
+.field{margin-bottom:12px}
+.field-label{font-size:10px;font-family:var(--mono);color:var(--ink4);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}
+.field-input{width:100%;padding:7px 10px;font-size:12px;font-family:var(--font);border:1px solid var(--line2);border-radius:var(--r5);background:var(--bg1);color:var(--ink);outline:none;transition:border-color 0.1s}
+.field-input:focus{border-color:var(--ink3)}
+.field-select{width:100%;padding:7px 10px;font-size:12px;font-family:var(--mono);border:1px solid var(--line2);border-radius:var(--r5);background:var(--bg1);color:var(--ink2);outline:none;cursor:pointer}
+.field-input[type=range]{padding:4px 0;height:24px;background:transparent}
+
+/* ── ACCURACY RING ── */
+.acc-ring-wrap{position:relative;display:inline-block;width:80px;height:80px}
+.acc-ring-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.acc-big{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--teal)}
+.acc-lbl{font-size:8px;font-family:var(--mono);color:var(--ink4)}
+
+/* ── BATCH ROW ── */
+.batch-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}
+.batch-row:last-child{border-bottom:none}
+.batch-num{font-family:var(--mono);font-weight:500;min-width:55px;color:var(--ink)}
+.batch-bar-wrap{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.batch-bar-fill{height:100%;border-radius:2px;background:var(--teal)}
+.batch-pct{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:36px;text-align:right}
+.batch-count{font-family:var(--mono);font-size:11px;color:var(--ink4);min-width:44px;text-align:right}
+
+/* ── PROVIDER PILL ── */
+.prov-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);background:var(--bg2);border:1px solid var(--line);padding:2px 7px;border-radius:2px;color:var(--ink3);margin:2px}
+.prov-dot-sm{width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0}
+.prov-dot-gray{background:var(--ink5)}
+
+/* ── KEY-VALUE ── */
+.kv-row{display:flex;align-items:flex-start;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);gap:12px}
+.kv-row:last-child{border-bottom:none}
+.kv-label{font-size:12px;color:var(--ink2);flex-shrink:0}
+.kv-sub{font-size:10px;font-family:var(--mono);color:var(--ink4);margin-top:1px}
+.kv-val{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right}
+
+/* ── API KEY ── */
+.apikey-box{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r5);padding:7px 10px;font-family:var(--mono);font-size:11px;color:var(--ink3);display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+
+/* ── BILLING ROW ── */
+.bill-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}
+.bill-row:last-child{border-bottom:none}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:#00000040;z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r12);padding:24px;width:480px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+.modal-title{font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);margin-bottom:16px}
+
+/* ── TOAST ── */
+#toast{display:none;position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;font-size:11px;font-family:var(--mono);padding:9px 16px;border-radius:var(--r5);z-index:999;animation:slideUp 0.2s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── CHART ── */
+.chart-wrap{position:relative}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+
+/* ── PAGE FADE IN ── */
+.page.active{animation:pgIn 0.2s ease}
+@keyframes pgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── AUTH OVERLAY ── */
+.auth-overlay{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.auth-box{background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r12);padding:36px;width:400px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+.auth-logo{font-family:var(--display);font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.auth-logo span{color:var(--teal)}
+.auth-sub{font-size:12px;color:var(--ink3);font-family:var(--mono);margin-bottom:28px}
+.auth-error{display:none;background:var(--red-bg);border:1px solid var(--red-mid);color:var(--red);font-size:11px;padding:8px 12px;border-radius:var(--r5);margin-bottom:14px;font-family:var(--mono)}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:10px;font-family:var(--mono);color:var(--ink4);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}
+.auth-field input{width:100%;padding:9px 12px;font-size:13px;font-family:var(--font);border:1px solid var(--line2);border-radius:var(--r5);background:var(--bg1);color:var(--ink);outline:none;transition:border-color 0.15s}
+.auth-field input:focus{border-color:var(--teal)}
+.auth-btn{width:100%;padding:11px;background:var(--ink);color:#fff;border:none;border-radius:var(--r5);font-size:13px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all 0.15s;margin-bottom:10px}
+.auth-btn:hover{background:var(--ink2)}
+.auth-btn:disabled{opacity:0.5;cursor:not-allowed}
+.auth-footer{font-size:11px;color:var(--ink4);text-align:center}
+.tb-logout{font-size:10px;font-family:var(--mono);color:#ffffff55;cursor:pointer;padding:3px 8px;border-radius:3px;border:1px solid #ffffff18;transition:all 0.12s;background:transparent}
+.tb-logout:hover{color:#ffffffcc;border-color:#ffffff33;background:#ffffff0a}
+</style>
+</head>
+<body>
+
+<!-- ── AUTH OVERLAY (shown when not logged in) ── -->
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">Casca <span>Admin</span></div>
+    <div class="auth-sub">Internal Operations Portal — Supabase Auth</div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@vastitw.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="auth-pw" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-btn" id="auth-btn" onclick="authSignIn()">登入</button>
+    <div class="auth-footer">僅限授權管理員。如需帳號請聯絡 CTO。</div>
+  </div>
+</div>
+
+<!-- ── TOP BAR ── -->
+<div class="topbar">
+  <div class="tb-logo">
+    <span class="tb-logotype">Casca</span>
+    <span class="tb-badge">Admin</span>
+  </div>
+  <div class="tb-nav">
+    <button class="tb-tab active" onclick="goPage('cockpit',this)">Cockpit</button>
+    <button class="tb-tab" onclick="goPage('customers',this)">Customers</button>
+    <button class="tb-tab" onclick="goPage('billing',this)">Billing</button>
+    <button class="tb-tab" onclick="goPage('annotations',this)">Annotations <span id="annot-count-tab" style="font-size:9px;background:#ef4444;color:#fff;padding:1px 5px;border-radius:8px;margin-left:3px">0</span></button>
+    <button class="tb-tab" onclick="goPage('training',this)">Training Data</button>
+    <button class="tb-tab" onclick="goPage('system',this)">System</button>
+    <button class="tb-tab" onclick="goPage('providers',this)">🤖 LLM Providers</button>
+  </div>
+  <div class="tb-right">
+    <div class="tb-signal"><div class="signal-dot"></div>All systems live</div>
+    <div class="tb-user">
+      <div class="tb-avatar" id="tb-avatar">?</div>
+      <span class="tb-uname" id="tb-uname">—</span>
+    </div>
+    <button class="tb-logout" id="tb-logout" onclick="authSignOut()" style="display:none">登出</button>
+  </div>
+</div>
+
+<div class="body-wrap">
+<!-- ── SIDEBAR ── -->
+<div class="sidebar">
+  <div class="sb-section">Overview</div>
+  <div class="sb-item active" onclick="goPage('cockpit',this)"><span class="sb-icon">⚡</span>Cockpit</div>
+
+  <div class="sb-section">Customers</div>
+  <div class="sb-item" onclick="goPage('customers',this)"><span class="sb-icon">🏢</span>All Customers</div>
+  <div class="sb-item" onclick="goPage('billing',this)"><span class="sb-icon">💳</span>Billing</div>
+
+  <div class="sb-section">Intelligence</div>
+  <div class="sb-item" onclick="goPage('annotations',this)"><span class="sb-icon">🏷</span>Annotations<span class="sb-badge" id="annot-badge">0</span></div>
+  <div class="sb-item" onclick="goPage('training',this)"><span class="sb-icon">📊</span>Training Data</div>
+
+  <div class="sb-section">Config</div>
+  <div class="sb-item" onclick="goPage('system',this)"><span class="sb-icon">⚙️</span>System</div>
+  <div class="sb-item" onclick="goPage('providers',this)"><span class="sb-icon">🤖</span>LLM Providers</div>
+
+  <div class="sb-footer">
+    <div style="margin-bottom:3px" id="sb-engine">Casca Engine —</div>
+    <div id="sb-rules">Loading…</div>
+    <div style="color:var(--teal);margin-top:2px">Acc: <span id="sb-acc">—</span></div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ── -->
+<div class="main">
+
+<!-- ══ COCKPIT ══ -->
+<div class="page active" id="page-cockpit">
+  <div class="ph">
+    <div class="ph-title">Operations Cockpit</div>
+    <div class="ph-sub">Real-time view across all customers — <span id="cockpit-time"></span></div>
+  </div>
+  <div class="metric-row">
+    <div class="mc"><div class="mc-label">MRR</div><div class="mc-val" style="color:var(--teal)">$14,820</div><div class="mc-sub"><span class="delta d-up">↑ +$1,200</span> vs last month</div></div>
+    <div class="mc"><div class="mc-label">Active Customers</div><div class="mc-val">7</div><div class="mc-sub">1 trial · 2 renewal due</div></div>
+    <div class="mc"><div class="mc-label">Total Requests Today</div><div class="mc-val" id="req-today">48,291</div><div class="mc-sub"><span class="delta d-up">↑ 12%</span> vs yesterday</div></div>
+    <div class="mc"><div class="mc-label">Classifier Accuracy</div><div class="mc-val" style="color:var(--teal)" id="acc-main">94.1%</div><div class="mc-sub">Pending labels: <span id="pending-lbl">0</span></div></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="card-head"><div class="card-title">MRR trend</div><div class="card-sub">Last 6 months</div></div>
+      <div class="card-body"><div class="chart-wrap" style="height:150px"><canvas id="mrrChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Customer health</div></div>
+      <div class="card-body card-body-flush">
+        <table class="data-table">
+          <thead><tr><th>Customer</th><th>Status</th><th>Requests</th><th>Savings</th></tr></thead>
+          <tbody id="health-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Accuracy flywheel</div><div class="card-sub">Labels → accuracy over time</div></div>
+      <div class="card-body">
+        <div class="chart-wrap" style="height:130px"><canvas id="accChart"></canvas></div>
+        <div style="margin-top:10px;font-size:11px;color:var(--ink3);font-family:var(--mono)">Every 10 labels → +0.12% accuracy. Target: 98.5%</div>
+        <div class="prog-wrap" style="margin-top:6px"><div class="prog-fill" style="width:72%;background:var(--teal)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);color:var(--ink4);margin-top:3px"><span>Current: 94.1%</span><span>Target: 98.5%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Today's annotation progress</div><div class="card-sub">Goal: 30 labels / day</div></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="acc-ring-wrap"><canvas id="progressRing" width="80" height="80"></canvas><div class="acc-ring-val"><div class="acc-big" id="done-count">0</div><div class="acc-lbl">/ 30</div></div></div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;font-family:var(--mono)">LOW labeled: <span id="low-count" style="color:var(--teal)">0</span></div>
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;font-family:var(--mono)">MED labeled: <span id="med-count" style="color:var(--amber)">0</span></div>
+            <div style="font-size:11px;color:var(--ink3);font-family:var(--mono)">HIGH labeled: <span id="high-count" style="color:var(--red)">0</span></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;font-size:12px" onclick="goPage('annotations',document.querySelector('[onclick*=annotations]'))">→ Go to annotation queue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Live request stream — all customers</div><div class="card-sub">Last 60 seconds</div><div style="display:flex;gap:6px"><button class="btn btn-sm" id="stream-btn" onclick="toggleStream()">▶ Start</button><button class="btn btn-sm" onclick="clearStreamAdmin()">Clear</button></div></div>
+    <div class="card-body card-body-flush" style="padding:10px">
+      <div id="admin-stream" style="height:160px;overflow-y:auto;font-family:var(--mono);font-size:10px;background:var(--bg2);border-radius:var(--r5);padding:8px">
+        <div style="color:var(--ink4);text-align:center;padding:30px 0">Click ▶ Start to monitor live requests</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CUSTOMERS ══ -->
+<div class="page" id="page-customers">
+  <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between">
+    <div><div class="ph-title">Customers</div><div class="ph-sub">7 active · 1 trial</div></div>
+    <button class="btn btn-primary" onclick="openModal()">+ New Customer</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body card-body-flush">
+      <table class="data-table">
+        <thead><tr><th>Customer</th><th style="text-align:left">Plan</th><th style="text-align:left">Status</th><th style="text-align:left">Providers</th><th>Requests / mo</th><th>Savings / mo</th><th>Platform fee</th><th>Renewal</th><th>Actions</th></tr></thead>
+        <tbody id="cust-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BILLING ══ -->
+<div class="page" id="page-billing">
+  <div class="ph"><div class="ph-title">Billing</div><div class="ph-sub">March 2026 — Invoice cycle closes Apr 1</div></div>
+
+  <div class="metric-row">
+    <div class="mc"><div class="mc-label">March MRR</div><div class="mc-val" style="color:var(--teal)">$14,820</div><div class="mc-sub">7 customers</div></div>
+    <div class="mc"><div class="mc-label">Collected</div><div class="mc-val">$11,620</div><div class="mc-sub"><span class="delta d-up">78%</span> collection rate</div></div>
+    <div class="mc"><div class="mc-label">Outstanding</div><div class="mc-val" style="color:var(--amber)">$3,200</div><div class="mc-sub">2 invoices pending</div></div>
+    <div class="mc"><div class="mc-label">Overdue</div><div class="mc-val" style="color:var(--red)">$1,500</div><div class="mc-sub">1 invoice · 7 days late</div></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Invoice status</div></div>
+      <div class="card-body card-body-flush">
+        <div style="padding:0 18px" id="invoice-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Revenue trend</div><div class="card-sub">6-month MRR</div></div>
+      <div class="card-body"><div class="chart-wrap" style="height:160px"><canvas id="revChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Savings verification</div><div class="card-sub">How platform fees are calculated</div></div>
+    <div class="card-body card-body-flush">
+      <table class="data-table">
+        <thead><tr><th>Customer</th><th>Plan</th><th>Baseline spend</th><th>Actual spend</th><th>Gross savings</th><th>Platform fee (20%)</th><th>Customer net</th></tr></thead>
+        <tbody id="savings-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ANNOTATIONS ══ -->
+<div class="page" id="page-annotations">
+  <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between">
+    <div>
+      <div class="ph-title">Annotation Queue</div>
+      <div class="ph-sub">AMBIGUOUS cases — label each to train the classifier · <span id="queue-remaining">0</span> remaining</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div style="font-size:11px;font-family:var(--mono);color:var(--ink4)">Accuracy: <strong style="color:var(--teal)" id="acc-annot">94.1%</strong></div>
+      <button class="btn btn-teal" onclick="triggerRetrain()">▶ Retrain now</button>
+      <button class="btn" onclick="generateSamples()">+ Generate samples</button>
+    </div>
+  </div>
+
+  <div class="two">
+    <div>
+      <!-- Queue -->
+      <div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:11px;font-family:var(--mono);color:var(--ink3)">30-second rule: if unsure, click Skip →</div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--ink4)">Keyboard: L=LOW  M=MED  H=HIGH  S=Skip</div>
+      </div>
+      <div id="annot-queue"></div>
+    </div>
+
+    <div>
+      <!-- Stats panel -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head"><div class="card-title">Session stats</div></div>
+        <div class="card-body">
+          <div class="kv-row"><span class="kv-label">Labeled today</span><span class="kv-val" id="labeled-today">0</span></div>
+          <div class="kv-row"><span class="kv-label">LOW confirmed</span><span class="kv-val" style="color:var(--teal)" id="s-low">0</span></div>
+          <div class="kv-row"><span class="kv-label">MED confirmed</span><span class="kv-val" style="color:var(--amber)" id="s-med">0</span></div>
+          <div class="kv-row"><span class="kv-label">HIGH confirmed</span><span class="kv-val" style="color:var(--red)" id="s-high">0</span></div>
+          <div class="kv-row"><span class="kv-label">Skipped</span><span class="kv-val" id="s-skip">0</span></div>
+          <div class="kv-row" style="border:none"><span class="kv-label">Next retrain trigger</span><span class="kv-val" id="next-retrain">10 labels</span></div>
+          <div class="prog-wrap"><div class="prog-fill" id="retrain-prog" style="width:0%;background:var(--teal)"></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head"><div class="card-title">Label guidelines</div></div>
+        <div class="card-body" style="font-size:11px;font-family:var(--mono);line-height:1.8">
+          <div style="margin-bottom:6px"><span class="tag tag-low">LOW</span> — Query/lookup. Answer exists somewhere. Gemini Flash handles it.</div>
+          <div style="margin-bottom:6px"><span class="tag tag-med">MED</span> — Generate/organize. Needs language skill but not deep reasoning.</div>
+          <div style="margin-bottom:6px"><span class="tag tag-high">HIGH</span> — Judge/analyze. Needs real reasoning. GPT-4o quality required.</div>
+          <div><span class="tag tag-neutral">SKIP</span> — Can't decide in 30s → skip for group review.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Recent labels</div></div>
+        <div class="card-body card-body-flush" style="max-height:220px;overflow-y:auto">
+          <table class="data-table">
+            <thead><tr><th style="text-align:left">Prompt</th><th>Was</th><th>Confirmed</th></tr></thead>
+            <tbody id="recent-labels"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TRAINING DATA ══ -->
+<div class="page" id="page-training">
+  <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between">
+    <div><div class="ph-title">Training Data</div><div class="ph-sub">1,000 labeled samples · 5 batches</div></div>
+    <div style="display:flex;gap:8px"><button class="btn" onclick="exportCSV()">↓ Export CSV</button><button class="btn btn-primary" onclick="openAddSample()">+ Add sample</button></div>
+  </div>
+
+  <div class="metric-row">
+    <div class="mc"><div class="mc-label">Total Samples</div><div class="mc-val">1,000</div><div class="mc-sub">+<span id="live-added">0</span> live labels</div></div>
+    <div class="mc"><div class="mc-label">LOW</div><div class="mc-val" style="color:var(--teal)">290</div><div class="mc-sub">29%</div></div>
+    <div class="mc"><div class="mc-label">MED</div><div class="mc-val" style="color:var(--amber)">408</div><div class="mc-sub">40.8%</div></div>
+    <div class="mc"><div class="mc-label">HIGH</div><div class="mc-val" style="color:var(--red)">302</div><div class="mc-sub">30.2%</div></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Batch breakdown</div><div class="card-sub">Contribution to classifier accuracy</div></div>
+      <div class="card-body">
+        <div id="batch-rows"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Accuracy per batch added</div></div>
+      <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="accPerBatch"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Domain coverage</div><div class="card-sub">Samples per domain</div></div>
+    <div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="domainChart"></canvas></div></div>
+  </div>
+
+  <!-- Add sample modal -->
+  <div id="add-sample-panel" style="display:none;background:var(--bg1);border:1px solid var(--line);border-radius:var(--r8);padding:18px;margin-top:14px">
+    <div style="font-size:14px;font-weight:500;margin-bottom:14px;font-family:var(--display)">Add training sample</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="field" style="grid-column:span 2"><div class="field-label">Prompt</div><input class="field-input" id="ns-prompt" placeholder="Enter the prompt text..."></div>
+      <div class="field"><div class="field-label">Domain</div><select class="field-select" id="ns-domain"><option>客服</option><option>HR</option><option>財務</option><option>法務</option><option>行銷</option><option>產品</option><option>Healthcare</option><option>Finance</option><option>Technology</option><option>Legal</option><option>Manufacturing</option></select></div>
+      <div class="field"><div class="field-label">Difficulty</div><select class="field-select" id="ns-cx"><option>LOW</option><option>MED</option><option>HIGH</option><option>AMBIG</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="addSample()">Save sample</button><button class="btn" onclick="document.getElementById('add-sample-panel').style.display='none'">Cancel</button></div>
+    <div id="sample-saved" style="display:none;margin-top:8px;font-size:11px;font-family:var(--mono);color:var(--teal)">✓ Sample added to batch</div>
+  </div>
+</div>
+
+<!-- ══ SYSTEM ══ -->
+<div class="page" id="page-system">
+  <div class="ph"><div class="ph-title">System Configuration</div><div class="ph-sub">API keys · Routing config · Annotation settings · Webhooks</div></div>
+
+  <div class="two">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head"><div class="card-title">Provider API Keys</div></div>
+        <div class="card-body">
+          <div id="api-keys-list"></div>
+          <button class="btn btn-sm" style="margin-top:10px" onclick="addProviderKey()">+ Add provider</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head"><div class="card-title">Annotation settings</div></div>
+        <div class="card-body">
+          <div class="kv-row">
+            <div><div class="kv-label">Confidence threshold</div><div class="kv-sub">Below this → auto-flag AMBIGUOUS</div></div>
+            <div style="display:flex;align-items:center;gap:8px"><input type="range" min="60" max="95" value="80" id="conf-range" oninput="document.getElementById('conf-disp').textContent=this.value+'%'" style="width:100px"><span id="conf-disp" style="font-family:var(--mono);font-size:11px;min-width:36px">80%</span></div>
+          </div>
+          <div class="kv-row">
+            <div><div class="kv-label">Daily annotation goal</div><div class="kv-sub">Labels per day target</div></div>
+            <div style="display:flex;align-items:center;gap:8px"><input type="range" min="10" max="100" value="30" id="goal-range" oninput="document.getElementById('goal-disp').textContent=this.value" style="width:100px"><span id="goal-disp" style="font-family:var(--mono);font-size:11px;min-width:24px">30</span></div>
+          </div>
+          <div class="kv-row">
+            <div><div class="kv-label">Auto-retrain trigger</div><div class="kv-sub">Labels before auto-update</div></div>
+            <div style="display:flex;align-items:center;gap:8px"><input type="range" min="5" max="50" value="10" id="trigger-range" oninput="document.getElementById('trigger-disp').textContent=this.value" style="width:100px"><span id="trigger-disp" style="font-family:var(--mono);font-size:11px;min-width:24px">10</span></div>
+          </div>
+          <div class="kv-row" style="border:none">
+            <div><div class="kv-label">Legal/medical force HIGH</div><div class="kv-sub">Never route legal/medical to LOW</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveConfig()">Save settings</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head"><div class="card-title">Global routing settings</div></div>
+        <div class="card-body">
+          <div class="kv-row">
+            <div><div class="kv-label">Auto-Learn engine</div><div class="kv-sub">Collect AMBIGUOUS for labeling</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div>
+          </div>
+          <div class="kv-row">
+            <div><div class="kv-label">Semantic cache (global)</div><div class="kv-sub">Cross-customer cache pool</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div>
+          </div>
+          <div class="kv-row">
+            <div><div class="kv-label">Auto failover</div><div class="kv-sub">Switch provider on 3s timeout</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div>
+          </div>
+          <div class="kv-row">
+            <div><div class="kv-label">Modal cost warnings</div><div class="kv-sub">Alert users before video analysis</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div>
+          </div>
+          <div class="kv-row" style="border:none">
+            <div><div class="kv-label">Zero-log mode (global)</div><div class="kv-sub">No prompt storage on Casca servers</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">Webhook & alerts</div></div>
+        <div class="card-body">
+          <div class="field"><div class="field-label">Webhook URL</div><input class="field-input" placeholder="https://your-app.com/casca-events" style="font-family:var(--mono);font-size:11px"></div>
+          <div class="field"><div class="field-label">Slack webhook</div><input class="field-input" placeholder="https://hooks.slack.com/..." style="font-family:var(--mono);font-size:11px"></div>
+          <div style="font-size:11px;font-family:var(--mono);color:var(--ink4);margin-top:4px">Alerts: SLA breach · Accuracy drop · Overdue invoice · New AMBIGUOUS spike</div>
+          <button class="btn btn-sm" style="margin-top:10px" onclick="saveConfig()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ LLM PROVIDERS ══ -->
+<div class="page" id="page-providers">
+  <div class="ph" style="display:flex;align-items:flex-start;justify-content:space-between">
+    <div>
+      <div class="ph-title">🤖 LLM Providers</div>
+      <div class="ph-sub" id="prov-sub">雙邊市場模型登錄表 · 熱插拔，不需重啟</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="loadProviders()">↺ Reload</button>
+      <button class="btn btn-teal" onclick="showAddProvider()">+ 新增 Provider</button>
+      <button class="btn" onclick="hotReload()" title="重新注入引擎，不重啟伺服器">⚡ Hot Reload Engine</button>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metric-row" style="margin-bottom:16px">
+    <div class="mc"><div class="mc-label">Active Providers</div><div class="mc-val" id="prov-active-count">—</div><div class="mc-sub">正在路由中</div></div>
+    <div class="mc"><div class="mc-label">LOW tier</div><div class="mc-val" style="color:var(--teal)" id="prov-low-count">—</div><div class="mc-sub">模型數</div></div>
+    <div class="mc"><div class="mc-label">MED tier</div><div class="mc-val" style="color:var(--amber)" id="prov-med-count">—</div><div class="mc-sub">模型數</div></div>
+    <div class="mc"><div class="mc-label">HIGH tier</div><div class="mc-val" style="color:var(--red)" id="prov-high-count">—</div><div class="mc-sub">模型數</div></div>
+  </div>
+
+  <!-- Provider table -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head">
+      <div class="card-title">已登錄模型</div>
+      <div class="card-sub" id="prov-reload-status"></div>
+    </div>
+    <div class="card-body card-body-flush">
+      <table class="data-table" id="prov-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Provider</th>
+            <th style="text-align:left">Model Name (API 格式)</th>
+            <th>Tier</th>
+            <th>Cost/1M tok</th>
+            <th>Priority</th>
+            <th>Vision</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="prov-tbody">
+          <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--ink4)">載入中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add provider form (hidden by default) -->
+  <div id="add-prov-form" style="display:none" class="card">
+    <div class="card-head">
+      <div class="card-title">新增 LLM Provider</div>
+      <button class="btn btn-xs" onclick="hideAddProvider()">✕ 關閉</button>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field">
+          <div class="field-label">Provider 名稱</div>
+          <input class="field-input" id="np-provider" placeholder="OpenAI / Groq / Together…">
+        </div>
+        <div class="field">
+          <div class="field-label">Model Name <span style="color:var(--red)">*</span> <span style="font-size:9px;color:var(--ink4)">(送給 API 的 model 欄位)</span></div>
+          <input class="field-input" id="np-model" placeholder="gpt-4o / llama3-70b-8192 / …">
+        </div>
+        <div class="field">
+          <div class="field-label">Display Name</div>
+          <input class="field-input" id="np-display" placeholder="GPT-4o (可選，供 UI 顯示)">
+        </div>
+        <div class="field">
+          <div class="field-label">Base URL <span style="color:var(--red)">*</span> <span style="font-size:9px;color:var(--ink4)">(OpenAI 相容格式)</span></div>
+          <input class="field-input" id="np-url" placeholder="https://api.openai.com/v1">
+        </div>
+        <div class="field">
+          <div class="field-label">API Key</div>
+          <input class="field-input" id="np-key" type="password" placeholder="sk-…">
+        </div>
+        <div class="field">
+          <div class="field-label">Cost per 1M tokens (USD)</div>
+          <input class="field-input" id="np-cost" type="number" step="0.01" placeholder="0.15">
+        </div>
+        <div class="field">
+          <div class="field-label">Tier Capability <span style="color:var(--red)">*</span></div>
+          <select class="field-select" id="np-tier">
+            <option value="LOW">LOW — 查詢 / 簡單生成</option>
+            <option value="MED" selected>MED — 中等複雜度</option>
+            <option value="HIGH">HIGH — 推理 / 分析</option>
+            <option value="ANY">ANY — 全 tier 可用</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="field-label">Priority <span style="font-size:9px;color:var(--ink4)">(數值越小越優先)</span></div>
+          <input class="field-input" id="np-priority" type="number" value="50" min="1" max="100">
+        </div>
+        <div class="field" style="display:flex;align-items:center;gap:10px;padding-top:18px">
+          <input type="checkbox" id="np-vision" style="width:14px;height:14px">
+          <label for="np-vision" style="font-size:12px;color:var(--ink2);cursor:pointer">支援 Vision (圖片輸入)</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn btn-primary" onclick="submitProvider()">新增並熱載入引擎</button>
+        <button class="btn" onclick="hideAddProvider()">取消</button>
+      </div>
+      <div id="prov-form-error" style="display:none;margin-top:8px;font-size:11px;color:var(--red);font-family:var(--mono)"></div>
+    </div>
+  </div>
+
+  <!-- Tier routing preview -->
+  <div class="card">
+    <div class="card-head"><div class="card-title">Tier 路由預覽</div><div class="card-sub">引擎熱載入後的實際路由</div></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div style="background:var(--teal-bg);border:1px solid var(--teal-mid);border-radius:var(--r8);padding:12px">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--teal);margin-bottom:6px;font-weight:600">LOW default</div>
+          <div style="font-size:12px;font-weight:500" id="tier-low-default">—</div>
+        </div>
+        <div style="background:var(--amber-bg);border:1px solid var(--amber-mid);border-radius:var(--r8);padding:12px">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--amber);margin-bottom:6px;font-weight:600">MED default</div>
+          <div style="font-size:12px;font-weight:500" id="tier-med-default">—</div>
+        </div>
+        <div style="background:var(--red-bg);border:1px solid var(--red-mid);border-radius:var(--r8);padding:12px">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--red);margin-bottom:6px;font-weight:600">HIGH default</div>
+          <div style="font-size:12px;font-weight:500" id="tier-high-default">—</div>
+        </div>
+        <div style="background:var(--purple-bg);border:1px solid #c4b5fd;border-radius:var(--r8);padding:12px">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--purple);margin-bottom:6px;font-weight:600">AMBIG default</div>
+          <div style="font-size:12px;font-weight:500" id="tier-ambig-default">—</div>
+        </div>
+      </div>
+      <div style="font-size:10px;font-family:var(--mono);color:var(--ink4);margin-top:10px">
+        * 顯示最低 priority 值（最優先）的 active 模型 per tier。點擊「Hot Reload Engine」立即更新。
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /body-wrap -->
+
+<!-- ── NEW CUSTOMER MODAL ── -->
+<div class="modal-overlay" id="cust-modal">
+  <div class="modal-box">
+    <div class="modal-title">New Customer</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><div class="field-label">Company name</div><input class="field-input" id="nc-name" placeholder="Acme Corp"></div>
+      <div class="field"><div class="field-label">Plan</div><select class="field-select" id="nc-plan"><option>Starter — $1,500/mo</option><option>Growth — 20% of savings</option><option>Enterprise — Custom</option></select></div>
+      <div class="field"><div class="field-label">Contact email</div><input class="field-input" id="nc-email" placeholder="cto@acme.com" type="email"></div>
+      <div class="field"><div class="field-label">Quality threshold</div><select class="field-select" id="nc-q"><option value="80">Conservative ≥95%</option><option value="88" selected>Balanced ≥88%</option><option value="80">Max savings ≥80%</option></select></div>
+      <div class="field" style="grid-column:span 2"><div class="field-label">Providers (hold Ctrl to select multiple)</div><select class="field-select" id="nc-providers" multiple style="height:80px"><option>OpenAI</option><option>Anthropic</option><option>Google Vertex</option><option>Azure OpenAI</option><option>AWS Bedrock</option><option>Groq</option><option>Cohere</option><option>Mistral AI</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="saveCustomer()">Create customer</button><button class="btn" onclick="closeModal()">Cancel</button></div>
+  </div>
+</div>
+
+<div id="toast">✓ Done</div>
+
+<script type="module">
+import { classify, route, detectLanguage, VERSION, STATS } from './casca-classifier.js';
+window.CascaClassifier = {
+  classify, route, detectLanguage, VERSION, STATS,
+  accuracyScore: STATS.accuracy,
+  autoLearnQueue: [],
+  confirmLabel(idx, cx) {
+    this.autoLearnQueue.splice(idx, 1);
+    this.accuracyScore = Math.min(98.5, this.accuracyScore + 0.012);
+  }
+};
+</script>
+<script>
+// ── STATE ─────────────────────────────
+let annotQueue=[];let sessionLabels={LOW:0,MED:0,HIGH:0,skip:0};let totalDone=0;let accuracyScore=94.1;let liveAdded=0;
+const DOMAIN_COLORS={'客服':'#007a5e','HR':'#1d4ed8','財務':'#6d28d9','法務':'#b91c1c','行銷':'#a05c00','產品':'#065f46','Healthcare':'#b91c1c','Finance':'#6d28d9','Technology':'#1d4ed8','Manufacturing':'#5a6e82','Retail':'#a05c00','Legal':'#6d28d9','Media':'#a05c00','Education':'#1d4ed8'};
+
+// ── DATA ─────────────────────────────
+// Customers loaded from Supabase via API — starts empty, populated by loadCustomersFromAPI()
+let CUSTOMERS = [];
+
+// Fallback demo data (used only if API is unreachable)
+const CUSTOMERS_DEMO = [
+  {name:'Demo Corp',plan:'Growth',status:'demo',providers:['OpenAI'],requests:'—',savings:0,fee:0,renewal:'—',apikey:'sk-demo-xxx'},
+];
+
+const SAMPLE_PROMPTS=[
+  {prompt:'[X-ray attached] Is there anything abnormal in this chest X-ray?',uc:'Healthcare',rule:'R-MODAL-2: Medical image',conf:42},
+  {prompt:'Can you just take a look at this?',uc:'Consulting',rule:'R-EN2: Pronoun→AMBIG',conf:31},
+  {prompt:'Something doesn\'t feel right about this contract',uc:'Legal',rule:'R-AMBIG: vague+legal',conf:55},
+  {prompt:'幫我 review 這個東西',uc:'跨部門',rule:'R-AMBIG: 模糊語意',conf:38},
+  {prompt:'The usual please',uc:'Operations',rule:'R-AMBIG: no referent',conf:22},
+  {prompt:'I was wondering if you might be able to provide some analysis',uc:'Consulting',rule:'R-EN1: Modal softening',conf:61},
+  {prompt:'Analysis of Q3 performance',uc:'Finance',rule:'R-EN3: Nominalization',conf:58},
+  {prompt:'幫我看一下這個有沒有問題',uc:'HR',rule:'R-AMBIG: 意圖不明',conf:44},
+  {prompt:'thoughts?',uc:'Consulting',rule:'R-AMBIG: single word',conf:18},
+  {prompt:'[Dashboard screenshot] Something looks off',uc:'Data',rule:'R-MODAL-1+AMBIG',conf:47},
+  {prompt:'Help me with this ASAP',uc:'Tech',rule:'R-AMBIG: pronoun+urgency',conf:29},
+  {prompt:'Quick analysis of the attached',uc:'Finance',rule:'R-EN5: just/quick trap',conf:63},
+  {prompt:'Make this better',uc:'Marketing',rule:'R-AMBIG: vague directive',conf:35},
+  {prompt:'We need to talk about this',uc:'HR',rule:'R-AMBIG: high-stakes unknown',conf:27},
+  {prompt:'There might be an issue with the numbers',uc:'Finance',rule:'R-AMBIG: hedged vague',conf:52},
+];
+
+// ── NAV ─────────────────────────────
+function goPage(id,el){
+  if(id==='providers')setTimeout(loadProviders,50);
+  if(id==='customers')setTimeout(loadCustomersFromAPI,50);
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tb-tab,.sb-item').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el){el.classList.add('active');}
+  document.querySelectorAll('.sb-item').forEach(s=>{if(s.getAttribute('onclick')&&s.getAttribute('onclick').includes("'"+id+"'"))s.classList.add('active');});
+  document.querySelectorAll('.tb-tab').forEach(t=>{if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+id+"'"))t.classList.add('active');});
+  if(id==='annotations')renderQueue();
+}
+
+// Auth form Enter key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('auth-overlay').style.display !== 'none') {
+    const focused = document.activeElement;
+    if (focused && (focused.id === 'auth-email' || focused.id === 'auth-pw')) {
+      authSignIn();
+    }
+  }
+});
+
+// ── CLOCK ─────────────────────────────
+function updateClock(){const n=new Date();document.getElementById('cockpit-time').textContent=n.toLocaleString('zh-TW',{hour12:false});}
+setInterval(updateClock,1000);updateClock();
+
+// ── RENDER CUSTOMERS ──────────────────
+function renderCustomers(){
+  const tbody=document.getElementById('cust-tbody');if(!tbody)return;
+  tbody.innerHTML=CUSTOMERS.map(c=>{
+    const provPills=c.providers.map(p=>`<span class="prov-pill"><span class="prov-dot-sm"></span>${p}</span>`).join('');
+    const planCls=c.plan==='Growth'?'plan-growth':c.plan==='Enterprise'?'plan-enterprise':'plan-starter';
+    const statusCls=c.status==='trial'?'tag-trial':'tag-ok';
+    const renewColor=c.name==='MedCenter'?'color:var(--red)':'';
+    return`<tr>
+      <td><span class="fw">${c.name}</span><br><span style="font-size:10px;font-family:var(--mono);color:var(--ink4)">${c.apikey}</span></td>
+      <td style="text-align:left"><span class="plan-badge ${planCls}">${c.plan}</span></td>
+      <td style="text-align:left"><span class="tag ${statusCls}">${c.status}</span></td>
+      <td style="text-align:left">${provPills}</td>
+      <td>${c.requests}</td>
+      <td style="color:var(--teal)">$${c.savings.toLocaleString()}</td>
+      <td>$${c.fee.toLocaleString()||'—'}</td>
+      <td style="${renewColor}">${c.renewal}</td>
+      <td><button class="btn btn-xs" onclick="editCustomer('${c.name}')">Edit</button></td>
+    </tr>`;
+  }).join('');
+}
+function editCustomer(name){
+  const cust = CUSTOMERS.find(c => c.name === name);
+  if (cust && cust.id) {
+    toast('Opening ' + name + ' settings… (ID: ' + cust.id + ')');
+    // TODO: open edit modal with cust.id for PATCH /api/admin/customers/:id
+  } else {
+    toast('Opening ' + name + ' settings…');
+  }
+}
+
+// ── RENDER HEALTH TABLE ───────────────
+function renderHealth(){
+  const tbody=document.getElementById('health-tbody');if(!tbody)return;
+  tbody.innerHTML=CUSTOMERS.map(c=>`<tr>
+    <td class="fw">${c.name}</td>
+    <td style="text-align:right"><span class="tag ${c.status==='trial'?'tag-trial':'tag-ok'}">${c.status}</span></td>
+    <td>${c.requests}</td>
+    <td style="color:var(--teal)">$${c.savings.toLocaleString()}</td>
+  </tr>`).join('');
+}
+
+// ── BILLING ───────────────────────────
+function renderBilling(){
+  const list=document.getElementById('invoice-list');
+  const invoices=[
+    {cust:'Acme Corp',amt:4820,due:'2026-04-01',status:'pending'},
+    {cust:'TechStartup',amt:3200,due:'2026-04-01',status:'paid'},
+    {cust:'MedCenter',amt:1500,due:'2026-03-28',status:'overdue'},
+    {cust:'LexFirm',amt:1700,due:'2026-04-05',status:'pending'},
+    {cust:'RetailCo',amt:2100,due:'2026-04-01',status:'paid'},
+    {cust:'EduPlatform',amt:1500,due:'2026-04-15',status:'pending'},
+    {cust:'FinBank',amt:0,due:'—',status:'trial'},
+  ];
+  if(!list)return;
+  list.innerHTML=invoices.map(i=>{
+    const stCls=i.status==='paid'?'tag-ok':i.status==='overdue'?'tag-err':i.status==='trial'?'tag-trial':'tag-warn';
+    const action=i.status==='overdue'?`<button class="btn btn-red btn-xs" onclick="sendReminder('${i.cust}')">Send reminder</button>`:i.status==='pending'?`<button class="btn btn-xs">View</button>`:'';
+    return`<div class="bill-row"><span class="fw" style="min-width:110px">${i.cust}</span><span class="plan-badge plan-starter" style="min-width:60px;text-align:center">${i.status==='trial'?'Free':('$'+i.amt.toLocaleString())}</span><span style="font-family:var(--mono);font-size:10px;color:var(--ink4);flex:1">${i.due}</span><span class="tag ${stCls}">${i.status}</span>${action}</div>`;
+  }).join('');
+
+  const stbody=document.getElementById('savings-tbody');
+  if(stbody){
+    stbody.innerHTML=CUSTOMERS.filter(c=>c.plan!=='Enterprise'||c.status!=='trial').map(c=>{
+      const base=Math.round(c.savings*2.1);
+      return`<tr><td class="fw">${c.name}</td><td style="text-align:right"><span class="plan-badge ${c.plan==='Growth'?'plan-growth':'plan-starter'}">${c.plan}</span></td><td>$${base.toLocaleString()}</td><td>$${(base-c.savings).toLocaleString()}</td><td style="color:var(--teal)">$${c.savings.toLocaleString()}</td><td style="color:var(--teal)">$${c.fee.toLocaleString()}</td><td>$${(c.savings-c.fee).toLocaleString()}</td></tr>`;
+    }).join('');
+  }
+}
+function sendReminder(name){toast('Reminder sent to '+name);}
+
+// ── ANNOTATION QUEUE ─────────────────
+function fillQueue(){
+  if(annotQueue.length===0){
+    SAMPLE_PROMPTS.forEach((s,i)=>annotQueue.push({...s,id:i,ts:new Date().toLocaleTimeString()}));
+    annotQueue.sort((a,b)=>a.conf-b.conf);// lowest confidence first (active learning)
+  }
+  updateBadge();
+}
+function updateBadge(){
+  const n=annotQueue.length;
+  ['annot-badge','annot-count-tab'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=n;el.style.display=n>0?'':'none';}});
+  const qr=document.getElementById('queue-remaining');if(qr)qr.textContent=n+' remaining';
+  const pd=document.getElementById('pending-lbl');if(pd)pd.textContent=n;
+}
+
+let labeledHistory=[];
+function renderQueue(){
+  const el=document.getElementById('annot-queue');if(!el)return;
+  if(annotQueue.length===0){el.innerHTML='<div class="annot-empty">🎉 Queue empty — all caught up!<br>Click "Generate samples" to add more, or run Auto-sim to collect live AMBIGUOUS requests.</div>';return;}
+  el.innerHTML=annotQueue.slice(0,8).map((item,i)=>{
+    const confCls=item.conf<40?'conf-low':item.conf<65?'conf-mid':'conf-high';
+    const langBadge=item.lang&&item.lang!=='EN'
+      ?`<span style="font-size:9px;padding:1px 5px;border-radius:2px;background:var(--blue-bg);color:var(--blue)">${item.lang}</span>`:'';
+    const noiseBadge=item.noiseType
+      ?`<span style="font-size:9px;padding:1px 5px;border-radius:2px;background:var(--purple-bg);color:var(--purple)">${item.noiseType}</span>`:'';
+    return`<div class="annot-item" id="ai-${i}">
+      <div class="conf-pill ${confCls}">${item.conf}% conf</div>
+      <div class="annot-prompt">"${item.prompt}"</div>
+      <div class="annot-meta">
+        <span class="annot-uc">${item.uc}</span>
+        ${langBadge}${noiseBadge}
+        <span class="annot-rule">${item.rule}</span>
+        <span class="annot-time">${item.ts}</span>
+      </div>
+      <div class="annot-btns">
+        <button class="annot-btn ab-low" onclick="labelItem(${i},'LOW')">LOW</button>
+        <button class="annot-btn ab-med" onclick="labelItem(${i},'MED')">MED</button>
+        <button class="annot-btn ab-high" onclick="labelItem(${i},'HIGH')">HIGH</button>
+        <button class="annot-btn ab-skip" onclick="labelItem(${i},'skip')">Skip →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function labelItem(idx, cx) {
+  const item = annotQueue[idx]; if (!item) return;
+  const orig = item.cx || 'AMBIG';
+  item.confirmed = cx;
+  labeledHistory.unshift({ prompt: item.prompt, was: orig, confirmed: cx, ts: new Date().toLocaleTimeString() });
+  annotQueue.splice(idx, 1);
+  totalDone++; liveAdded++;
+  if (cx !== 'skip') { sessionLabels[cx] = (sessionLabels[cx] || 0) + 1; }
+  else { sessionLabels.skip++; }
+
+  // Sync confirmed label into CascaClassifier engine
+  if (typeof CascaClassifier !== 'undefined' && cx !== 'skip') {
+    CascaClassifier.confirmLabel(
+      Math.max(0, CascaClassifier.autoLearnQueue.length - 1), cx
+    );
+    accuracyScore = CascaClassifier.accuracyScore;
+  }
+
+  updateStats();
+  updateBadge();
+  renderQueue();
+  renderRecentLabels();
+
+  // Update accuracy display every 10 non-skip labels
+  if (totalDone % 10 === 0 && cx !== 'skip') {
+    ['acc-main', 'acc-annot', 'sb-acc'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = accuracyScore.toFixed(1) + '%';
+    });
+    toast('✓ Classifier updated — accuracy: ' + accuracyScore.toFixed(1) + '%');
+  }
+}
+
+function updateStats(){
+  const ids={LOW:'s-low',MED:'s-med',HIGH:'s-high',skip:'s-skip'};
+  Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.textContent=sessionLabels[k]||0;});
+  const td=document.getElementById('labeled-today');if(td)td.textContent=totalDone;
+  const dc=document.getElementById('done-count');if(dc)dc.textContent=totalDone;
+  const la=document.getElementById('live-added');if(la)la.textContent=liveAdded;
+  const counts={'LOW':sessionLabels.LOW||0,'MED':sessionLabels.MED||0,'HIGH':sessionLabels.HIGH||0};
+  ['low','med','high'].forEach(k=>{const el=document.getElementById(k+'-count');if(el)el.textContent=counts[k.toUpperCase()]||0;});
+  const prog=document.getElementById('retrain-prog');if(prog){prog.style.width=Math.min((totalDone%10)/10*100,100)+'%';}
+  const nr=document.getElementById('next-retrain');if(nr)nr.textContent=(10-(totalDone%10))+' labels';
+  // Update progress ring
+  updateProgressRing();
+}
+
+function renderRecentLabels(){
+  const tbody=document.getElementById('recent-labels');if(!tbody)return;
+  tbody.innerHTML=labeledHistory.slice(0,10).map(l=>`<tr>
+    <td style="text-align:left;font-style:italic;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${l.prompt.substring(0,45)}…"</td>
+    <td><span class="tag tag-ambig">AMBIG</span></td>
+    <td><span class="tag tag-${(l.confirmed||'skip').toLowerCase()}">${l.confirmed}</span></td>
+  </tr>`).join('');
+}
+
+function generateSamples() {
+  // New samples — classified live by CascaClassifier engine
+  const rawSamples = [
+    { prompt: 'Can this wait until next week?',               uc: 'General'    },
+    { prompt: 'Just need a quick look at the contract',       uc: 'Legal'      },
+    { prompt: "Something's off with prod",                    uc: 'Technology' },
+    { prompt: '幫我處理那個事情',                              uc: '跨部門'     },
+    { prompt: 'Could you evaluate this for me?',              uc: 'Consulting' },
+    // Batch 6 Japanese samples
+    { prompt: 'お手すきの際に先日の件をよろしくお願いできますでしょうか', uc: 'General' },
+    { prompt: '稟議書を作成してください',                      uc: 'General'    },
+    { prompt: 'NDAのレビューをお願いします',                   uc: 'Legal'      },
+    { prompt: '競合分析をしてください。それからその結果をもとに来期の戦略も提案してください', uc: 'Marketing' },
+    { prompt: 'もう限界です。残業ばかりで業務効率化の方法を教えてください', uc: 'General' },
+  ];
+
+  rawSamples.forEach(s => {
+    let classified;
+    if (typeof CascaClassifier !== 'undefined') {
+      classified = CascaClassifier.classify(s.prompt, s.uc);
+    } else {
+      classified = { cx: 'AMBIG', rule: 'fallback', confidence: 50, lang: 'EN', noiseType: null };
+    }
+    // Only queue AMBIG items (confidence < 80) — these are the ones needing annotation
+    const conf = classified.confidence || 50;
+    if (classified.cx === 'AMBIG' || conf < 80) {
+      annotQueue.push({
+        prompt: s.prompt, uc: s.uc,
+        rule: classified.rule,
+        conf, cx: classified.cx,
+        lang: classified.lang,
+        noiseType: classified.noiseType,
+        ts: new Date().toLocaleTimeString()
+      });
+    }
+  });
+
+  // Sort by confidence ASC (active learning — most uncertain first)
+  annotQueue.sort((a, b) => (a.conf || 50) - (b.conf || 50));
+  updateBadge();
+  renderQueue();
+  toast('✓ Samples classified and added to queue (' + annotQueue.length + ' items)');
+}
+
+// ── PROGRESS RING ─────────────────────
+let progressCtx=null;
+function updateProgressRing(){
+  const canvas=document.getElementById('progressRing');if(!canvas)return;
+  if(!progressCtx){progressCtx=canvas.getContext('2d');}
+  const ctx=progressCtx;const pct=Math.min(totalDone/30,1);
+  ctx.clearRect(0,0,80,80);
+  ctx.beginPath();ctx.arc(40,40,32,0,Math.PI*2);ctx.strokeStyle='#e8e4de';ctx.lineWidth=5;ctx.stroke();
+  ctx.beginPath();ctx.arc(40,40,32,-Math.PI/2,-Math.PI/2+Math.PI*2*pct);ctx.strokeStyle='#007a5e';ctx.lineWidth=5;ctx.lineCap='round';ctx.stroke();
+}
+
+// ── TRAINING BATCHES ─────────────────
+function renderBatches(){
+  const batchData=[
+    {name:'Batch 1',count:120,lang:'中文',modal:'Text',acc:88.3,noise:'0%',rules:'R1–R9'},
+    {name:'Batch 2',count:120,lang:'中文',modal:'Text',acc:91.6,noise:'0%',rules:'R-NEW1–4'},
+    {name:'Batch 3',count:260,lang:'中文+噪音',modal:'Text',acc:94.1,noise:'68%',rules:'R-LANG/AMBIG/MULTI/EMOT'},
+    {name:'Batch 4',count:250,lang:'英文',modal:'Text',acc:94.1,noise:'82%',rules:'R-EN1–5'},
+    {name:'Batch 5',count:250,lang:'英文',modal:'Text+Image+Video',acc:94.1,noise:'67%',rules:'R-MODAL-1–6'},
+  ];
+  const el=document.getElementById('batch-rows');if(!el)return;
+  el.innerHTML=batchData.map(b=>`
+    <div class="batch-row">
+      <span class="batch-num">${b.name}</span>
+      <span style="font-size:10px;font-family:var(--mono);color:var(--ink4);min-width:80px">${b.lang}</span>
+      <div class="batch-bar-wrap"><div class="batch-bar-fill" style="width:${b.count/260*100}%"></div></div>
+      <span class="batch-count">${b.count} samples</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--teal);min-width:36px">→${b.acc}%</span>
+    </div>`).join('');
+}
+
+// ── API KEYS ──────────────────────────
+function renderApiKeys(){
+  const el=document.getElementById('api-keys-list');if(!el)return;
+  const keys=[
+    {name:'OpenAI',key:'sk-...Xk9q',status:'connected'},
+    {name:'Anthropic',key:'sk-ant-...mP2r',status:'connected'},
+    {name:'Google Vertex',key:'AIza...vR8j',status:'connected'},
+    {name:'Azure OpenAI',key:'—',status:'unset'},
+    {name:'AWS Bedrock',key:'—',status:'unset'},
+    {name:'Groq',key:'gsk_...7Yjm',status:'connected'},
+    {name:'Cohere',key:'—',status:'unset'},
+    {name:'Mistral AI',key:'—',status:'unset'},
+  ];
+  el.innerHTML=keys.map(k=>`
+    <div class="kv-row" style="${k===keys[keys.length-1]?'border:none':''}">
+      <span class="kv-label">${k.name}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--ink4)">${k.key}</span>
+        <span class="tag ${k.status==='connected'?'tag-ok':'tag-neutral'}">${k.status}</span>
+        <button class="btn btn-xs" onclick="toast('${k.name} key updated')">${k.status==='connected'?'Rotate':'Set up'}</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── MODAL ─────────────────────────────
+function openModal(){document.getElementById('cust-modal').classList.add('open');}
+function closeModal(){document.getElementById('cust-modal').classList.remove('open');}
+
+async function saveCustomer(){
+  const name=document.getElementById('nc-name').value.trim();
+  if(!name) return;
+  const plan=document.getElementById('nc-plan').value.split('—')[0].trim();
+  const email=document.getElementById('nc-email')?.value.trim()||'';
+  const provSelect=document.getElementById('nc-providers');
+  const providers=provSelect ? Array.from(provSelect.selectedOptions).map(o=>o.value) : ['OpenAI'];
+
+  // POST to backend
+  const res = await adminFetch('/api/admin/customers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ company_name: name, plan, email, providers }),
+  });
+
+  if (res && res.ok) {
+    const data = await res.json();
+    toast('✓ Customer "' + name + '" created' + (data.apikey ? ' — API Key: ' + data.apikey : ''));
+    closeModal();
+    loadCustomersFromAPI();
+  } else {
+    // Fallback: add locally
+    CUSTOMERS.push({name, plan, status:'trial', providers, requests:'0', savings:0, fee:0, renewal:'—', apikey:'pending'});
+    renderCustomers(); renderHealth(); closeModal();
+    toast('⚠ 後端未回應，已暫存本地');
+  }
+}
+
+async function loadCustomersFromAPI() {
+  const res = await adminFetch('/api/admin/customers').catch(() => null);
+  if (res && res.ok) {
+    const data = await res.json();
+    const list = data.customers || data || [];
+    if (Array.isArray(list) && list.length > 0) {
+      CUSTOMERS = list.map(c => ({
+        id:        c.id,
+        name:      c.company_name || c.name || '—',
+        plan:      c.plan || 'Starter',
+        status:    c.status || 'active',
+        providers: c.providers || [],
+        requests:  c.requests_count ? (c.requests_count > 1000000 ? (c.requests_count/1000000).toFixed(2)+'M' : (c.requests_count/1000).toFixed(0)+'K') : '0',
+        savings:   c.total_savings_usd || 0,
+        fee:       c.platform_fee_usd || 0,
+        renewal:   c.renewal_date || '—',
+        apikey:    c.api_key_prefix || '—',
+      }));
+      renderCustomers();
+      renderHealth();
+      // Update cockpit metrics
+      const activeCount = CUSTOMERS.filter(c => c.status !== 'trial' && c.status !== 'churned').length;
+      const trialCount = CUSTOMERS.filter(c => c.status === 'trial').length;
+      const el = document.querySelector('#page-cockpit .metric-row .mc:nth-child(2) .mc-val');
+      if (el) el.textContent = CUSTOMERS.length;
+      const el2 = document.querySelector('#page-cockpit .metric-row .mc:nth-child(2) .mc-sub');
+      if (el2) el2.textContent = trialCount + ' trial · ' + activeCount + ' active';
+      toast('✓ ' + CUSTOMERS.length + ' customers loaded');
+      return;
+    }
+  }
+  // Fallback: use demo data if API fails and array is empty
+  if (CUSTOMERS.length === 0) {
+    CUSTOMERS = [...CUSTOMERS_DEMO];
+    renderCustomers();
+    renderHealth();
+  }
+}
+
+document.getElementById('cust-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── ADD SAMPLE ────────────────────────
+function openAddSample(){document.getElementById('add-sample-panel').style.display='';}
+function addSample(){
+  const p=document.getElementById('ns-prompt').value.trim();if(!p)return;
+  liveAdded++;const el=document.getElementById('live-added');if(el)el.textContent=liveAdded;
+  document.getElementById('ns-prompt').value='';
+  const badge=document.getElementById('sample-saved');if(badge){badge.style.display='block';setTimeout(()=>badge.style.display='none',2000);}
+  toast('✓ Sample saved to training batch');
+}
+
+// ── LIVE STREAM ───────────────────────
+let streamInt=null;let streamCount=0;
+// Live stream uses real classifier for cx/model/pct
+const STREAM_PROMPTS=[
+  {cust:'Acme Corp',    uc:'customer-service', prompt:'退貨政策是什麼？'},
+  {cust:'TechStartup',  uc:'Technology',       prompt:'Refactor the auth middleware to use JWT'},
+  {cust:'MedCenter',    uc:'Healthcare',       prompt:'[X-ray] Does this chest scan show any abnormality?'},
+  {cust:'LexFirm',      uc:'Legal',            prompt:'Review this NDA for unusual indemnification clauses'},
+  {cust:'RetailCo',     uc:'Marketing',        prompt:'Draft 5 product description variants for summer sale'},
+  {cust:'Acme Corp',    uc:'customer-service', prompt:'What is our return policy?'},
+  {cust:'TechStartup',  uc:'data',             prompt:'DAU yesterday?'},
+  {cust:'FinBank',      uc:'Finance',          prompt:'Analyze Q3 credit risk and recommend portfolio adjustments'},
+  {cust:'EduPlatform',  uc:'Education',        prompt:'Summarize Chapter 4 of the curriculum guide'},
+  {cust:'RetailCo',     uc:'Retail',           prompt:'[Product photo] Does this image meet our brand guidelines?'},
+  {cust:'MedCenter',    uc:'Healthcare',       prompt:'Schedule a follow-up appointment reminder email'},
+  // Japanese (Batch 6)
+  {cust:'AcmeJP',       uc:'General',          prompt:'稟議書を作成してください'},
+  {cust:'LexJP',        uc:'Legal',            prompt:'NDAのレビューをお願いします'},
+  {cust:'AcmeJP',       uc:'General',          prompt:'MTGのMOMを作ってください'},
+];
+let ssi=0;
+function toggleStream(){
+  const btn=document.getElementById('stream-btn');
+  if(streamInt){clearInterval(streamInt);streamInt=null;btn.textContent='▶ Start';}
+  else{
+    const box=document.getElementById('admin-stream');if(streamCount===0)box.innerHTML='';
+    streamInt=setInterval(()=>{
+      const s=STREAM_PROMPTS[ssi%STREAM_PROMPTS.length];ssi++;
+      // ── Classify with real engine ──
+      let cx,model,pct,rule,lang='',noiseType='';
+      if(typeof CascaClassifier!=='undefined'){
+        const r=CascaClassifier.route(s.prompt,s.uc,'default');
+        cx=r.isCache?'CACHE':r.cx;
+        model=r.isCache?'Cache hit':r.model;
+        pct=r.pct;rule=r.rule;
+        lang=r.lang&&r.lang!=='EN'?` [${r.lang}]`:'';
+        noiseType=r.noiseType?` ${r.noiseType}`:'';
+      } else {
+        cx='MED';model='GPT-4o-mini';pct=97;rule='fallback';
+      }
+      const now=new Date();
+      const t=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+      const cxColor={LOW:'var(--teal)',MED:'var(--amber)',HIGH:'var(--red)',CACHE:'var(--ash)'}[cx]||'var(--ink3)';
+      const ln=document.createElement('div');
+      ln.style.cssText='display:flex;gap:8px;padding:2px 0;border-bottom:1px solid var(--line);align-items:center';
+      ln.innerHTML=`<span style="color:var(--ink5);min-width:56px">${t}</span>`+
+        `<span style="min-width:90px;font-size:10px;color:var(--ink2)">${s.cust}</span>`+
+        `<span style="min-width:60px;color:${cxColor};font-weight:500">${cx}</span>`+
+        `<span style="flex:1;color:var(--ink3)">${s.uc} → ${model}${lang}${noiseType}</span>`+
+        `<span style="color:${pct>50?'var(--teal)':pct>0?'var(--amber)':'var(--ink4)'}">${pct>0?'-'+pct+'%':'baseline'}</span>`;
+      box.appendChild(ln);box.scrollTop=box.scrollHeight;streamCount++;
+    },700);
+    btn.textContent='■ Stop';
+  }
+}
+function clearStreamAdmin(){const box=document.getElementById('admin-stream');box.innerHTML='<div style="color:var(--ink4);text-align:center;padding:30px 0;font-family:var(--mono);font-size:11px">Cleared</div>';streamCount=0;}
+
+// ── RETRAIN ───────────────────────────
+function triggerRetrain() {
+  toast('▶ Retraining classifier…');
+  setTimeout(() => {
+    // Sync accuracy from engine after retrain
+    if (typeof CascaClassifier !== 'undefined') {
+      // Engine auto-increments +0.12% per 10 labels; manual retrain adds extra boost
+      accuracyScore = Math.min(98.5, CascaClassifier.accuracyScore + 0.2);
+    } else {
+      accuracyScore = Math.min(98.5, accuracyScore + 0.2);
+    }
+    ['acc-main', 'acc-annot', 'sb-acc'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = accuracyScore.toFixed(1) + '%';
+    });
+    toast('✓ Retrain complete — accuracy: ' + accuracyScore.toFixed(1) + '%');
+  }, 2000);
+}
+function saveConfig(){toast('✓ Settings saved');}
+function addProviderKey(){toast('Provider setup wizard (production: OAuth flow)');}
+function exportCSV(){toast('✓ CSV export started — 1,000 samples');}
+
+// ── TOAST ─────────────────────────────
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',2500);}
+
+// ── CHARTS ───────────────────────────
+function initCharts(){
+  Chart.defaults.font.family="'Geist Mono',monospace";
+  Chart.defaults.font.size=10;
+  Chart.defaults.color='#9d9488';
+
+  const months=['Oct','Nov','Dec','Jan','Feb','Mar'];
+
+  // MRR chart
+  new Chart(document.getElementById('mrrChart'),{type:'bar',data:{labels:months,datasets:[{data:[9200,10400,11800,12100,13620,14820],backgroundColor:'rgba(0,122,94,0.15)',borderColor:'#007a5e',borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'K'},grid:{color:'#e8e4de'},border:{display:false}},x:{grid:{display:false},border:{display:false}}}}});
+
+  // Accuracy trend
+  const accPoints=[88.3,88.3,89.1,89.1,90.4,91.6,91.6,92.2,92.8,93.4,93.9,94.1];
+  new Chart(document.getElementById('accChart'),{type:'line',data:{labels:accPoints.map((_,i)=>'W'+(i+1)),datasets:[{data:accPoints,borderColor:'#007a5e',backgroundColor:'rgba(0,122,94,0.06)',tension:0.3,borderWidth:2,pointRadius:2,pointBackgroundColor:'#007a5e',fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:86,max:96,ticks:{callback:v=>v+'%'},grid:{color:'#e8e4de'},border:{display:false}},x:{grid:{display:false},border:{display:false}}}}});
+
+  // Revenue
+  if(document.getElementById('revChart')){
+    const mrr=[9200,10400,11800,12100,13620,14820];
+    new Chart(document.getElementById('revChart'),{type:'line',data:{labels:months,datasets:[{data:mrr,borderColor:'#007a5e',backgroundColor:'rgba(0,122,94,0.08)',tension:0.4,borderWidth:2,pointRadius:3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'K'},grid:{color:'#e8e4de'},border:{display:false}},x:{grid:{display:false},border:{display:false}}}}});
+  }
+
+  // Accuracy per batch
+  if(document.getElementById('accPerBatch')){
+    new Chart(document.getElementById('accPerBatch'),{type:'line',data:{labels:['B1 (120)','B2 (240)','B3 (500)','B4 (750)','B5 (1000)'],datasets:[{data:[88.3,91.6,94.1,94.1,94.1],borderColor:'#007a5e',backgroundColor:'rgba(0,122,94,0.08)',tension:0.3,borderWidth:2,pointRadius:5,pointBackgroundColor:'#007a5e',fill:true,label:'Accuracy'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:85,max:98,ticks:{callback:v=>v+'%'},grid:{color:'#e8e4de'},border:{display:false}},x:{grid:{display:false},border:{display:false}}}}});
+  }
+
+  // Domain chart
+  if(document.getElementById('domainChart')){
+    const labels=['客服','HR','財務','法務','行銷','產品','Healthcare','Finance','Technology','Manufacturing','Retail','Legal'];
+    const data=[72,48,36,38,28,28,40,35,35,30,25,20];
+    new Chart(document.getElementById('domainChart'),{type:'bar',data:{labels,datasets:[{data,backgroundColor:labels.map(l=>DOMAIN_COLORS[l]||'#9d9488')+'33',borderColor:labels.map(l=>DOMAIN_COLORS[l]||'#9d9488'),borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:10},grid:{color:'#e8e4de'},border:{display:false}},x:{ticks:{maxRotation:45},grid:{display:false},border:{display:false}}}}});
+  }
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────
+// ── KEYBOARD SHORTCUTS (see backend integration section below) ──
+
+// ── INIT ──────────────────────────────────────────────────
+function initAll() {
+  syncEngineInfo();
+  renderCustomers();
+  renderHealth();
+  renderBatches();
+  renderApiKeys();
+  renderBilling();
+  initCharts();
+  updateStats();
+  updateBadge();
+  renderQueue();
+  updateProgressRing();
+}
+
+// ── Engine info from CascaClassifier ─────────────────────
+function syncEngineInfo() {
+  if (typeof CascaClassifier !== 'undefined') {
+    const V = CascaClassifier.VERSION || '—';
+    const S = CascaClassifier.STATS || {};
+    accuracyScore = S.accuracy || 94.1;
+    const el1 = document.getElementById('sb-engine');
+    if (el1) el1.textContent = 'Casca Engine v' + V;
+    const el2 = document.getElementById('sb-rules');
+    if (el2) el2.textContent = (S.totalRules || '—') + ' rules · ' + (S.trainingsamples || '—').toLocaleString() + ' samples';
+    const el3 = document.getElementById('sb-acc');
+    if (el3) el3.textContent = accuracyScore.toFixed(1) + '%';
+    const el4 = document.getElementById('acc-main');
+    if (el4) el4.textContent = accuracyScore.toFixed(1) + '%';
+    const el5 = document.getElementById('acc-annot');
+    if (el5) el5.textContent = accuracyScore.toFixed(1) + '%';
+  } else {
+    // Retry once after module script loads
+    setTimeout(() => {
+      if (typeof CascaClassifier !== 'undefined') syncEngineInfo();
+      else {
+        const el = document.getElementById('sb-rules');
+        if (el) el.textContent = 'Engine not loaded';
+      }
+    }, 1500);
+  }
+}
+
+initAll();
+
+// ══════════════════════════════════════════════════════════
+//  CASCA ADMIN PORTAL — BACKEND INTEGRATION
+//  Connects to Node.js /api/admin/* endpoints
+// ══════════════════════════════════════════════════════════
+
+// ── Config ────────────────────────────────────────────────
+const ADMIN_CFG = {
+  // API calls use relative path — Netlify proxies /api/* → api.cascaio.com
+  // This avoids CORS issues entirely
+  apiBase: '',                                             // empty = same origin (via Netlify proxy)
+  apiBaseDirect: 'https://api.cascaio.com',                // direct URL (fallback / non-Netlify envs)
+  supabaseUrl: 'https://chixjizrlvfkonzswttv.supabase.co',        // ← replace with actual
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoaXhqaXpybHZma29uenN3dHR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMDYzMzUsImV4cCI6MjA4OTc4MjMzNX0.XPKn72Rs80-E_vsyP8Lzv8raO5a6bc2WgbSqWjnN1gM',                        // ← replace with actual
+};
+
+// ── Supabase client ──────────────────────────────────────
+let _sb = null;
+function getSB() {
+  if (!_sb && window.supabase) {
+    _sb = window.supabase.createClient(ADMIN_CFG.supabaseUrl, ADMIN_CFG.supabaseAnonKey);
+  }
+  return _sb;
+}
+
+// ── Auth functions ───────────────────────────────────────
+async function authSignIn() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw    = document.getElementById('auth-pw').value;
+  const errEl = document.getElementById('auth-error');
+  const btn   = document.getElementById('auth-btn');
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = '請輸入 Email 和密碼'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = '登入中…';
+  try {
+    const sb = getSB();
+    if (!sb) throw new Error('Supabase 未初始化，請確認 config');
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error) throw error;
+    onAuthReady(data.session);
+  } catch (err) {
+    errEl.textContent = err.message || '登入失敗';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '登入';
+}
+
+async function authSignOut() {
+  const sb = getSB();
+  if (sb) await sb.auth.signOut();
+  document.getElementById('auth-overlay').style.display = 'flex';
+  document.getElementById('tb-logout').style.display = 'none';
+  document.getElementById('tb-uname').textContent = '—';
+  document.getElementById('tb-avatar').textContent = '?';
+}
+
+function onAuthReady(session) {
+  if (!session) { document.getElementById('auth-overlay').style.display = 'flex'; return; }
+  // Hide login overlay
+  document.getElementById('auth-overlay').style.display = 'none';
+  // Update topbar user
+  const email = session.user?.email || '';
+  document.getElementById('tb-uname').textContent = email;
+  document.getElementById('tb-avatar').textContent = email.slice(0, 2).toUpperCase();
+  document.getElementById('tb-logout').style.display = '';
+  // Boot backend connections
+  loadQueueFromAPI();
+  loadCustomersFromAPI();
+}
+
+// ── Init auth on page load ───────────────────────────────
+(function initAuth() {
+  const sb = getSB();
+  if (!sb) {
+    // Supabase not available — fallback to overlay
+    console.warn('[Casca] Supabase not initialized');
+    return;
+  }
+  // Check existing session
+  sb.auth.getSession().then(({ data: { session } }) => {
+    onAuthReady(session);
+  });
+  // Listen for auth state changes
+  sb.auth.onAuthStateChange((_event, session) => {
+    if (session) onAuthReady(session);
+  });
+})();
+
+// ── API helper (uses Supabase JWT) ───────────────────────
+async function adminFetch(path, opts = {}) {
+  const url = ADMIN_CFG.apiBase + path;
+  let token = '';
+  const sb = getSB();
+  if (sb) {
+    const { data } = await sb.auth.getSession();
+    token = data?.session?.access_token || '';
+  }
+  const headers = {
+    'Authorization': 'Bearer ' + token,
+    ...(opts.headers || {}),
+  };
+  try {
+    return await fetch(url, { ...opts, headers });
+  } catch (err) {
+    console.error('[AdminAPI]', err.message);
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  FLYWHEEL ANNOTATION QUEUE
+//  Loads AMBIG items from /api/admin/queue
+//  Writes confirmed labels to /api/admin/annotate
+// ══════════════════════════════════════════════════════════
+
+// Map from queue item id → db UUID (so we can write back)
+const _queueIdMap = {};
+
+async function loadQueueFromAPI() {
+  const res = await adminFetch('/api/admin/queue?limit=50');
+  if (!res) {
+    toast('⚠ 無法連接後端 — 使用本地 generateSamples()');
+    return;
+  }
+  if (!res.ok) {
+    toast('⚠ 後端錯誤 ' + res.status);
+    return;
+  }
+
+  const { items, total } = await res.json();
+  if (!items || items.length === 0) {
+    toast('✓ 標注隊列已空，尚無待處理項目');
+    return;
+  }
+
+  // Merge into annotQueue (avoid duplicates by db id)
+  const existingIds = new Set(Object.values(_queueIdMap));
+  let added = 0;
+
+  items.forEach(item => {
+    if (existingIds.has(item.id)) return;
+    const qItem = {
+      prompt: item.prompt,
+      uc:     item.uc || '—',
+      rule:   item.triggered_rule || '—',
+      conf:   50,            // backend doesn't expose confidence yet; default 50
+      cx:     item.predicted_cx || 'AMBIG',
+      lang:   item.lang,
+      noiseType: null,
+      ts:     new Date(item.created_at).toLocaleTimeString('zh-TW'),
+    };
+    annotQueue.push(qItem);
+    // Track index → db UUID
+    const insertIdx = annotQueue.length - 1;
+    _queueIdMap[insertIdx] = item.id;
+    existingIds.add(item.id);
+    added++;
+  });
+
+  // Re-sort by confidence ASC (most uncertain first = active learning)
+  annotQueue.sort((a, b) => a.conf - b.conf);
+  // Rebuild id map after sort
+  Object.keys(_queueIdMap).forEach(k => delete _queueIdMap[k]);
+  annotQueue.forEach((item, i) => {
+    const matchingDbItem = items.find(db =>
+      db.prompt === item.prompt && db.triggered_rule === item.rule
+    );
+    if (matchingDbItem) _queueIdMap[i] = matchingDbItem.id;
+  });
+
+  updateBadge();
+  renderQueue();
+
+  const countEl = document.getElementById('annot-count-tab');
+  if (countEl) countEl.style.display = '';
+
+  toast(`✓ 從後端載入 ${added} 筆待標注（共 ${total} 筆）`);
+}
+
+// ── Override labelItem to persist to backend ──────────────
+// Store reference to original before overriding
+const _originalLabelItem = labelItem;
+
+window.labelItem = async function(idx, cx) {
+  // Get the db UUID for this queue item before it's spliced out
+  const dbId = _queueIdMap[idx];
+
+  // Remove from id map (indices shift after splice)
+  delete _queueIdMap[idx];
+  // Shift all higher indices down by 1
+  const newMap = {};
+  Object.entries(_queueIdMap).forEach(([k, v]) => {
+    const ki = parseInt(k);
+    newMap[ki > idx ? ki - 1 : ki] = v;
+  });
+  Object.keys(_queueIdMap).forEach(k => delete _queueIdMap[k]);
+  Object.assign(_queueIdMap, newMap);
+
+  // Call original UI logic first (fast, local)
+  _originalLabelItem(idx, cx);
+
+  // Then write to backend (non-blocking)
+  if (dbId && cx !== 'skip') {
+    const res = await adminFetch('/api/admin/annotate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: dbId, confirmedCx: cx.toUpperCase() }),
+    });
+    if (!res || !res.ok) {
+      console.warn('[Casca] annotate write failed for', dbId);
+    }
+  }
+};
+
+// ── Keyboard shortcut hook (re-wire to overridden labelItem) ─
+document.addEventListener('keydown', e => {
+  if (document.getElementById('page-annotations').classList.contains('active') && annotQueue.length > 0) {
+    const map = { l: 'LOW', m: 'MED', h: 'HIGH', s: 'skip' };
+    const action = map[e.key.toLowerCase()];
+    if (action && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT') {
+      window.labelItem(0, action);
+    }
+  }
+});
+
+// ── Refresh queue button ──────────────────────────────────
+function refreshQueue() {
+  annotQueue.length = 0;
+  Object.keys(_queueIdMap).forEach(k => delete _queueIdMap[k]);
+  loadQueueFromAPI();
+}
+
+// ══════════════════════════════════════════════════════════
+//  EXPORT CSV
+//  Downloads labelled data from /api/admin/export
+// ══════════════════════════════════════════════════════════
+
+async function exportCSV() {
+  toast('CSV 匯出中…');
+
+  const res = await adminFetch('/api/admin/export');
+  if (!res) { toast('⚠ 無法連接後端'); return; }
+  if (res.status === 404) { toast('尚無已標注資料可匯出'); return; }
+  if (!res.ok) { toast('匯出失敗 ' + res.status); return; }
+
+  const csv      = await res.text();
+  const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url      = URL.createObjectURL(blob);
+  const anchor   = document.createElement('a');
+  const filename = `casca_training_data_${new Date().toISOString().slice(0, 10)}.csv`;
+
+  anchor.href     = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+
+  const lineCount = csv.split('\n').length - 2; // -1 header -1 trailing newline
+  toast(`✓ CSV 匯出完成 — ${lineCount} 筆已標注資料`);
+}
+
+// ══════════════════════════════════════════════════════════
+//  UI ADDITIONS — Annotation page toolbar
+// ══════════════════════════════════════════════════════════
+
+// Inject "Load from API" + "Refresh" buttons into annotation page header
+(function injectAnnotToolbar() {
+  const header = document.querySelector('#page-annotations .ph');
+  if (!header) return;
+  const actionsDiv = header.querySelector('div[style*="display:flex"]');
+  if (!actionsDiv) return;
+
+  const refreshBtn = document.createElement('button');
+  refreshBtn.className = 'btn';
+  refreshBtn.textContent = '↺ 從後端重新載入';
+  refreshBtn.onclick = refreshQueue;
+  actionsDiv.insertBefore(refreshBtn, actionsDiv.firstChild);
+})();
+
+// ══════════════════════════════════════════════════════════
+//  STATUS INDICATOR
+//  Pings backend health endpoint; updates top-bar dot
+// ══════════════════════════════════════════════════════════
+
+async function pingBackend() {
+  const res = await adminFetch('/health').catch(() => null);
+  const dot  = document.querySelector('.signal-dot');
+  const txt  = document.querySelector('.tb-signal');
+  if (res && res.ok) {
+    if (dot) dot.style.background = '#22c55e';
+    if (txt) txt.innerHTML = '<div class="signal-dot"></div>後端已連接';
+  } else {
+    if (dot) dot.style.background = '#ef4444';
+    if (txt) txt.innerHTML = '<div class="signal-dot" style="background:#ef4444;animation:none"></div>後端離線';
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  LLM PROVIDER MANAGEMENT  (/api/admin/providers)
+// ══════════════════════════════════════════════════════════════
+
+async function loadProviders() {
+  const statusEl = document.getElementById('prov-reload-status');
+  if (statusEl) statusEl.textContent = '載入中…';
+  const res = await adminFetch('/api/admin/providers').catch(() => null);
+  if (!res || !res.ok) {
+    if (statusEl) statusEl.textContent = '❌ 無法連線';
+    toast('無法載入 Provider 列表');
+    return;
+  }
+  const { providers } = await res.json();
+  if (statusEl) statusEl.textContent = `共 ${providers.length} 個 · ${new Date().toLocaleTimeString('zh-TW')}`;
+  renderProviders(providers);
+}
+
+function renderProviders(providers) {
+  const tbody = document.getElementById('prov-tbody');
+  if (!tbody) return;
+  const active = providers.filter(p => p.is_active);
+  const byTier = t => active.filter(p => p.tier_capability === t || p.tier_capability === 'ANY').length;
+  const el = id => document.getElementById(id);
+  if (el('prov-active-count')) el('prov-active-count').textContent = active.length;
+  if (el('prov-low-count'))    el('prov-low-count').textContent    = byTier('LOW');
+  if (el('prov-med-count'))    el('prov-med-count').textContent    = byTier('MED');
+  if (el('prov-high-count'))   el('prov-high-count').textContent   = byTier('HIGH');
+  for (const tier of ['LOW','MED','HIGH','AMBIG']) {
+    const src = active.filter(p => p.tier_capability === tier || p.tier_capability === 'ANY')
+                      .sort((a,b) => a.priority - b.priority);
+    const previewEl = el('tier-' + tier.toLowerCase() + '-default');
+    if (previewEl) previewEl.textContent = src[0]?.display_name || src[0]?.model_name || '—';
+  }
+  if (!providers.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--ink4)">尚無 Provider</td></tr>';
+    return;
+  }
+  const tc = { LOW:'var(--teal)', MED:'var(--amber)', HIGH:'var(--red)', ANY:'var(--purple)' };
+  tbody.innerHTML = providers.map(p => `
+    <tr style="opacity:${p.is_active ? 1 : 0.5}">
+      <td class="fw">${p.provider_name}</td>
+      <td><code style="font-size:11px;background:var(--bg2);padding:1px 6px;border-radius:3px">${p.model_name}</code></td>
+      <td style="text-align:center"><span class="tag" style="background:${tc[p.tier_capability]}22;color:${tc[p.tier_capability]}">${p.tier_capability}</span></td>
+      <td style="text-align:right;font-family:var(--mono)">$${Number(p.cost_per_1m_tokens||0).toFixed(2)}</td>
+      <td style="text-align:right;font-family:var(--mono)">${p.priority}</td>
+      <td style="text-align:center">${p.supports_vision ? '👁' : '—'}</td>
+      <td style="text-align:center"><span class="tag ${p.is_active ? 'tag-ok' : 'tag-neutral'}">${p.is_active ? 'active' : 'off'}</span></td>
+      <td style="display:flex;gap:4px;justify-content:flex-end">
+        <button class="btn btn-xs" onclick="toggleProvider('${p.id}',${!p.is_active})">${p.is_active ? 'Disable' : 'Enable'}</button>
+        <button class="btn btn-xs" onclick="editProviderKey('${p.id}','${p.model_name}')">Key</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function toggleProvider(id, newState) {
+  const res = await adminFetch(`/api/admin/providers/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: newState }),
+  });
+  if (res && res.ok) { toast(`✓ Provider ${newState ? 'enabled' : 'disabled'}`); loadProviders(); }
+  else toast('❌ 更新失敗');
+}
+
+async function editProviderKey(id, modelName) {
+  const key = prompt(`輸入 ${modelName} 的新 API Key（留空跳過）:`);
+  if (!key) return;
+  const res = await adminFetch(`/api/admin/providers/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ api_key_enc: key }),
+  });
+  if (res && res.ok) toast(`✓ ${modelName} API Key 已更新`);
+  else toast('❌ 更新失敗');
+}
+
+function showAddProvider() {
+  const form = document.getElementById('add-prov-form');
+  if (form) { form.style.display = ''; form.scrollIntoView({ behavior: 'smooth' }); }
+}
+function hideAddProvider() {
+  const form = document.getElementById('add-prov-form');
+  if (form) form.style.display = 'none';
+  ['np-provider','np-model','np-display','np-url','np-key','np-cost','np-priority']
+    .forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+}
+
+async function submitProvider() {
+  const errEl = document.getElementById('prov-form-error');
+  if (errEl) errEl.style.display = 'none';
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const body = {
+    provider_name:      g('np-provider'),
+    model_name:         g('np-model'),
+    display_name:       g('np-display') || null,
+    base_url:           g('np-url'),
+    api_key_enc:        g('np-key') || null,
+    cost_per_1m_tokens: parseFloat(g('np-cost')) || 0,
+    tier_capability:    document.getElementById('np-tier')?.value || 'MED',
+    priority:           parseInt(g('np-priority')) || 50,
+    supports_vision:    document.getElementById('np-vision')?.checked || false,
+  };
+  if (!body.provider_name || !body.model_name || !body.base_url) {
+    if (errEl) { errEl.textContent = '❌ Provider、Model Name、Base URL 為必填'; errEl.style.display = 'block'; }
+    return;
+  }
+  const res = await adminFetch('/api/admin/providers', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const data = res ? await res.json() : {};
+  if (res?.ok) { toast(`✓ ${body.model_name} 已新增，引擎熱載入`); hideAddProvider(); loadProviders(); }
+  else if (errEl) { errEl.textContent = '❌ ' + (data.error || '新增失敗'); errEl.style.display = 'block'; }
+}
+
+async function hotReload() {
+  const res = await adminFetch('/api/admin/reload-providers', { method: 'POST' });
+  const data = res ? await res.json() : null;
+  if (data?.count !== undefined) { toast(`⚡ 熱載入完成，${data.count} 個 Provider`); loadProviders(); }
+  else toast('❌ Hot reload 失敗');
+}
+
+loadProviders();
+pingBackend();
+setInterval(pingBackend, 30000); // re-check every 30s
+
+</script>
+</body>
+</html>

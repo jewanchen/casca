@@ -1,0 +1,86 @@
+# ══════════════════════════════════════════════════════════
+#  Casca — Netlify Configuration
+#  Domain: cascaio.com
+#  Backend: api.cascaio.com (Railway)
+#  Frontend: Netlify
+# ══════════════════════════════════════════════════════════
+
+# ── Build settings ────────────────────────────────────────
+[build]
+  publish = "."                    # Static HTML files in root
+  # command = ""                   # No build step needed (pure HTML)
+
+# ── API Proxy ─────────────────────────────────────────────
+# Proxy /api/* requests to Railway backend to avoid CORS
+# Client calls: /api/admin/customers → https://api.cascaio.com/api/admin/customers
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.cascaio.com/api/:splat"
+  status = 200
+  force = true
+  headers = {X-Forwarded-Host = "admin.cascaio.com"}
+
+# Health check proxy
+[[redirects]]
+  from = "/health"
+  to = "https://api.cascaio.com/health"
+  status = 200
+  force = true
+
+# ── SPA Fallback ──────────────────────────────────────────
+# Admin portal is a single HTML file
+[[redirects]]
+  from = "/admin"
+  to = "/casca-admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/casca-admin.html"
+  status = 200
+
+# Dashboard (customer-facing)
+[[redirects]]
+  from = "/dashboard"
+  to = "/casca-dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard/*"
+  to = "/casca-dashboard.html"
+  status = 200
+
+# Landing page as default
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+# ── Security Headers ─────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.cascaio.com https://*.supabase.co wss://*.supabase.co; img-src 'self' data: https:; frame-ancestors 'none'"
+
+# ── Cache Control ─────────────────────────────────────────
+# HTML files: no cache (always fresh)
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Static assets: cache 1 year (CSS/JS/fonts are inline so this is future-proofing)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# casca-classifier.js: cache 1 hour (may update with new rules)
+[[headers]]
+  for = "/casca-classifier.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
