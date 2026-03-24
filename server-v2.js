@@ -727,7 +727,33 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
     return res.status(500).json({ error: 'Classification engine error.' });
   }
 
-  const targetModel = classifyResult.model;
+  // ── Map cx → compatible model for passthrough key type ───────
+  // classifyResult.model may point to Gemini/Mixtral which OpenAI can't serve.
+  // Override with a model compatible with the client's key provider.
+  const PASSTHROUGH_MODEL_MAP = {
+    passthrough_openai: {
+      LOW:   'gpt-4o-mini',
+      MED:   'gpt-4o-mini',
+      HIGH:  'gpt-4o',
+      AMBIG: 'gpt-4o-mini',
+    },
+    passthrough_anthropic: {
+      LOW:   'claude-3-haiku-20240307',
+      MED:   'claude-3-haiku-20240307',
+      HIGH:  'claude-3-5-sonnet-20241022',
+      AMBIG: 'claude-3-haiku-20240307',
+    },
+    passthrough_google: {
+      LOW:   'gemini-2.0-flash-exp',
+      MED:   'gemini-2.0-flash-exp',
+      HIGH:  'gemini-1.5-pro',
+      AMBIG: 'gemini-2.0-flash-exp',
+    },
+  };
+
+  const targetModel = req.isPassthrough
+    ? (PASSTHROUGH_MODEL_MAP[req.passthroughStage]?.[classifyResult.cx] ?? classifyResult.model)
+    : classifyResult.model;
 
   // ════════════════════════════════════════════════════════════
   //  PROVIDER SELECTION — Stage 1/2 vs Stage 3
