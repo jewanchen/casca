@@ -1530,6 +1530,7 @@ app.delete('/api/admin/keys/:id', requireAdmin, async (req, res) => {
 });
 
 
+function scheduleTrialExpiry() {
   const runExpiry = async () => {
     try {
       const { data: count, error } = await supabase.rpc('expire_trials');
