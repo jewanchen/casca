@@ -1,7 +1,7 @@
 {
   "name": "casca-api",
-  "version": "2.1.0",
-  "description": "Casca v2.1 — AI Routing Engine + API Proxy Aggregator",
+  "version": "3.0.0",
+  "description": "Casca v3 — AI Routing Engine + API Proxy + Billing",
   "type": "module",
   "main": "server-v2.js",
   "scripts": {
@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "^2.43.0",
     "cors":                  "^2.8.5",
     "dotenv":                "^16.4.5",
-    "express":               "^4.21.0"
+    "express":               "^5.0.1",
+    "stripe":                "^16.0.0"
   },
   "engines": {
     "node": ">=20.0.0"
