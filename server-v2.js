@@ -783,21 +783,46 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
   } else {
     // ── Stage 3 / Demo: MANAGED ─────────────────────────────────
     // Use Casca Admin-configured LLM key from providerRegistry.
-    // Casca pays LLM cost, charges client via billing gate.
-    provider = providerRegistry.get(targetModel)
-      ?? [...providerRegistry.values()].find(p =>
-           p.tier_capability === classifyResult.cx || p.tier_capability === 'ANY')
-      ?? null;
+    // Fallback order:
+    //   1. Exact model name match
+    //   2. Exact tier match
+    //   3. ANY tier provider
+    //   4. Upgrade: LOW→MED→HIGH (never downgrade quality)
+    //   5. Any active provider (last resort)
+    const allProviders = [...providerRegistry.values()];
+    const cx = classifyResult.cx;
+
+    const tierUpgrade = { LOW: ['LOW','MED','HIGH'], MED: ['MED','HIGH'], HIGH: ['HIGH'], AMBIG: ['MED','HIGH','LOW'] };
+    const upgradeOrder = tierUpgrade[cx] || ['LOW','MED','HIGH'];
+
+    provider =
+      // 1. Exact model name
+      providerRegistry.get(targetModel) ??
+      // 2. Exact tier
+      allProviders.find(p => p.tier_capability === cx) ??
+      // 3. ANY tier
+      allProviders.find(p => p.tier_capability === 'ANY') ??
+      // 4. Upgrade through tiers
+      upgradeOrder.reduce((found, t) =>
+        found ?? allProviders.find(p => p.tier_capability === t), null) ??
+      // 5. Absolute last resort
+      allProviders[0] ??
+      null;
+
     providerSource = 'casca';
 
     if (!provider) {
       return res.status(503).json({
-        error: `No active provider for tier ${classifyResult.cx}.`,
-        cx:    classifyResult.cx,
+        error: 'No active providers available. Please enable at least one LLM Provider in Admin.',
+        cx,
       });
     }
 
-    console.log(`[casca] managed → ${targetModel} via Casca ${provider.provider_name} key`);
+    if (provider.tier_capability !== cx && provider.tier_capability !== 'ANY') {
+      console.log(`[casca] managed → tier ${cx} unavailable, upgraded to ${provider.tier_capability} (${provider.model_name})`);
+    } else {
+      console.log(`[casca] managed → ${targetModel} via Casca ${provider.provider_name} key`);
+    }
   }
 
   const { responseText, tokensIn, tokensOut, statusCode, latencyMs, error: llmErr }
