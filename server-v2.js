@@ -17,7 +17,7 @@
  *   STRIPE_SECRET_KEY         — sk_live_… or sk_test_…
  *   STRIPE_WEBHOOK_SECRET     — whsec_… from Stripe Dashboard
  *   STRIPE_TOPUP_PRICE_ID     — one-time price ID for credit top-ups (or use ad-hoc)
- *   FRONTEND_URL              — https://app.cascaio.com (redirect after checkout)
+ *   REDIS_URL                 — redis://... from Railway Redis service (optional, enables async postProcess)
  */
 
 import 'dotenv/config';
@@ -51,6 +51,64 @@ const supabase = createClient(
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' })
   : null;
+
+// ════════════════════════════════════════════════════════════════
+//  REDIS — async postProcess queue (optional)
+//  If REDIS_URL is not set, postProcess runs synchronously (original behaviour).
+//  With Redis: res.json() fires immediately, DB writes happen in background.
+// ════════════════════════════════════════════════════════════════
+const REDIS_URL = process.env.REDIS_URL || null;
+let redisClient = null;
+
+async function initRedis() {
+  if (!REDIS_URL) {
+    console.log('[redis] REDIS_URL not set — postProcess will run synchronously');
+    return;
+  }
+  try {
+    const { createClient: createRedisClient } = await import('redis');
+    redisClient = createRedisClient({ url: REDIS_URL });
+    redisClient.on('error', err => console.error('[redis] error:', err.message));
+    await redisClient.connect();
+    console.log('[redis] connected — async postProcess enabled');
+    startPostProcessWorker();
+  } catch (err) {
+    console.error('[redis] init failed, falling back to sync:', err.message);
+    redisClient = null;
+  }
+}
+
+const POST_PROCESS_QUEUE = 'casca:post_process';
+
+// Worker: runs in background, drains the queue continuously
+async function startPostProcessWorker() {
+  console.log('[redis] postProcess worker started');
+  while (true) {
+    try {
+      // Block-pop: waits up to 5s for a job, then loops
+      const item = await redisClient.brPop(POST_PROCESS_QUEUE, 5);
+      if (!item) continue;
+      const job = JSON.parse(item.element);
+      // Re-hydrate classifyResult defaults
+      job.classifyResult = job.classifyResult || {};
+      await postProcess(job);
+    } catch (err) {
+      console.error('[redis] worker error:', err.message);
+      await new Promise(r => setTimeout(r, 1000)); // backoff on error
+    }
+  }
+}
+
+// Helper: enqueue or run directly
+async function enqueuePostProcess(job) {
+  if (redisClient?.isReady) {
+    // Serialize and push to Redis queue — fire and forget
+    await redisClient.lPush(POST_PROCESS_QUEUE, JSON.stringify(job));
+  } else {
+    // No Redis: run synchronously (original behaviour)
+    postProcess(job).catch(err => console.error('[casca] postProcess error:', err.message));
+  }
+}
 
 // ════════════════════════════════════════════════════════════════
 //  PROVIDER REGISTRY
@@ -694,7 +752,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
     };
     res.json(payload);
 
-    postProcess({
+    enqueuePostProcess({
       clientId, planId: plan?.id, overageRate: plan?.overage_rate_per_1m,
       promptHash, normalizedPrompt: normalized,
       classifyResult: { cx: cacheRow.cx ?? 'LOW', originalCx: cacheRow.cx ?? 'LOW',
@@ -839,7 +897,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
 
   if (llmErr || !responseText) {
     res.status(statusCode >= 400 ? statusCode : 502).json({ error: llmErr ?? 'Empty LLM response.' });
-    postProcess({
+    enqueuePostProcess({
       clientId, planId: plan?.id, overageRate: plan?.overage_rate_per_1m,
       promptHash, normalizedPrompt: normalized,
       classifyResult, provider, responseText: null, tokensIn, tokensOut,
@@ -885,7 +943,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
 
   res.json(payload);
 
-  postProcess({
+  enqueuePostProcess({
     clientId, planId: plan?.id, overageRate: plan?.overage_rate_per_1m,
     promptHash, normalizedPrompt: normalized,
     classifyResult, provider, responseText, tokensIn, tokensOut,
@@ -1583,6 +1641,7 @@ function scheduleTrialExpiry() {
 async function start() {
   console.log('[casca] Loading providers from DB…');
   await loadProviders();
+  await initRedis();
   if (!stripe) console.warn('[casca] STRIPE_SECRET_KEY not set — billing endpoints disabled.');
   scheduleTrialExpiry();
   app.listen(PORT, () => {
