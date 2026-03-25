@@ -1233,11 +1233,11 @@ body::after {
     <div class="auth-success-msg" id="auth-success"></div>
     <div class="auth-field">
       <label>Email</label>
-      <input type="email" id="auth-email" placeholder="you@vastitw.com" autocomplete="email">
+      <input type="email" id="auth-email" placeholder="you@vastitw.com" autocomplete="username" spellcheck="false">
     </div>
     <div class="auth-field">
       <label>Password</label>
-      <input type="password" id="auth-pw" placeholder="••••••••" autocomplete="current-password">
+      <input type="password" id="auth-pw" placeholder="••••••••" autocomplete="new-password">
     </div>
     <button class="auth-btn-submit" id="auth-btn" onclick="authSignIn()">登入</button>
     <button class="auth-forgot-link" onclick="authForgotPassword()">忘記密碼？</button>
@@ -1466,7 +1466,7 @@ body::after {
           </div>
           <div class="config-field">
             <label>Casca API Key</label>
-            <input type="password" id="cfg-casca" placeholder="csk_...">
+            <input type="password" id="cfg-casca" placeholder="csk_..." autocomplete="off">
           </div>
           <div class="config-field">
             <label>Casca Base URL</label>
