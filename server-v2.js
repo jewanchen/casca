@@ -26,7 +26,9 @@ import cors             from 'cors';
 import crypto           from 'crypto';
 import Stripe           from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { route as cascaRoute, setConfig } from './casca-classifier.js';
+import { createRequire } from 'module';
+const _require = createRequire(import.meta.url);
+const { route: cascaRoute, setConfig } = _require('./casca-classifier.js');
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
 
 // ════════════════════════════════════════════════════════════════
