@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casca Annotator — Path B Labelling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/* ── Reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08111a;--bg2:#0d1b27;--bg3:#132333;--bg4:#1a2e40;--bg5:#203545;
+  --line:rgba(255,255,255,.06);--line2:rgba(255,255,255,.1);--line3:rgba(255,255,255,.16);
+  --ink:#cde3f0;--ink2:#8eb3c8;--ink3:#507088;--ink4:#30505f;
+  --teal:#06d6a0;--teal2:#04c492;--teal-bg:rgba(6,214,160,.07);--teal-bd:rgba(6,214,160,.22);
+  --high:#ff5e5e;--high-bg:rgba(255,94,94,.08);--high-bd:rgba(255,94,94,.28);
+  --med:#ffbb33;--med-bg:rgba(255,187,51,.07);--med-bd:rgba(255,187,51,.28);
+  --low:#06d6a0;--low-bg:rgba(6,214,160,.07);--low-bd:rgba(6,214,160,.28);
+  --skip:#6688aa;--skip-bg:rgba(102,136,170,.07);--skip-bd:rgba(102,136,170,.2);
+  --warn:#ff9500;--warn-bg:rgba(255,149,0,.08);--warn-bd:rgba(255,149,0,.3);
+  --flag:#b06cff;--flag-bg:rgba(176,108,255,.08);--flag-bd:rgba(176,108,255,.28);
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --r:6px;--r2:10px;--r3:14px;
+}
+html{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);height:100%;display:flex;flex-direction:column;overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--ink4)}
+input,textarea,button{font-family:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* ── Config overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(8,17,26,.95);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(12px)}
+.overlay.hidden{display:none}
+.cfg-box{background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r3);padding:40px;width:480px;max-width:92vw}
+.cfg-logo{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--teal);margin-bottom:4px;text-transform:uppercase}
+.cfg-title{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);margin-bottom:6px;letter-spacing:-.01em}
+.cfg-sub{font-size:13px;color:var(--ink3);margin-bottom:28px;line-height:1.6}
+.field{margin-bottom:16px}
+.field label{display:block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--ink3);text-transform:uppercase;margin-bottom:7px}
+.field input{width:100%;padding:11px 14px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);color:var(--ink);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s}
+.field input:focus{border-color:var(--teal)}
+.field input::placeholder{color:var(--ink4)}
+.cfg-btn{width:100%;padding:14px;background:var(--teal);color:var(--bg);border-radius:var(--r);font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.06em;transition:all .15s;margin-top:4px}
+.cfg-btn:hover{background:var(--teal2);transform:translateY(-1px)}
+.cfg-err{font-family:var(--mono);font-size:11px;color:var(--high);margin-top:10px;display:none}
+
+/* ── Header ── */
+.hdr{height:52px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0;flex-shrink:0;position:relative;z-index:10}
+.hdr-left{display:flex;align-items:center;gap:14px;padding:0 20px;border-right:1px solid var(--line);height:100%}
+.hdr-logo{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--teal);white-space:nowrap}
+.hdr-batch{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.06em;white-space:nowrap}
+.hdr-center{flex:1;display:flex;align-items:center;gap:24px;padding:0 20px}
+.prog-wrap{flex:1;display:flex;align-items:center;gap:10px}
+.prog-rail{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--teal),#0af);border-radius:3px;transition:width .4s ease}
+.prog-text{font-family:var(--mono);font-size:10px;color:var(--ink3);white-space:nowrap;min-width:80px;text-align:right}
+.hdr-stats{display:flex;gap:16px;flex-shrink:0}
+.hdr-stat{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.04em;white-space:nowrap}
+.hdr-stat span{color:var(--ink);font-weight:600}
+.hdr-right{display:flex;align-items:center;gap:8px;padding:0 14px;border-left:1px solid var(--line);height:100%;flex-shrink:0}
+.hdr-btn{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:5px 11px;border-radius:4px;border:1px solid var(--line2);color:var(--ink3);transition:all .15s;white-space:nowrap}
+.hdr-btn:hover{border-color:var(--teal);color:var(--teal)}
+.annotator-chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:4px;background:var(--teal-bg);border:1px solid var(--teal-bd);color:var(--teal);letter-spacing:.06em}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--ink4);transition:all .3s;flex-shrink:0}
+.conn-dot.ok{background:var(--teal);box-shadow:0 0 6px rgba(6,214,160,.5)}
+.conn-dot.err{background:var(--high)}
+
+/* ── Main area ── */
+.main{flex:1;display:grid;grid-template-columns:40% 60%;overflow:hidden}
+
+/* ── Left panel ── */
+.left-panel{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+
+/* Context meta card */
+.ctx-card{padding:14px 16px;border-bottom:1px solid var(--line);flex-shrink:0}
+.ctx-card.warn-low-conf{border:1px solid var(--warn-bd);background:var(--warn-bg);margin:8px;border-radius:var(--r);padding:12px 14px}
+.ctx-card-title{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--ink3);text-transform:uppercase;margin-bottom:10px}
+.ctx-warn-icon{font-size:12px}
+.ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+.ctx-item{display:flex;flex-direction:column;gap:3px}
+.ctx-key{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.15em;color:var(--ink4);text-transform:uppercase}
+.ctx-val{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.ctx-val.full{grid-column:span 2}
+.trend-row{display:flex;gap:3px;align-items:center}
+.trend-block{width:20px;height:14px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:7px;font-weight:700}
+.trend-block.HIGH{background:var(--high-bg);color:var(--high);border:1px solid var(--high-bd)}
+.trend-block.MED{background:var(--med-bg);color:var(--med);border:1px solid var(--med-bd)}
+.trend-block.LOW{background:var(--low-bg);color:var(--low);border:1px solid var(--low-bd)}
+.trend-block.AMBIG{background:var(--skip-bg);color:var(--skip);border:1px dashed var(--skip-bd)}
+.conf-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:3px}
+.conf-badge.high-conf{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-bd)}
+.conf-badge.low-conf{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-bd)}
+
+/* Domain stack */
+.domain-row{padding:8px 16px;border-bottom:1px solid var(--line);flex-shrink:0;font-family:var(--mono);font-size:10px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.domain-label{color:var(--ink4);font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.domain-item{color:var(--ink2);font-size:10px}
+.domain-sep{color:var(--ink4);font-size:10px}
+
+/* Conversation history */
+.history-area{flex:1;overflow-y:auto;padding:12px 14px}
+.history-title{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.18em;color:var(--ink4);text-transform:uppercase;margin-bottom:12px}
+.turn{margin-bottom:14px;border-radius:var(--r2);overflow:hidden;border:1px solid var(--line)}
+.turn.current-turn{border:2px solid rgba(6,214,160,.3);box-shadow:0 0 12px rgba(6,214,160,.06)}
+.turn-header{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-bottom:1px solid var(--line)}
+.turn-num{font-family:var(--mono);font-size:9px;color:var(--ink4);letter-spacing:.06em}
+.role-badge{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.12em;padding:2px 7px;border-radius:3px}
+.role-badge.user{background:var(--bg4);color:var(--ink2);border:1px solid var(--line2)}
+.role-badge.assistant{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-bd)}
+.tier-mini{font-family:var(--mono);font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;margin-left:auto}
+.tier-mini.HIGH{background:var(--high-bg);color:var(--high);border:1px solid var(--high-bd)}
+.tier-mini.MED{background:var(--med-bg);color:var(--med);border:1px solid var(--med-bd)}
+.tier-mini.LOW{background:var(--low-bg);color:var(--low);border:1px solid var(--low-bd)}
+.tier-mini.AMBIG{background:var(--skip-bg);color:var(--skip);border:1px dashed var(--skip-bd)}
+.turn-rule{font-family:var(--mono);font-size:8px;color:var(--ink4);margin-left:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.turn-body{padding:10px 12px;background:var(--bg2)}
+.turn-text{font-family:var(--mono);font-size:12px;color:var(--ink2);line-height:1.55;word-break:break-word}
+.turn-text.rtl{direction:rtl;text-align:right}
+.turn-truncated{font-family:var(--mono);font-size:9px;color:var(--ink4);margin-top:4px;font-style:italic}
+.no-history{font-family:var(--mono);font-size:11px;color:var(--ink4);text-align:center;padding:24px 0;font-style:italic}
+
+/* ── Right panel ── */
+.right-panel{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+
+/* Inter-rater conflict */
+.irr-banner{padding:10px 20px;background:var(--warn-bg);border-bottom:2px solid var(--warn-bd);font-family:var(--mono);font-size:11px;color:var(--warn);display:none;align-items:center;gap:8px;flex-shrink:0}
+.irr-banner.show{display:flex}
+
+/* Prompt display */
+.prompt-area{flex:1;overflow-y:auto;padding:20px 24px}
+.prompt-meta{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.meta-chip{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;padding:3px 9px;border-radius:3px;text-transform:uppercase}
+.mc-lang{background:var(--bg3);color:var(--ink2);border:1px solid var(--line2)}
+.mc-uc{background:var(--bg3);color:var(--ink3);border:1px solid var(--line)}
+.mc-noise{background:var(--warn-bg);color:var(--warn);border:1px dashed var(--warn-bd)}
+.mc-l1{background:var(--skip-bg);color:var(--skip);border:1px solid var(--skip-bd)}
+.mc-labeled{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-bd)}
+
+.tok-warn{display:none;padding:9px 14px;background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:var(--r);font-family:var(--mono);font-size:11px;color:var(--warn);margin-bottom:14px;align-items:center;gap:6px}
+.tok-warn.show{display:flex}
+
+.prompt-box{padding:24px 26px;border-radius:var(--r2);margin-bottom:14px;border:1px solid var(--line2);position:relative;background:var(--bg2);transition:border-color .2s}
+.prompt-box.fragment{border-style:dashed;border-color:var(--warn-bd)}
+.prompt-box.low-ann-conf{background:rgba(255,149,0,.04);border-color:var(--warn-bd)}
+.prompt-box-label{position:absolute;top:-9px;left:14px;font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.2em;color:var(--teal);background:var(--bg2);padding:0 8px;text-transform:uppercase}
+.prompt-text{font-family:var(--mono);font-size:22px;line-height:1.6;color:var(--ink);word-break:break-word}
+.prompt-text.rtl{direction:rtl;text-align:right}
+
+/* Confidence slider */
+.conf-slider-wrap{margin-bottom:16px;padding:14px 16px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);display:flex;align-items:center;gap:14px}
+.conf-slider-label{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.06em;white-space:nowrap}
+.conf-slider{flex:1;height:4px;accent-color:var(--teal);cursor:pointer}
+.conf-slider-val{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink);width:36px;text-align:right}
+
+/* Note area */
+.note-wrap{display:none;margin-bottom:14px}
+.note-wrap.show{display:block}
+.note-ta{width:100%;padding:10px 13px;background:var(--bg3);border:1px solid var(--teal-bd);border-radius:var(--r);color:var(--ink);font-family:var(--mono);font-size:12px;resize:vertical;min-height:80px;outline:none;line-height:1.5}
+.note-ta::placeholder{color:var(--ink4)}
+.note-ta:focus{border-color:var(--teal)}
+
+/* ── Decision area ── */
+.decision-area{padding:16px 24px 14px;border-top:1px solid var(--line);background:var(--bg2);flex-shrink:0}
+
+.main-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.dec-btn{padding:16px 10px;border-radius:var(--r2);border:2px solid;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .15s;position:relative;overflow:hidden;min-height:88px}
+.dec-btn::after{content:'';position:absolute;inset:0;opacity:0;transition:opacity .15s}
+.dec-btn:hover::after{opacity:1}
+.dec-btn:active{transform:scale(.96)}
+@keyframes btnPop{0%{transform:scale(1)}40%{transform:scale(1.04)}100%{transform:scale(1)}}
+.dec-btn.popping{animation:btnPop .25s ease}
+
+.dec-btn.high{border-color:var(--high-bd);background:var(--high-bg)}
+.dec-btn.high::after{background:rgba(255,94,94,.06)}
+.dec-btn.high:hover{border-color:var(--high);box-shadow:0 0 24px rgba(255,94,94,.18)}
+.dec-btn.med{border-color:var(--med-bd);background:var(--med-bg)}
+.dec-btn.med::after{background:rgba(255,187,51,.06)}
+.dec-btn.med:hover{border-color:var(--med);box-shadow:0 0 24px rgba(255,187,51,.18)}
+.dec-btn.low{border-color:var(--low-bd);background:var(--low-bg)}
+.dec-btn.low::after{background:rgba(6,214,160,.06)}
+.dec-btn.low:hover{border-color:var(--low);box-shadow:0 0 24px rgba(6,214,160,.18)}
+
+.dec-key{font-family:var(--mono);font-size:18px;font-weight:800;width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.dec-btn.high .dec-key{background:var(--high);color:var(--bg)}
+.dec-btn.med  .dec-key{background:var(--med);color:var(--bg)}
+.dec-btn.low  .dec-key{background:var(--low);color:var(--bg)}
+.dec-label{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.dec-btn.high .dec-label{color:var(--high)}
+.dec-btn.med  .dec-label{color:var(--med)}
+.dec-btn.low  .dec-label{color:var(--low)}
+.dec-tip{font-family:var(--sans);font-size:10px;color:var(--ink3);text-align:center;line-height:1.3}
+
+/* Tooltip on hover */
+.dec-btn .tooltip{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:8px 12px;font-family:var(--sans);font-size:11px;color:var(--ink2);white-space:nowrap;z-index:20;pointer-events:none;line-height:1.5;min-width:180px;text-align:center}
+.dec-btn:hover .tooltip{display:block}
+
+.aux-btns{display:flex;gap:8px}
+.aux-btn{flex:1;padding:9px 8px;border-radius:var(--r);border:1px solid var(--line2);background:transparent;color:var(--ink3);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.aux-btn:hover{border-color:var(--line3);color:var(--ink)}
+.aux-btn.skip:hover{border-color:var(--skip-bd);color:var(--skip)}
+.aux-btn.flag:hover{border-color:var(--flag-bd);color:var(--flag)}
+.aux-btn.note:hover{border-color:var(--teal-bd);color:var(--teal)}
+.aux-btn.active-flag{border-color:var(--flag-bd);color:var(--flag);background:var(--flag-bg)}
+.aux-btn.active-note{border-color:var(--teal-bd);color:var(--teal)}
+.aux-key{font-size:10px;opacity:.6}
+
+/* ── Footer ── */
+.footer{height:38px;background:var(--bg2);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0}
+.footer-keys{font-family:var(--mono);font-size:9px;color:var(--ink4);letter-spacing:.06em;display:flex;gap:12px;align-items:center}
+.footer-keys kbd{background:var(--bg3);border:1px solid var(--line2);border-radius:3px;padding:1px 5px;font-family:var(--mono);font-size:9px;color:var(--ink3)}
+.footer-right{display:flex;align-items:center;gap:14px}
+.save-status{font-family:var(--mono);font-size:10px;letter-spacing:.06em;transition:color .3s}
+.save-status.saving{color:var(--warn)}
+.save-status.saved{color:var(--teal)}
+.save-status.error{color:var(--high)}
+.rest-tip{font-family:var(--mono);font-size:10px;color:var(--warn);display:none;animation:fadeIn .5s ease}
+.rest-tip.show{display:inline}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.undo-btn{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.06em;padding:3px 8px;border:1px solid var(--line);border-radius:3px;transition:all .15s;display:flex;align-items:center;gap:4px}
+.undo-btn:hover{border-color:var(--teal-bd);color:var(--teal)}
+.undo-btn:disabled{opacity:.3;cursor:default}
+
+/* ── Flash ── */
+.flash{position:fixed;top:60px;right:20px;padding:11px 18px;border-radius:var(--r);font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;opacity:0;transform:translateX(16px);transition:all .2s;pointer-events:none;z-index:500;border:1px solid}
+.flash.show{opacity:1;transform:translateX(0)}
+.flash.HIGH{background:var(--high-bg);border-color:var(--high-bd);color:var(--high)}
+.flash.MED{background:var(--med-bg);border-color:var(--med-bd);color:var(--med)}
+.flash.LOW{background:var(--low-bg);border-color:var(--low-bd);color:var(--low)}
+.flash.SKIP{background:var(--skip-bg);border-color:var(--skip-bd);color:var(--skip)}
+.flash.FLAG{background:var(--flag-bg);border-color:var(--flag-bd);color:var(--flag)}
+.flash.info{background:var(--bg3);border-color:var(--line2);color:var(--ink2)}
+.flash.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+
+/* ── Loading / empty ── */
+.state-full{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg)}
+.spinner{width:36px;height:36px;border:2px solid var(--bg4);border-top-color:var(--teal);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-msg{font-family:var(--mono);font-size:13px;color:var(--ink3);letter-spacing:.06em}
+
+/* ── Export modal ── */
+.modal-wrap{position:fixed;inset:0;background:rgba(8,17,26,.88);display:none;align-items:center;justify-content:center;z-index:600;backdrop-filter:blur(6px)}
+.modal-wrap.show{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r3);padding:28px 32px;width:420px;max-width:90vw}
+.modal-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--teal);letter-spacing:.08em;margin-bottom:14px}
+.modal-info{font-family:var(--mono);font-size:11px;color:var(--ink3);line-height:1.8;margin-bottom:20px}
+.modal-info strong{color:var(--ink)}
+.modal-btns{display:flex;gap:10px}
+.mbtn{flex:1;padding:11px;border-radius:var(--r);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .15s}
+.mbtn-primary{background:var(--teal);color:var(--bg);border:none}
+.mbtn-primary:hover{background:var(--teal2)}
+.mbtn-cancel{background:transparent;border:1px solid var(--line2);color:var(--ink3)}
+.mbtn-cancel:hover{border-color:var(--line3);color:var(--ink)}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .main{grid-template-columns:1fr}
+  .left-panel{display:none}
+  .hdr-stats{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Config overlay -->
+<div class="overlay" id="overlay">
+  <div class="cfg-box">
+    <div class="cfg-logo">Casca · Path B</div>
+    <div class="cfg-title">AMBIG Labelling Tool</div>
+    <div class="cfg-sub">Neural Disambiguation 訓練資料標注介面<br>請填入 Supabase 連線資訊以開始。</div>
+    <div class="field">
+      <label>Supabase URL</label>
+      <input id="cfgUrl" type="text" placeholder="https://xxxx.supabase.co" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Supabase Anon Key</label>
+      <input id="cfgKey" type="password" placeholder="eyJhbGci..." autocomplete="off">
+    </div>
+    <div class="field">
+      <label>標注員 ID（固定，用於 inter-rater 追蹤）</label>
+      <input id="cfgAnnotator" type="text" placeholder="A1" maxlength="10" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>批次名稱（選填）</label>
+      <input id="cfgBatch" type="text" placeholder="Batch #3 — ZH_TC AMBIG set" autocomplete="off">
+    </div>
+    <button class="cfg-btn" onclick="initConn()">連線並載入佇列 →</button>
+    <div class="cfg-err" id="cfgErr"></div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-wrap" id="exportModal">
+  <div class="modal-box">
+    <div class="modal-title">匯出標注資料</div>
+    <div class="modal-info" id="exportInfo">—</div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-primary" onclick="doExport()">下載 CSV</button>
+      <button class="mbtn mbtn-cancel" onclick="closeModal('exportModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Flash -->
+<div class="flash" id="flash"></div>
+
+<!-- Loading state -->
+<div class="state-full" id="loadingState">
+  <div class="spinner"></div>
+  <div class="state-msg">連線中，請稍候…</div>
+</div>
+
+<!-- App shell (hidden until connected) -->
+<div id="appShell" style="display:none;flex-direction:column;height:100%">
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-logo">CASCA ANNOTATOR</div>
+    <div class="hdr-batch" id="hdrBatch">—</div>
+  </div>
+  <div class="hdr-center">
+    <div class="prog-wrap">
+      <div class="prog-rail"><div class="prog-fill" id="progFill"></div></div>
+      <div class="prog-text" id="progText">0 / 0</div>
+    </div>
+    <div class="hdr-stats">
+      <div class="hdr-stat">本次 <span id="stSession">0</span> 筆</div>
+      <div class="hdr-stat">均速 <span id="stRate">—</span> sec/筆</div>
+      <div class="hdr-stat">隊列 <span id="stRemain">—</span></div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="conn-dot ok" id="connDot"></div>
+    <div class="annotator-chip" id="annotatorChip">A1</div>
+    <button class="hdr-btn" onclick="openModal('exportModal');buildExportInfo()">匯出</button>
+    <button class="hdr-btn" onclick="showCfg()">設定</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main" id="mainGrid">
+  <!-- LEFT: context + history -->
+  <div class="left-panel">
+    <!-- Context meta card -->
+    <div id="ctxCard" class="ctx-card">
+      <div class="ctx-card-title"><span class="ctx-warn-icon" id="ctxWarnIcon" style="display:none">⚠️</span>Context Window</div>
+      <div class="ctx-grid" id="ctxGrid">
+        <div class="ctx-item"><div class="ctx-key">—</div><div class="ctx-val">—</div></div>
+      </div>
+    </div>
+    <!-- Domain stack -->
+    <div class="domain-row" id="domainRow" style="display:none">
+      <span class="domain-label">Domain</span>
+      <span id="domainItems">—</span>
+    </div>
+    <!-- History -->
+    <div class="history-area">
+      <div class="history-title">// 對話歷史 (Context)</div>
+      <div id="historyList"><div class="no-history">載入中…</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: annotation -->
+  <div class="right-panel">
+    <!-- Inter-rater banner -->
+    <div class="irr-banner" id="irrBanner">
+      <span>⚠️</span>
+      <span id="irrText">—</span>
+    </div>
+
+    <!-- Prompt display -->
+    <div class="prompt-area" id="promptArea">
+      <div class="prompt-meta" id="promptMeta"></div>
+      <div class="tok-warn" id="tokWarn">⚠️ 極短 prompt（tok ≤ 3），請參考上下文再判斷</div>
+      <div class="prompt-box" id="promptBox">
+        <div class="prompt-box-label">PROMPT TO LABEL</div>
+        <div class="prompt-text" id="promptText">—</div>
+      </div>
+      <!-- Confidence slider -->
+      <div class="conf-slider-wrap">
+        <span class="conf-slider-label">標注信心</span>
+        <input type="range" class="conf-slider" id="confSlider" min="0" max="100" value="70" oninput="updateConfVal()">
+        <span class="conf-slider-val" id="confVal">70%</span>
+      </div>
+      <!-- Note -->
+      <div class="note-wrap" id="noteWrap">
+        <textarea class="note-ta" id="noteText" placeholder="備註此筆樣本（選填）…" rows="3"></textarea>
+      </div>
+    </div>
+
+    <!-- Decision -->
+    <div class="decision-area">
+      <div class="main-btns">
+        <button class="dec-btn high" onclick="label('HIGH')">
+          <div class="dec-key">1</div>
+          <div class="dec-label">HIGH</div>
+          <div class="dec-tip">複雜分析 / 策略文件 / 多步驟</div>
+          <div class="tooltip">多步驟分析、策略文件、完整交付物<br>合約起草、法律風險、架構設計</div>
+        </button>
+        <button class="dec-btn med" onclick="label('MED')">
+          <div class="dec-key">2</div>
+          <div class="dec-label">MED</div>
+          <div class="dec-tip">跟進問題 / 中等複雜度</div>
+          <div class="tooltip">跟進問題、連接詞指令、中等複雜<br>翻譯、摘要、說明、草稿</div>
+        </button>
+        <button class="dec-btn low" onclick="label('LOW')">
+          <div class="dec-key">3</div>
+          <div class="dec-label">LOW</div>
+          <div class="dec-tip">結束語 / 短格式 / 簡單指令</div>
+          <div class="tooltip">結束語、短格式輸出、單一簡單指令<br>確認、查詢定義、格式化請求</div>
+        </button>
+      </div>
+      <div class="aux-btns">
+        <button class="aux-btn skip" onclick="label('SKIP')"><kbd class="aux-key">S</kbd> SKIP</button>
+        <button class="aux-btn flag" id="flagBtn" onclick="toggleFlag()"><kbd class="aux-key">F</kbd> FLAG</button>
+        <button class="aux-btn note" id="noteBtn" onclick="toggleNote()"><kbd class="aux-key">N</kbd> NOTE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-keys">
+    <kbd>1</kbd>HIGH &nbsp;<kbd>2</kbd>MED &nbsp;<kbd>3</kbd>LOW &nbsp;<kbd>S</kbd>Skip &nbsp;<kbd>F</kbd>Flag &nbsp;<kbd>N</kbd>Note &nbsp;<kbd>←</kbd>上一筆 &nbsp;<kbd>→</kbd>下一筆
+  </div>
+  <div class="footer-right">
+    <span class="rest-tip" id="restTip">☕ 建議休息 5 分鐘</span>
+    <button class="undo-btn" id="undoBtn" onclick="undoLast()" disabled>↩ 復原</button>
+    <span class="save-status saved" id="saveStatus">✓ 就緒</span>
+  </div>
+</div>
+
+</div><!-- /appShell -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let SB = null;
+let ANNOTATOR = 'A1';
+let BATCH = 'Batch #1';
+let queue = [];       // loaded from annotation_queue
+let idx   = 0;
+let flagged = false;
+let noteOpen = false;
+let displayedAt = 0;  // timestamp when card was shown (for latency_ms)
+
+// Session stats
+const ss = { total:0, HIGH:0, MED:0, LOW:0, SKIP:0, times:[], startTime:Date.now() };
+
+// Undo stack (max 5)
+const undoStack = [];  // [{id, oldLabel}]
+
+// Offline buffer
+let offlineBuffer = JSON.parse(localStorage.getItem('ann_offline') || '[]');
+
+// ═══════════════════════════════════════════════════════════════
+//  CONNECTION
+// ═══════════════════════════════════════════════════════════════
+async function initConn() {
+  const url  = document.getElementById('cfgUrl').value.trim();
+  const key  = document.getElementById('cfgKey').value.trim();
+  const ann  = document.getElementById('cfgAnnotator').value.trim() || 'A1';
+  const bat  = document.getElementById('cfgBatch').value.trim() || 'Batch #1';
+  const errEl = document.getElementById('cfgErr');
+  errEl.style.display = 'none';
+
+  if (!url || !key) { showCfgErr('請填入 Supabase URL 和 Anon Key'); return; }
+
+  ANNOTATOR = ann; BATCH = bat;
+  SB = window.supabase.createClient(url, key);
+
+  const { error } = await SB.from('annotation_queue').select('id').limit(1);
+  if (error) { showCfgErr('連線失敗: ' + error.message); SB = null; return; }
+
+  localStorage.setItem('ann_url', url);
+  localStorage.setItem('ann_key', key);
+  localStorage.setItem('ann_name', ann);
+  localStorage.setItem('ann_batch', bat);
+
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('appShell').style.display = 'flex';
+  document.getElementById('connDot').className = 'conn-dot ok';
+  document.getElementById('annotatorChip').textContent = ann;
+  document.getElementById('hdrBatch').textContent = bat;
+
+  await loadQueue();
+  flushOfflineBuffer();
+}
+
+function showCfgErr(msg) {
+  const el = document.getElementById('cfgErr');
+  el.textContent = msg; el.style.display = 'block';
+}
+function showCfg() { document.getElementById('overlay').classList.remove('hidden'); }
+
+// ═══════════════════════════════════════════════════════════════
+//  LOAD QUEUE
+// ═══════════════════════════════════════════════════════════════
+async function loadQueue() {
+  setSaveStatus('saving', '載入中…');
+  const { data, error } = await SB
+    .from('annotation_queue')
+    .select('id,prompt,predicted_cx,triggered_rule,lang,uc,created_at,api_log_id')
+    .eq('status','pending')
+    .order('created_at', { ascending: true })
+    .limit(500);
+
+  if (error) { setSaveStatus('error','載入失敗'); flash('載入失敗: '+error.message,'warn'); return; }
+  if (!data || data.length === 0) {
+    document.getElementById('mainGrid').innerHTML =
+      '<div style="grid-column:span 2;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:var(--ink3)">🎉 佇列已清空，所有樣本均已標注。</div>';
+    setSaveStatus('saved','✓ 完成'); return;
+  }
+
+  // Load context from api_logs if available
+  const logIds = [...new Set(data.filter(d=>d.api_log_id).map(d=>d.api_log_id))];
+  let logsMap = {};
+  if (logIds.length > 0) {
+    const { data: logs } = await SB.from('api_logs')
+      .select('id,cx,model_name,lang,rule,latency_ms,tokens_in,tokens_out,created_at')
+      .in('id', logIds.slice(0,100));
+    (logs||[]).forEach(l => logsMap[l.id] = l);
+  }
+
+  queue = data.map(d => ({ ...d, _log: d.api_log_id ? logsMap[d.api_log_id] : null }));
+  idx = 0;
+  renderCard();
+  updateProgress();
+  setSaveStatus('saved','✓ 就緒');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER CARD
+// ═══════════════════════════════════════════════════════════════
+function renderCard() {
+  if (!queue.length || idx >= queue.length) return;
+  const item = queue[idx];
+  displayedAt = Date.now();
+  flagged = false;
+  noteOpen = false;
+
+  // Reset UI state
+  document.getElementById('flagBtn').classList.remove('active-flag');
+  document.getElementById('noteBtn').classList.remove('active-note');
+  document.getElementById('noteWrap').classList.remove('show');
+  document.getElementById('noteText').value = '';
+  document.getElementById('confSlider').value = 70;
+  document.getElementById('confVal').textContent = '70%';
+  document.getElementById('irrBanner').classList.remove('show');
+
+  const lang = item.lang || 'EN';
+  const cx   = item.predicted_cx || 'AMBIG';
+  const tok  = estimateTok(item.prompt, lang);
+  const rule = item.triggered_rule || '—';
+  const noise = extractNoiseType(rule);
+
+  // RTL languages
+  const isRTL = ['AR','HI'].includes(lang);
+
+  // ── Context card ──────────────────────────────────────────────
+  const log = item._log;
+  const conf = log ? Math.round((1 - 1/Math.max(1,log.tokens_in||10))*100) : null;
+  const lowConf = conf !== null && conf < 60;
+
+  const ctxCard = document.getElementById('ctxCard');
+  ctxCard.className = 'ctx-card' + (lowConf ? ' warn-low-conf' : '');
+  document.getElementById('ctxWarnIcon').style.display = lowConf ? 'inline' : 'none';
+
+  document.getElementById('ctxGrid').innerHTML = `
+    <div class="ctx-item">
+      <div class="ctx-key">predicted_cx</div>
+      <div class="ctx-val"><span class="tier-mini ${cx}">${cx}</span></div>
+    </div>
+    <div class="ctx-item">
+      <div class="ctx-key">lang</div>
+      <div class="ctx-val">${lang}</div>
+    </div>
+    <div class="ctx-item">
+      <div class="ctx-key">tok</div>
+      <div class="ctx-val">${tok}</div>
+    </div>
+    <div class="ctx-item">
+      <div class="ctx-key">use_case</div>
+      <div class="ctx-val">${item.uc||'general'}</div>
+    </div>
+    ${conf !== null ? `
+    <div class="ctx-item">
+      <div class="ctx-key">confidence</div>
+      <div class="ctx-val">
+        <span class="conf-badge ${lowConf?'low-conf':'high-conf'}">${lowConf?'⚠️ ':''}${conf}%</span>
+      </div>
+    </div>` : ''}
+    <div class="ctx-item ctx-val full">
+      <div class="ctx-key" style="margin-bottom:4px">rule</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--ink3);line-height:1.5">${escHtml(rule.slice(0,80))}${rule.length>80?'…':''}</div>
+    </div>`;
+
+  // Domain row (hidden for now unless context has it)
+  document.getElementById('domainRow').style.display = 'none';
+
+  // ── History ───────────────────────────────────────────────────
+  renderHistory(item, cx, rule, lang, isRTL);
+
+  // ── Prompt meta ───────────────────────────────────────────────
+  const metaEl = document.getElementById('promptMeta');
+  metaEl.innerHTML = `
+    <span class="meta-chip mc-lang">${lang}</span>
+    <span class="meta-chip mc-uc">${item.uc||'general'}</span>
+    <span class="meta-chip mc-l1">L1: ${cx}</span>
+    ${noise ? `<span class="meta-chip mc-noise">[${noise}]</span>` : ''}
+    ${item._labeled ? `<span class="meta-chip mc-labeled">✓ ${item._label}</span>` : ''}`;
+
+  // tok ≤ 3 warning
+  const tokWarn = document.getElementById('tokWarn');
+  tokWarn.className = 'tok-warn' + (tok <= 3 ? ' show' : '');
+
+  // Low annotation confidence background
+  const slider = parseInt(document.getElementById('confSlider').value);
+  const promptBox = document.getElementById('promptBox');
+  promptBox.className = 'prompt-box' + (noise ? ' fragment' : '') + (slider < 40 ? ' low-ann-conf' : '');
+
+  // Prompt text
+  const ptEl = document.getElementById('promptText');
+  ptEl.textContent = item.prompt || '—';
+  ptEl.className = 'prompt-text' + (isRTL ? ' rtl' : '');
+
+  // Inter-rater check (async)
+  checkIRR(item.id);
+
+  // Progress
+  updateProgress();
+}
+
+function renderHistory(item, cx, rule, lang, isRTL) {
+  const list = document.getElementById('historyList');
+  // We don't have multi-turn data in annotation_queue, so show this single prompt as context
+  // Future: join with api_logs for session context
+  const turns = buildTurns(item, cx, rule);
+
+  if (!turns.length) {
+    list.innerHTML = '<div class="no-history">無對話歷史（單輪 prompt）</div>';
+    return;
+  }
+
+  list.innerHTML = turns.map((t,i) => `
+    <div class="turn ${t.isCurrent ? 'current-turn':''}">
+      <div class="turn-header">
+        <span class="turn-num">Turn ${i+1}</span>
+        <span class="role-badge ${t.role}">${t.role.toUpperCase()}</span>
+        <span class="tier-mini ${t.tier}">${t.tier}</span>
+        <span class="turn-rule">${escHtml(t.rule||'')}</span>
+      </div>
+      <div class="turn-body">
+        <div class="turn-text ${isRTL?'rtl':''}">${escHtml(t.text)}</div>
+        ${t.truncated ? `<div class="turn-truncated">… (截斷顯示)</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function buildTurns(item, cx, rule) {
+  // Build synthetic turn from available data
+  return [{
+    role: 'user',
+    tier: cx,
+    rule: rule,
+    text: item.prompt || '—',
+    truncated: false,
+    isCurrent: true,
+  }];
+}
+
+async function checkIRR(sampleId) {
+  if (!SB) return;
+  // Check if another annotator already labeled this
+  const { data } = await SB.from('annotation_labels')
+    .select('annotator_id,label')
+    .eq('sample_id', sampleId)
+    .neq('annotator_id', ANNOTATOR);
+  if (!data || data.length === 0) return;
+
+  const other = data[0];
+  const banner = document.getElementById('irrBanner');
+  const item = queue[idx];
+  if (item && item._labeled) {
+    const myLabel = item._label;
+    if (myLabel && myLabel !== other.label) {
+      document.getElementById('irrText').textContent =
+        `${other.annotator_id} 標為 ${other.label}，您標為 ${myLabel} — 請確認後再送出`;
+      banner.classList.add('show');
+    }
+  } else {
+    // Don't show other's label yet (avoid anchoring bias)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LABEL
+// ═══════════════════════════════════════════════════════════════
+async function label(cx) {
+  if (!queue.length || idx >= queue.length) return;
+  const item = queue[idx];
+  const latency = Date.now() - displayedAt;
+  const confidence = parseInt(document.getElementById('confSlider').value);
+  const note = document.getElementById('noteText').value.trim();
+
+  setSaveStatus('saving','⟳ 儲存中…');
+
+  const record = {
+    sample_id:    item.id,
+    annotator_id: ANNOTATOR,
+    label:        cx === 'SKIP' ? 'SKIP' : cx,
+    confidence:   cx === 'SKIP' ? null : confidence,
+    note:         note || null,
+    flagged:      flagged,
+    latency_ms:   latency,
+    batch:        BATCH,
+  };
+
+  // Save to annotation_labels table
+  if (SB) {
+    const { error } = await SB.from('annotation_labels').upsert(record, {
+      onConflict: 'sample_id,annotator_id'
+    });
+    if (error) {
+      // Offline buffer
+      offlineBuffer.push(record);
+      localStorage.setItem('ann_offline', JSON.stringify(offlineBuffer));
+      setSaveStatus('error','⚠ 離線暫存');
+      flash('網路問題，已暫存本地', 'warn');
+    } else {
+      setSaveStatus('saved','✓ 已儲存');
+    }
+  } else {
+    offlineBuffer.push(record);
+    localStorage.setItem('ann_offline', JSON.stringify(offlineBuffer));
+    setSaveStatus('error','⚠ 離線暫存');
+  }
+
+  // Also update annotation_queue status if not SKIP
+  if (SB && cx !== 'SKIP') {
+    await SB.from('annotation_queue').update({
+      confirmed_cx: cx,
+      status: 'done',
+      annotated_at: new Date().toISOString(),
+    }).eq('id', item.id).eq('status','pending');
+  }
+
+  // Undo stack
+  undoStack.push({ id: item.id, idx, prevLabel: item._label, prevStatus: item.status });
+  if (undoStack.length > 5) undoStack.shift();
+  document.getElementById('undoBtn').disabled = false;
+
+  // Mark locally
+  item._labeled = true;
+  item._label = cx;
+
+  // Session stats
+  ss[cx] = (ss[cx]||0) + 1;
+  ss.total++;
+  ss.times.push(latency);
+  updateHeaderStats();
+
+  // Animate button
+  const btnMap = { HIGH:'.dec-btn.high', MED:'.dec-btn.med', LOW:'.dec-btn.low' };
+  if (btnMap[cx]) {
+    const el = document.querySelector(btnMap[cx]);
+    if (el) { el.classList.add('popping'); setTimeout(()=>el.classList.remove('popping'),260); }
+  }
+
+  flash(cx === 'SKIP' ? 'SKIP — 已跳過' : '✓ ' + cx, cx);
+
+  // Rest reminder every 100
+  if (ss.total > 0 && ss.total % 100 === 0) {
+    const rt = document.getElementById('restTip');
+    rt.classList.add('show');
+    setTimeout(() => rt.classList.remove('show'), 8000);
+    flash('☕ 已標注 ' + ss.total + ' 筆，建議休息 5 分鐘', 'warn');
+  }
+
+  // Auto-advance after 500ms
+  setTimeout(() => nextCard(), 500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UNDO
+// ═══════════════════════════════════════════════════════════════
+async function undoLast() {
+  if (!undoStack.length) return;
+  const { id, idx: prevIdx } = undoStack.pop();
+  document.getElementById('undoBtn').disabled = undoStack.length === 0;
+
+  if (SB) {
+    // Revert annotation_labels
+    await SB.from('annotation_labels')
+      .delete()
+      .eq('sample_id', id)
+      .eq('annotator_id', ANNOTATOR);
+    // Revert annotation_queue
+    await SB.from('annotation_queue')
+      .update({ confirmed_cx: null, status: 'pending', annotated_at: null })
+      .eq('id', id);
+  }
+
+  // Revert local
+  if (queue[prevIdx]) {
+    queue[prevIdx]._labeled = false;
+    queue[prevIdx]._label = null;
+  }
+  idx = prevIdx;
+  renderCard();
+  setSaveStatus('saved','✓ 已復原');
+  flash('已復原上一筆', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function nextCard() {
+  if (idx < queue.length - 1) { idx++; renderCard(); scrollPrompt(); }
+  else flash('已到最後一筆','info');
+}
+function prevCard() {
+  if (idx > 0) { idx--; renderCard(); scrollPrompt(); }
+}
+function scrollPrompt() {
+  const pa = document.getElementById('promptArea');
+  if (pa) pa.scrollTop = 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function toggleFlag() {
+  flagged = !flagged;
+  const btn = document.getElementById('flagBtn');
+  btn.className = 'aux-btn flag' + (flagged?' active-flag':'');
+  flash(flagged ? 'FLAG 已標記' : 'FLAG 已取消', 'FLAG');
+}
+
+function toggleNote() {
+  noteOpen = !noteOpen;
+  document.getElementById('noteWrap').className = 'note-wrap'+(noteOpen?' show':'');
+  document.getElementById('noteBtn').className = 'aux-btn note'+(noteOpen?' active-note':'');
+  if (noteOpen) document.getElementById('noteText').focus();
+}
+
+function updateConfVal() {
+  const v = document.getElementById('confSlider').value;
+  document.getElementById('confVal').textContent = v + '%';
+  const pb = document.getElementById('promptBox');
+  const noise = pb.classList.contains('fragment');
+  pb.className = 'prompt-box' + (noise?' fragment':'') + (v < 40?' low-ann-conf':'');
+}
+
+function updateProgress() {
+  const total = queue.length;
+  const done  = queue.filter(q=>q._labeled).length + ss.total;
+  const pct   = total > 0 ? Math.min(100,(done/total*100)) : 0;
+  document.getElementById('progFill').style.width = pct.toFixed(1)+'%';
+  document.getElementById('progText').textContent = `${done} / ${total}`;
+  document.getElementById('stRemain').textContent = Math.max(0,total-done);
+}
+
+function updateHeaderStats() {
+  document.getElementById('stSession').textContent = ss.total;
+  if (ss.times.length > 0) {
+    const avg = (ss.times.reduce((a,b)=>a+b,0)/ss.times.length/1000).toFixed(1);
+    document.getElementById('stRate').textContent = avg;
+  }
+  updateProgress();
+}
+
+function setSaveStatus(state, msg) {
+  const el = document.getElementById('saveStatus');
+  el.className = 'save-status '+state;
+  el.textContent = msg;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  OFFLINE SYNC
+// ═══════════════════════════════════════════════════════════════
+async function flushOfflineBuffer() {
+  if (!SB || offlineBuffer.length === 0) return;
+  const buf = [...offlineBuffer];
+  offlineBuffer = [];
+  localStorage.removeItem('ann_offline');
+  for (const record of buf) {
+    await SB.from('annotation_labels').upsert(record, { onConflict:'sample_id,annotator_id' })
+      .catch(() => offlineBuffer.push(record));
+  }
+  if (offlineBuffer.length > 0) localStorage.setItem('ann_offline',JSON.stringify(offlineBuffer));
+  else flash('離線暫存已同步 ('+buf.length+' 筆)', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════════════════
+function buildExportInfo() {
+  document.getElementById('exportInfo').innerHTML =
+    `本次已標注：<strong>${ss.total}</strong> 筆<br>
+     HIGH: ${ss.HIGH} · MED: ${ss.MED} · LOW: ${ss.LOW} · SKIP: ${ss.SKIP}<br>
+     標注員：${ANNOTATOR} · 批次：${BATCH}<br><br>
+     匯出欄位：id, prompt, predicted_cx, confirmed_label, confidence, note, flagged, latency_ms, annotator_id, created_at`;
+}
+
+async function doExport() {
+  if (!SB) { flash('未連線','warn'); return; }
+  const { data, error } = await SB.from('annotation_labels')
+    .select('id,sample_id,annotator_id,label,confidence,note,flagged,latency_ms,batch,created_at, annotation_queue(prompt,predicted_cx,lang,uc,triggered_rule)')
+    .eq('annotator_id', ANNOTATOR)
+    .order('created_at', { ascending: false })
+    .limit(5000);
+  if (error) { flash('匯出失敗: '+error.message,'warn'); return; }
+
+  const esc = v => {
+    if (v==null) return '';
+    const s = String(v).replace(/"/g,'""');
+    return /[,"\n\r]/.test(s)?`"${s}"`:s;
+  };
+  const rows = (data||[]).map(r => [
+    r.sample_id, r.annotation_queue?.prompt||'',
+    r.annotation_queue?.predicted_cx||'', r.label,
+    r.confidence||'', r.note||'', r.flagged?'1':'0',
+    r.latency_ms||'', r.annotator_id, r.batch||'',
+    r.annotation_queue?.lang||'', r.annotation_queue?.uc||'',
+    r.annotation_queue?.triggered_rule||'', r.created_at
+  ].map(esc).join(','));
+  const header = 'sample_id,prompt,predicted_cx,label,confidence,note,flagged,latency_ms,annotator_id,batch,lang,uc,triggered_rule,created_at';
+  const csv = [header,...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`casca-labels-${ANNOTATOR}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  closeModal('exportModal');
+  flash('CSV 已下載 ('+(data||[]).length+' 筆)','info');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+    if (e.key==='Escape') { e.target.blur(); return; }
+    return;
+  }
+  if (!document.getElementById('overlay').classList.contains('hidden')) return;
+  switch(e.key) {
+    case '1': label('HIGH'); break;
+    case '2': label('MED');  break;
+    case '3': label('LOW');  break;
+    case 's': case 'S': label('SKIP'); break;
+    case 'f': case 'F': toggleFlag(); break;
+    case 'n': case 'N': toggleNote(); break;
+    case 'ArrowLeft':  e.preventDefault(); prevCard(); break;
+    case 'ArrowRight': e.preventDefault(); nextCard(); break;
+    case 'z': case 'Z': if (e.metaKey||e.ctrlKey) { e.preventDefault(); undoLast(); } break;
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  FLASH
+// ═══════════════════════════════════════════════════════════════
+let flashTimer;
+function flash(msg, type='info') {
+  const el = document.getElementById('flash');
+  el.textContent = msg; el.className = 'flash '+type+' show';
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(()=>el.classList.remove('show'), 1800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function estimateTok(text, lang) {
+  if (!text) return 0;
+  if (['ZH','ZH_SC','JA','KO'].includes(lang)) return Math.ceil(text.length*1.5);
+  return Math.ceil(text.trim().split(/\s+/).length*1.3);
+}
+
+function extractNoiseType(rule) {
+  const m = rule && rule.match(/noiseType[:\s]+([A-Z_-]+)/i);
+  if (m) return m[1];
+  if (/FRAGMENT/i.test(rule)) return 'FRAGMENT';
+  if (/ZH-MINIMAL/i.test(rule)) return 'ZH-MINIMAL';
+  if (/J-POLY/i.test(rule)) return 'J-POLY';
+  return null;
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTO-RESTORE & INIT
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const url  = localStorage.getItem('ann_url');
+  const key  = localStorage.getItem('ann_key');
+  const name = localStorage.getItem('ann_name');
+  const bat  = localStorage.getItem('ann_batch');
+
+  if (url) document.getElementById('cfgUrl').value = url;
+  if (key) document.getElementById('cfgKey').value = key;
+  if (name) document.getElementById('cfgAnnotator').value = name;
+  if (bat)  document.getElementById('cfgBatch').value = bat;
+
+  if (url && key) {
+    ANNOTATOR = name || 'A1';
+    BATCH = bat || 'Batch #1';
+    SB = window.supabase.createClient(url, key);
+    SB.from('annotation_queue').select('id').limit(1).then(({error}) => {
+      if (error) {
+        document.getElementById('loadingState').style.display = 'none';
+        return;
+      }
+      document.getElementById('overlay').classList.add('hidden');
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('appShell').style.display = 'flex';
+      document.getElementById('connDot').className = 'conn-dot ok';
+      document.getElementById('annotatorChip').textContent = ANNOTATOR;
+      document.getElementById('hdrBatch').textContent = BATCH;
+      loadQueue();
+      flushOfflineBuffer();
+    });
+  } else {
+    document.getElementById('loadingState').style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
