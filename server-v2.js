@@ -26,10 +26,17 @@ import cors             from 'cors';
 import crypto           from 'crypto';
 import Stripe           from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { createRequire } from 'module';
-const _require = createRequire(import.meta.url);
-const { route: cascaRoute, setConfig } = _require('./casca-classifier.js');
+import { createRequire }  from 'module';
+
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
+
+// ── Load CommonJS classifier (UMD) from ESM server ──────────────
+const _require    = createRequire(import.meta.url);
+const _classifier = _require('./casca-classifier.js');
+const cascaRoute  = _classifier.route;
+const setConfig   = typeof _classifier.setConfig === 'function'
+                      ? _classifier.setConfig
+                      : () => { /* no-op: setConfig not exported by classifier */ };
 
 // ════════════════════════════════════════════════════════════════
 //  CONFIG
