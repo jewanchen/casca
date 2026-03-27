@@ -271,15 +271,7 @@ button{cursor:pointer;border:none;background:none}
   <div class="cfg-box">
     <div class="cfg-logo">Casca · Path B</div>
     <div class="cfg-title">AMBIG Labelling Tool</div>
-    <div class="cfg-sub">Neural Disambiguation 訓練資料標注介面<br>請填入 Supabase 連線資訊以開始。</div>
-    <div class="field">
-      <label>Supabase URL</label>
-      <input id="cfgUrl" type="text" placeholder="https://xxxx.supabase.co" autocomplete="off">
-    </div>
-    <div class="field">
-      <label>Supabase Anon Key</label>
-      <input id="cfgKey" type="password" placeholder="eyJhbGci..." autocomplete="off">
-    </div>
+    <div class="cfg-sub">Neural Disambiguation 訓練資料標注介面<br>輸入標注員 ID 即可開始。Supabase 設定從 Railway 自動載入。</div>
     <div class="field">
       <label>標注員 ID（固定，用於 inter-rater 追蹤）</label>
       <input id="cfgAnnotator" type="text" placeholder="A1" maxlength="10" autocomplete="off">
@@ -288,7 +280,7 @@ button{cursor:pointer;border:none;background:none}
       <label>批次名稱（選填）</label>
       <input id="cfgBatch" type="text" placeholder="Batch #3 — ZH_TC AMBIG set" autocomplete="off">
     </div>
-    <button class="cfg-btn" onclick="initConn()">連線並載入佇列 →</button>
+    <button class="cfg-btn" onclick="initConn()">開始標注 →</button>
     <div class="cfg-err" id="cfgErr"></div>
   </div>
 </div>
@@ -443,6 +435,19 @@ button{cursor:pointer;border:none;background:none}
 //  STATE
 // ═══════════════════════════════════════════════════════════════
 let SB = null;
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : 'https://casca-production.up.railway.app';
+
+async function fetchConfig() {
+  try {
+    const res = await fetch(API_BASE + '/api/public/config');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
 let ANNOTATOR = 'A1';
 let BATCH = 'Batch #1';
 let queue = [];       // loaded from annotation_queue
@@ -464,23 +469,24 @@ let offlineBuffer = JSON.parse(localStorage.getItem('ann_offline') || '[]');
 //  CONNECTION
 // ═══════════════════════════════════════════════════════════════
 async function initConn() {
-  const url  = document.getElementById('cfgUrl').value.trim();
-  const key  = document.getElementById('cfgKey').value.trim();
   const ann  = document.getElementById('cfgAnnotator').value.trim() || 'A1';
   const bat  = document.getElementById('cfgBatch').value.trim() || 'Batch #1';
   const errEl = document.getElementById('cfgErr');
   errEl.style.display = 'none';
 
-  if (!url || !key) { showCfgErr('請填入 Supabase URL 和 Anon Key'); return; }
+  if (!ann) { showCfgErr('請填入標注員 ID'); return; }
+
+  // Fetch Supabase credentials from Railway
+  showCfgErr(''); errEl.style.display = 'none';
+  const cfg = await fetchConfig();
+  if (cfg.error) { showCfgErr('無法從 Railway 取得設定: ' + cfg.error); return; }
 
   ANNOTATOR = ann; BATCH = bat;
-  SB = window.supabase.createClient(url, key);
+  SB = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
 
   const { error } = await SB.from('annotation_queue').select('id').limit(1);
-  if (error) { showCfgErr('連線失敗: ' + error.message); SB = null; return; }
+  if (error) { showCfgErr('Supabase 連線失敗: ' + error.message); SB = null; return; }
 
-  localStorage.setItem('ann_url', url);
-  localStorage.setItem('ann_key', key);
   localStorage.setItem('ann_name', ann);
   localStorage.setItem('ann_batch', bat);
 
@@ -1009,33 +1015,36 @@ function escHtml(s) {
 //  AUTO-RESTORE & INIT
 // ═══════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  const url  = localStorage.getItem('ann_url');
-  const key  = localStorage.getItem('ann_key');
   const name = localStorage.getItem('ann_name');
   const bat  = localStorage.getItem('ann_batch');
 
-  if (url) document.getElementById('cfgUrl').value = url;
-  if (key) document.getElementById('cfgKey').value = key;
   if (name) document.getElementById('cfgAnnotator').value = name;
   if (bat)  document.getElementById('cfgBatch').value = bat;
 
-  if (url && key) {
+  if (name) {
     ANNOTATOR = name || 'A1';
     BATCH = bat || 'Batch #1';
-    SB = window.supabase.createClient(url, key);
-    SB.from('annotation_queue').select('id').limit(1).then(({error}) => {
-      if (error) {
+    // Fetch config from Railway, then auto-connect
+    fetchConfig().then(cfg => {
+      if (cfg.error) {
         document.getElementById('loadingState').style.display = 'none';
         return;
       }
-      document.getElementById('overlay').classList.add('hidden');
-      document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('appShell').style.display = 'flex';
-      document.getElementById('connDot').className = 'conn-dot ok';
-      document.getElementById('annotatorChip').textContent = ANNOTATOR;
-      document.getElementById('hdrBatch').textContent = BATCH;
-      loadQueue();
-      flushOfflineBuffer();
+      SB = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+      SB.from('annotation_queue').select('id').limit(1).then(({error}) => {
+        if (error) {
+          document.getElementById('loadingState').style.display = 'none';
+          return;
+        }
+        document.getElementById('overlay').classList.add('hidden');
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('appShell').style.display = 'flex';
+        document.getElementById('connDot').className = 'conn-dot ok';
+        document.getElementById('annotatorChip').textContent = ANNOTATOR;
+        document.getElementById('hdrBatch').textContent = BATCH;
+        loadQueue();
+        flushOfflineBuffer();
+      });
     });
   } else {
     document.getElementById('loadingState').style.display = 'none';
