@@ -759,6 +759,19 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
 app.use(express.json({ limit: '4mb' }));
 
 // ── Health ────────────────────────────────────────────────────────
+
+// ── Public config endpoint ────────────────────────────────────────
+// Returns Supabase public credentials for frontend tools (annotator, dashboard).
+// Only exposes ANON key (safe for browser) — never SERVICE key.
+app.get('/api/public/config', (_req, res) => {
+  const url  = process.env.SUPABASE_URL;
+  const anon = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anon) {
+    return res.status(503).json({ error: 'SUPABASE_ANON_KEY not configured in Railway env vars.' });
+  }
+  res.json({ supabase_url: url, supabase_anon_key: anon });
+});
+
 app.get('/health', (_req, res) => res.json({
   status: 'ok', providers: providerRegistry.size,
   stripe:  !!stripe, ts: new Date().toISOString(),
