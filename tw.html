@@ -557,7 +557,7 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
           <div style="font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-.02em">$10K–$30K</div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--t1);margin-top:3px">涵蓋部署 + 整合 + 文件</div>
         </div>
-        <a href="mailto:casca@vastitw.com" class="ptz-cta ptz-cta-o" style="flex-shrink:0;width:140px;font-size:12px">聯繫銷售 →</a>
+        <a href="/cdn-cgi/l/email-protection#d2b1b3a1b1b392a4b3a1a6bba6a5fcb1bdbf" class="ptz-cta ptz-cta-o" style="flex-shrink:0;width:140px;font-size:12px">聯繫銷售 →</a>
       </div>
 
       <!-- 數學驗證 -->
@@ -659,7 +659,7 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
           <div style="font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-.02em">$15K–$30K</div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--t1);margin-top:3px">含遷移 + 部署 + 合規文件</div>
         </div>
-        <a href="mailto:casca@vastitw.com" class="ptz-cta ptz-cta-o" style="flex-shrink:0;width:140px;font-size:12px">聯繫銷售 →</a>
+        <a href="/cdn-cgi/l/email-protection#05666476666445736476716c71722b666a68" class="ptz-cta ptz-cta-o" style="flex-shrink:0;width:140px;font-size:12px">聯繫銷售 →</a>
       </div>
 
       <div class="price-guar reveal" style="margin-top:20px">
@@ -685,12 +685,32 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
   </div>
 </section>
 
-<footer>
-  <div class="fcp">© 2026 Casca · AI Cost Intelligence</div>
-  <div class="flinks"><a href="https://cascaio.com/terminal">Demo</a><a href="/cdn-cgi/l/email-protection#b4d7d5c7d7d5f4c2d5c7c0ddc0c39ad7dbd9">聯繫我們</a><a href="#">隱私政策</a></div>
+<footer style="padding:40px 5%;border-top:1px solid rgba(255,255,255,.07);display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;justify-content:space-between">
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:320px">
+    <div style="font-family:var(--display);font-size:20px;font-weight:800;letter-spacing:-.02em;color:#fff">CASCA</div>
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--t1);text-transform:uppercase">AI Routing Intelligence</div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--t1);line-height:1.8;margin-top:4px">
+      Vast Intelligence Limited<br>
+      7F, 11, BanXin Rd, BanQiao Dist<br>
+      New Taipei, Taiwan<br>
+      +886 2 2706 7590<br>
+      <a href="mailto:casca@vastitw.com" style="color:var(--teal);text-decoration:none">casca@vastitw.com</a>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--t1);text-transform:uppercase;margin-bottom:4px">產品</div>
+    <a href="https://cascaio.com/terminal" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">Demo Terminal</a>
+    <a href="#pricing" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">方案定價</a>
+    <a href="mailto:casca@vastitw.com" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">聯繫銷售</a>
+    <a href="#" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">隱私政策</a>
+  </div>
+  <div style="width:100%;border-top:1px solid rgba(255,255,255,.06);padding-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--t1)">© 2026 Vast Intelligence Limited · All rights reserved</div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--t1)">Casca · AI Cost Intelligence</div>
+  </div>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function calcROI(){
   const spend=parseFloat(document.getElementById('ms')?.value)||5000;
   const hp=parseFloat(document.getElementById('hp')?.value)||20;
@@ -719,11 +739,21 @@ function animCounter(){
   function tick(now){
     const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);
     el.textContent='$'+Math.round(e*target).toLocaleString();
-    if(p<1)requestAnimationFrame(tick);
+       if(p<1)requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 }
-document.addEventListener('DOMContentLoaded',()=>{animCounter();calcROI();initReveal()});
+window.addEventListener('DOMContentLoaded',()=>{
+  initReveal();
+  animCounter();
+  calcROI();
+});
+function switchModeZh(mode, btn) {
+  document.querySelectorAll('.mtz').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.pnl').forEach(p => p.classList.remove('on'));
+  document.getElementById('pnl-' + mode).classList.add('on');
+}
 </script>
 </body>
 </html>
