@@ -2053,7 +2053,7 @@ function route(prompt, uc, qualityTier, conversationContext) {
     },
   };
 
-}))
+
   // AMBIG resolution helper
   function _resolveAmbig(cx, prompt, classified, conversationContext, autoLearn) {
 
@@ -2146,4 +2146,4 @@ function route(prompt, uc, qualityTier, conversationContext) {
     
     return { cx, autoLearn };
   }
-;
+}));
