@@ -224,6 +224,8 @@ button{cursor:pointer;border:none;background:none}
 .undo-btn{font-family:var(--mono);font-size:14px;color:var(--ink3);letter-spacing:.06em;padding:3px 8px;border:1px solid var(--line);border-radius:3px;transition:all .15s;display:flex;align-items:center;gap:4px}
 .undo-btn:hover{border-color:var(--teal-bd);color:var(--teal)}
 .undo-btn:disabled{opacity:.3;cursor:default}
+.nav-btn{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.06em;padding:6px 16px;border:1px solid var(--line2);border-radius:5px;color:var(--ink2);background:var(--bg3);transition:all .15s;cursor:pointer}
+.nav-btn:hover{border-color:var(--teal-bd);color:var(--teal);background:var(--bg4)}
 
 /* ── Flash ── */
 .flash{position:fixed;top:60px;right:20px;padding:11px 18px;border-radius:var(--r);font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.06em;opacity:0;transform:translateX(16px);transition:all .2s;pointer-events:none;z-index:500;border:1px solid}
@@ -423,6 +425,8 @@ button{cursor:pointer;border:none;background:none}
   </div>
   <div class="footer-right">
     <span class="rest-tip" id="restTip">☕ 建議休息 5 分鐘</span>
+    <button class="nav-btn" onclick="prevCard()">← 上一筆</button>
+    <button class="nav-btn" onclick="nextCard()">下一筆 →</button>
     <button class="undo-btn" id="undoBtn" onclick="undoLast()" disabled>↩ 復原</button>
     <span class="save-status saved" id="saveStatus">✓ 就緒</span>
   </div>
