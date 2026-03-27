@@ -27,6 +27,7 @@ import crypto           from 'crypto';
 import Stripe           from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { route as cascaRoute, setConfig } from './casca-classifier.js';
+import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
 
 // ════════════════════════════════════════════════════════════════
 //  CONFIG
@@ -38,6 +39,83 @@ const CACHE_TTL_DAYS    = parseInt(process.env.CACHE_TTL_DAYS          || '7',  
 const CORS_ORIGIN       = process.env.CORS_ORIGIN             || '*';
 const LLM_TIMEOUT_MS    = parseInt(process.env.LLM_TIMEOUT_MS || '30000', 10);
 const FRONTEND_URL      = process.env.FRONTEND_URL            || 'http://localhost:8080';
+
+
+// ════════════════════════════════════════════════════════════════
+//  PROMETHEUS METRICS
+// ════════════════════════════════════════════════════════════════
+const promRegistry = new Registry();
+promRegistry.setDefaultLabels({ service: 'casca' });
+collectDefaultMetrics({ register: promRegistry, prefix: 'casca_node_' });
+
+const mRequestsTotal = new Counter({
+  name: 'casca_requests_total',
+  help: 'Total routed requests by tier, language, model and cache status',
+  labelNames: ['cx', 'lang', 'model', 'is_cache', 'stage'],
+  registers: [promRegistry],
+});
+
+const mRequestDurationMs = new Histogram({
+  name: 'casca_request_duration_ms',
+  help: 'End-to-end request latency in milliseconds',
+  labelNames: ['cx', 'lang', 'stage'],
+  buckets: [50, 100, 250, 500, 1000, 2000, 5000, 10000],
+  registers: [promRegistry],
+});
+
+const mCostUsdTotal = new Counter({
+  name: 'casca_cost_usd_total',
+  help: 'Cumulative LLM cost in USD by tier and model',
+  labelNames: ['cx', 'model'],
+  registers: [promRegistry],
+});
+
+const mTokensTotal = new Counter({
+  name: 'casca_tokens_total',
+  help: 'Total tokens consumed, split by direction and model',
+  labelNames: ['direction', 'model'],
+  registers: [promRegistry],
+});
+
+const mCacheHitsTotal = new Counter({
+  name: 'casca_cache_hits_total',
+  help: 'Total L1 cache hits (free requests)',
+  registers: [promRegistry],
+});
+
+const mSavingsUsdTotal = new Counter({
+  name: 'casca_savings_usd_total',
+  help: 'Estimated cumulative USD saved vs GPT-4o baseline',
+  labelNames: ['cx'],
+  registers: [promRegistry],
+});
+
+const mAmbigTotal = new Counter({
+  name: 'casca_ambig_resolutions_total',
+  help: 'Requests that triggered AMBIG auto-learn queue',
+  labelNames: ['lang'],
+  registers: [promRegistry],
+});
+
+const mQuotaExhaustedTotal = new Counter({
+  name: 'casca_quota_exhausted_total',
+  help: 'Requests rejected due to exhausted quota (402)',
+  labelNames: ['plan_id'],
+  registers: [promRegistry],
+});
+
+const mErrorsTotal = new Counter({
+  name: 'casca_llm_errors_total',
+  help: 'LLM call failures by model and HTTP status',
+  labelNames: ['model', 'status_code'],
+  registers: [promRegistry],
+});
+
+const mActiveProviders = new Gauge({
+  name: 'casca_active_providers',
+  help: 'Number of active LLM providers in registry',
+  registers: [promRegistry],
+});
 
 // ════════════════════════════════════════════════════════════════
 //  CLIENTS
@@ -377,6 +455,7 @@ function checkBillingGate(client, plan) {
     return { allowed: true, isOverage: true };
   }
 
+  mQuotaExhaustedTotal.inc({ plan_id: String(plan.id ?? 'unknown') });
   return {
     allowed: false,
     status:  402,
@@ -458,6 +537,26 @@ async function postProcess({
   try {
     const totalTokens = tokensIn + tokensOut;
 
+    // ── 0. Prometheus metrics ────────────────────────────────────
+    const _cx    = classifyResult.cx    || 'UNK';
+    const _lang  = classifyResult.lang  || 'UNK';
+    const _model = provider?.model_name ?? (isCache ? 'cache-hit' : 'none');
+    const _stage = isCache ? 'cache' : (costUsd === 0 && !isCache ? 'passthrough' : 'managed');
+    mRequestsTotal.inc({ cx: _cx, lang: _lang, model: _model, is_cache: String(isCache), stage: _stage });
+    mRequestDurationMs.observe({ cx: _cx, lang: _lang, stage: _stage }, latencyMs);
+    if (isCache) {
+      mCacheHitsTotal.inc();
+    } else {
+      if (costUsd > 0) mCostUsdTotal.inc({ cx: _cx, model: _model }, costUsd);
+      if (tokensIn  > 0) mTokensTotal.inc({ direction: 'in',  model: _model }, tokensIn);
+      if (tokensOut > 0) mTokensTotal.inc({ direction: 'out', model: _model }, tokensOut);
+      if (statusCode >= 400) mErrorsTotal.inc({ model: _model, status_code: String(statusCode) });
+    }
+    if (savingsPct > 0 && costUsd >= 0) {
+      const baseline = (totalTokens / 1_000_000) * 5.0;
+      mSavingsUsdTotal.inc({ cx: _cx }, Math.max(0, baseline - costUsd));
+    }
+    if (classifyResult.autoLearn) mAmbigTotal.inc({ lang: _lang });
     // ── 1. api_logs ──────────────────────────────────────────────
     const { data: logRow } = await supabase.from('api_logs').insert({
       client_id:     clientId,
@@ -664,6 +763,24 @@ app.get('/health', (_req, res) => res.json({
   status: 'ok', providers: providerRegistry.size,
   stripe:  !!stripe, ts: new Date().toISOString(),
 }));
+
+// ── Prometheus metrics scrape endpoint ───────────────────────────
+// Protected: requires x-admin-secret header (same as all admin endpoints)
+// Grafana config: add custom header  x-admin-secret: <ADMIN_SECRET>
+app.get('/metrics', (req, res, next) => {
+  const secret   = process.env.ADMIN_SECRET;
+  const provided = req.headers['x-admin-secret'] || req.query.secret;
+  if (!secret || provided !== secret)
+    return res.status(403).json({ error: 'Forbidden. Provide x-admin-secret header.' });
+  next();
+}, async (_req, res) => {
+  try {
+    res.set('Content-Type', promRegistry.contentType);
+    res.end(await promRegistry.metrics());
+  } catch (err) {
+    res.status(500).end(err.message);
+  }
+});
 
 // ════════════════════════════════════════════════════════════════
 //  CORE ENDPOINT: POST /api/v1/chat/completions
@@ -1642,6 +1759,7 @@ async function start() {
   console.log('[casca] Loading providers from DB…');
   await loadProviders();
   await initRedis();
+  mActiveProviders.set(providerRegistry.size);
   if (!stripe) console.warn('[casca] STRIPE_SECRET_KEY not set — billing endpoints disabled.');
   scheduleTrialExpiry();
   app.listen(PORT, () => {
