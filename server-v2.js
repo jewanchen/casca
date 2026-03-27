@@ -244,6 +244,150 @@ const cacheExpiry = () => {
 };
 
 // ════════════════════════════════════════════════════════════════
+//  ATTACHMENT CONTEXT INJECTION
+//  Handles the "Lazy Prompt" pattern: user uploads a file/image
+//  with no text, or minimal text like "幫我看看這個".
+//
+//  Problem: OpenAI Vision API sends content as an array, not a string:
+//    [{ type: 'image_url', image_url: { url: '...' } }, { type: 'text', text: '' }]
+//  Without handling this, server-v2.js returns 400 (content must be string).
+//
+//  Solution: parse the content array → infer attachment type →
+//  inject a classifier-recognisable modal tag into promptText.
+//  The classifier's detectModal() already handles these tags perfectly;
+//  no changes to casca-classifier.js are required.
+//
+//  Tag → modal mapping (matches classifier's detectModal rules):
+//    [photo: ...]        → image  modal → MED  (Gemini Flash Vision)
+//    [screenshot: ...]   → chart  modal → MED  (read) / HIGH (if analysis intent)
+//    [scan: ...]         → doc    modal → MED  (Claude Haiku Vision)
+//    [chart: ...]        → chart  modal → MED+ (GPT-4o-mini)
+//    [x-ray: ...]        → medical_image → HIGH forced (GPT-4o Vision)
+//    [contract scan: ...]→ legal_doc    → HIGH forced (Claude Sonnet)
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * injectAttachmentContext(messages)
+ *
+ * Extracts the last user message from the OpenAI-format messages array.
+ * If content is a string (normal text), returns it unchanged.
+ * If content is an array (Vision format), detects image/file parts and
+ * prepends an appropriate modal tag so the classifier can route correctly.
+ *
+ * Returns: { promptText: string, hasAttachment: boolean }
+ */
+function injectAttachmentContext(messages) {
+  const lastUser = [...messages].reverse().find(m => m.role === 'user');
+  if (!lastUser) return { promptText: '', hasAttachment: false };
+
+  // ── Normal string content — no change needed ─────────────────
+  if (typeof lastUser.content === 'string') {
+    return { promptText: lastUser.content, hasAttachment: false };
+  }
+
+  // ── Vision / multipart content (array format) ─────────────────
+  if (!Array.isArray(lastUser.content)) {
+    return { promptText: '', hasAttachment: false };
+  }
+
+  const textPart  = lastUser.content.find(c => c.type === 'text');
+  const imagePart = lastUser.content.find(c => c.type === 'image_url');
+  const filePart  = lastUser.content.find(c => c.type === 'file' || c.type === 'input_file');
+
+  const userText = textPart?.text?.trim() ?? '';
+  let tag = '';
+
+  // ── Image attachment ──────────────────────────────────────────
+  if (imagePart) {
+    const url = imagePart.image_url?.url ?? '';
+    const detail = imagePart.image_url?.detail ?? '';
+
+    // Medical imaging keywords in the URL or base64 MIME hint
+    if (/x-ray|xray|mri|ct[\-_]scan|ct_|ultrasound|ecg|ekg|pathology|retinal|dental.x|dicom/i.test(url)) {
+      tag = '[x-ray: uploaded]';              // → medical_image → HIGH forced
+    }
+    // Legal document scan
+    else if (/contract|agreement|nda|lease|kyc|court|legal|deed|notari/i.test(url)) {
+      tag = '[contract scan: uploaded]';      // → legal_doc → HIGH forced
+    }
+    // Screenshot (UI, terminal, code, dashboard)
+    else if (/screenshot|screen_shot|screencap|terminal|console|dashboard|monitor/i.test(url) || detail === 'high') {
+      tag = '[screenshot: uploaded]';         // → chart modal → MED
+    }
+    // Default: treat as generic photo
+    else {
+      tag = '[photo: uploaded]';              // → image modal → MED
+    }
+  }
+
+  // ── File attachment ───────────────────────────────────────────
+  if (filePart && !tag) {
+    const mime     = filePart.file?.mime_type ?? filePart.mime_type ?? '';
+    const filename = filePart.file?.filename  ?? filePart.filename  ?? '';
+
+    if (/pdf|msword|officedocument\.wordprocessing/i.test(mime) ||
+        /\.pdf$|\.doc$|\.docx$/i.test(filename)) {
+      // Check if it looks like a legal document
+      if (/contract|agreement|nda|lease|legal|deed|compli/i.test(filename)) {
+        tag = '[contract scan: uploaded]';    // → legal_doc → HIGH forced
+      } else {
+        tag = '[scan: document]';             // → doc modal → MED
+      }
+    }
+    else if (/csv|spreadsheet|excel|officedocument\.spreadsheet/i.test(mime) ||
+             /\.csv$|\.xlsx$|\.xls$/i.test(filename)) {
+      tag = '[chart: data]';                  // → chart modal → MED
+    }
+    else if (/image\//.test(mime)) {
+      tag = '[photo: uploaded]';              // → image modal → MED
+    }
+    else {
+      tag = '[scan: document]';              // → doc modal → MED (safe default)
+    }
+  }
+
+  // ── Compose final promptText ──────────────────────────────────
+  const promptText = tag
+    ? (userText ? `${tag} ${userText}` : tag)
+    : userText;
+
+  return { promptText, hasAttachment: !!tag };
+}
+
+/**
+ * overrideByIntent(promptText, classifyResult)
+ *
+ * Second-pass intent check for 4 edge cases where the modal tag
+ * routes to MED but the user's clear intent warrants HIGH:
+ *   - Debug / bug hunt      幫我抓蟲 / debug / 報錯
+ *   - Security analysis     漏洞 / vulnerability / security audit
+ *   - Financial highlight   財報亮點 / highlights in this report
+ *   - Why does it error     為什麼會報錯 / why is it failing
+ *
+ * These trigger HIGH only when an attachment is present (modal ≠ text),
+ * so they don't affect normal text-only prompts.
+ *
+ * Returns the corrected cx string, or the original if no override needed.
+ */
+function overrideByIntent(promptText, classifyResult) {
+  if (classifyResult.modal === 'text') return classifyResult.cx;
+  if (classifyResult.cx === 'HIGH')    return classifyResult.cx; // already high
+
+  const tl = promptText.toLowerCase();
+  const isDebugIntent =
+    /抓蟲|抓bug|debug|debugg|為什麼.*報錯|为什么.*报错|報錯|报错|error.*why|why.*error|why.*fail|why.*crash/i.test(tl);
+  const isSecurityIntent =
+    /漏洞|弱點|vulnerability|vulnerabilit|security audit|資安|安全.*分析|找出.*漏洞|code.*security|secure.*review/i.test(tl);
+  const isFinancialAnalysis =
+    /財報.*亮點|亮點.*財報|highlights?.*report|report.*highlights?|financial.*analysis|分析.*財報|audit.*report/i.test(tl);
+
+  if (isDebugIntent || isSecurityIntent || isFinancialAnalysis) {
+    return 'HIGH';
+  }
+  return classifyResult.cx;
+}
+
+// ════════════════════════════════════════════════════════════════
 //  MIDDLEWARE — API Key Auth (SHA-256 hash-based)
 //
 //  Lookup order:
@@ -846,7 +990,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
   // ── End bypass ───────────────────────────────────────────────
 
   const lastUser   = [...messages].reverse().find(m => m.role === 'user');
-  const promptText = lastUser?.content ?? '';
+  const { promptText, hasAttachment } = injectAttachmentContext(messages);
   if (!promptText || typeof promptText !== 'string')
     return res.status(400).json({ error: 'No user message content.' });
 
@@ -913,6 +1057,19 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
   } catch (err) {
     console.error('[casca] classify:', err);
     return res.status(500).json({ error: 'Classification engine error.' });
+  }
+
+  // ── Step 3.5: Attachment intent override ─────────────────────
+  // For lazy prompts with attachments (e.g. "幫我抓蟲" + screenshot),
+  // the modal tag routes to MED but the intent clearly warrants HIGH.
+  // overrideByIntent() catches debug / security / financial analysis cases.
+  if (hasAttachment) {
+    const overrideCx = overrideByIntent(promptText, classifyResult);
+    if (overrideCx !== classifyResult.cx) {
+      console.log(`[casca] intent override: ${classifyResult.cx}→${overrideCx} (${classifyResult.rule})`);
+      classifyResult = { ...classifyResult, cx: overrideCx, originalCx: classifyResult.cx,
+                         rule: classifyResult.rule + ' [intent-override→HIGH]' };
+    }
   }
 
   // ── Map cx → compatible model for passthrough key type ───────
