@@ -2013,6 +2013,19 @@ function route(prompt, uc, qualityTier, conversationContext) {
     };
   }
 
+
+  // ══════════════════════════════════════════════════════════════
+  //  SET CONFIG — called by server-v2.js after loading DB providers
+  // ══════════════════════════════════════════════════════════════
+  function setConfig(dynamicCosts, dynamicTiers) {
+    if (dynamicCosts && typeof dynamicCosts === 'object') {
+      Object.assign(MODEL_COSTS, dynamicCosts);
+    }
+    if (dynamicTiers && typeof dynamicTiers === 'object') {
+      Object.assign(TIER_MODELS, dynamicTiers);
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════
   //  PUBLIC API
   // ══════════════════════════════════════════════════════════════
@@ -2035,6 +2048,9 @@ function route(prompt, uc, qualityTier, conversationContext) {
 
     /** Language detection utility */
     detectLanguage,
+
+    /** Set dynamic costs + tiers from DB providers */
+    setConfig,
 
     /** Auto-Learn queue (read-only reference) */
     get autoLearnQueue() { return autoLearnQueue; },
