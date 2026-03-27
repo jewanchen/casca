@@ -435,18 +435,13 @@ button{cursor:pointer;border:none;background:none}
 //  STATE
 // ═══════════════════════════════════════════════════════════════
 let SB = null;
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:3001'
-  : 'https://casca-production.up.railway.app';
+
+// Supabase public credentials (anon key — safe for browser)
+const _SB_URL  = 'https://azxutenowfoamphdjwya.supabase.co';
+const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eHV0ZW5vd2ZvYW1waGRqd3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzU3MDUsImV4cCI6MjA4OTg1MTcwNX0.V_8BFYZ_kwYYuuCyGlllipaptKPNR2iJ6E8_SdMx7Ho';
 
 async function fetchConfig() {
-  try {
-    const res = await fetch(API_BASE + '/api/public/config');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch (err) {
-    return { error: err.message };
-  }
+  return { supabase_url: _SB_URL, supabase_anon_key: _SB_ANON };
 }
 let ANNOTATOR = 'A1';
 let BATCH = 'Batch #1';
