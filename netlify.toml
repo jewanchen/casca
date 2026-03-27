@@ -3,7 +3,6 @@
 #  Domain: cascaio.com
 #  Backend: casca-production.up.railway.app (Railway)
 # ══════════════════════════════════════════════════════════
-
 [build]
   publish = "."
 
@@ -44,6 +43,11 @@
 [[redirects]]
   from = "/terminal"
   to = "/terminal.html"
+  status = 200
+
+[[redirects]]
+  from = "/annotator"
+  to = "/casca-annotator.html"
   status = 200
 
 # ── Security Headers ──────────────────────────────────────
