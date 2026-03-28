@@ -1,6 +1,12 @@
 # Casca v2.1 — AI Routing Engine + API Proxy Aggregator
 > cascaio.com · github.com/jewanchen/casca
+## Technical Article
 
+ **[Casca: A Self-Improving Multi-Model LLM Router](./casca-technical-article.md)**
+
+Published March 28, 2026 by Vast Intelligence Limited to establish a public record of system architecture and routing engine design.
+
+Published March 28, 2026 by Vast Intelligence Limited to establish a public record of system architecture and routing engine design.
 ## Stack
 
 | Layer | Service |
