@@ -33,7 +33,14 @@ import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom
 // ── Load CommonJS classifier (UMD) from ESM server ──────────────
 const _require    = createRequire(import.meta.url);
 const _classifier = _require('./casca-classifier.js');
-const cascaRoute  = _classifier.route;
+
+// Debug: log what the classifier exports on startup
+console.log('[casca] classifier keys:', Object.keys(_classifier).slice(0, 8));
+console.log('[casca] route type:', typeof _classifier.route);
+
+const cascaRoute  = typeof _classifier.route === 'function'
+                      ? _classifier.route
+                      : (() => { throw new Error('casca-classifier.js did not export route()'); });
 const setConfig   = typeof _classifier.setConfig === 'function'
                       ? _classifier.setConfig
                       : () => { /* no-op: setConfig not exported by classifier */ };
