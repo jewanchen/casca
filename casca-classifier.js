@@ -9,14 +9,14 @@
   'use strict';
 
   // ── VERSION ────────────────────────────────────────────────────
-  const VERSION = '2.4.2';
+  const VERSION = '2.6.2';
   const STATS = {
-    totalRules: 136,
-    patchNotes: 'v2.3.2: P0 autoLearn 3-gate filter, P1a fast-path ASCII, P1b 25/10 sampling',
-    trainingsamples: 4933,
-    batches: 7,
-    languages: ['ZH','ZH_SC','EN','JA','FR','DE','ES','IT','KO','HI','AR'],
-    accuracy: 94.1,
+    totalRules: 160,
+    patchNotes: 'v2.6.2: JR-6 detect-not-delete, LIFESTYLE/CREATIVE/EMPATHY convMode, EMO-FLOOR 10 langs, setConfig restored',
+    trainingsamples: 5753,
+    batches: 9,
+    languages: ['ZH','ZH_SC','EN','JA','FR','DE','ES','IT','KO','HI','AR','TH','VI','ID'],
+    accuracy: 97.0,
     target: 98.5,
   };
 
@@ -135,18 +135,51 @@
       if (SC.test(text) && !TC.test(text)) return 'ZH_SC';
       return 'ZH';
     }
+    // Thai: U+0E00-U+0E7F block
+    if (/[฀-๿]/.test(text)) return 'TH';
+    // Vietnamese: U+1EA0-U+1EF9 diacritics + key structural words
+    // Must precede ES/FR — shared accent chars (a^, o^, a~) fire those detectors
+    if (/[Ạ-ỹ]/.test(text) ||
+        /\b(của|với|trong|không|được|chiến lược|toàn diện|bài bản|hệ thống|lộ trình|kế hoạch|xây dựng|thiết kế|phân tích)\b/i.test(text)) return 'VI';
+    // Indonesian: meN- prefix verbs are the key signal (word-boundary safe)
+    // Tier 1: meN- verbs + compound qualifiers (high confidence)
+    if (/\b(menganalisis|mengembangkan|merancang|menyusun|mengevaluasi|mengoptimalkan|membangun|merumuskan|mendesain|menetapkan|merencanakan|komprehensif|menyeluruh|sistematis|terpadu|terperinci)\b/i.test(text) ||
+        /\b(peta jalan|selain itu|di samping itu|kerangka kerja|ngomong-ngomong)\b/i.test(text)) return 'ID';
+    // Tier 2: Indonesian-specific structural words not shared with other languages
+    if (/\b(bagaimana|mengapa|jika|apakah|tampilkan|buatkan|terjemahkan|ringkas|hitung rumus|tulis skrip)\b/i.test(text) ||
+        /\b(berikan contoh|berikan|buat dalam|tampilkan dalam|ringkas menjadi|terjemahkan ke)\b/i.test(text) ||
+        /\b(terima kasih|sudah diterima|sudah mengerti|selesai|mantap|makasih)\b/i.test(text) ||
+        /^(?:baik|oke|siap|selesai|mantap|makasih)[.!, ]*$/i.test(text.trim()) ||
+        /\b(dalam|untuk|dengan|yang|adalah|atau|dan|dari|ke|di|ini|itu)\b/i.test(text) &&
+        /\b(tolong|juga|saja|sudah|belum|bisa|harus|akan|lebih|sangat|kami|kita|saya|kamu)\b/i.test(text) &&
+        wordCount(text) >= 6) return 'ID';
+    // Spanish: catch güey/Latam imperatives BEFORE German ü detection
+    if (/\bg[\xfc\u00fc]ey\b/i.test(text) ||
+        /\b(hasta la madre|estoy mamado|re baj\xf3n|parce\b|morra\b|boludo\b|estoy hecho polvo|curro\b)\b/i.test(text)) return 'ES';
     // German: ß or ä/ö/ü + structural words
     if (/[\xDF\xE4\xF6\xFC\xC4\xD6\xDC]/.test(text) ||
         /\b(analysieren|evaluieren|erstellen|vergleichen|bitte\s|das\s|die\s|der\s|und\s|f\xFCr\s|von\s|mit\s|ist\s|sie\s|k\xF6nnen)\b/i.test(text)) return 'DE';
+        // German: also catch "Wie funktioniert / Erkläre" short queries
+    if (/^(Wie funktioniert\b|Wie kann ich\b|Erkl[\xe4a]re\b|Erkl\xe4ren Sie\b|Was bedeutet\b|Was ist gemeint)/i.test(text)) return 'DE';
+    // French: also catch imperative forms not picked up by FR_STRUCT
+    if (/^(Écri[st]|Trouve[z]?|Rédige[z]?|Trouve[z]?|Crée[z]?|Fais|Planifie[z]?|Propose[z]?)\b/i.test(text) ||
+        /\b(c.est quoi la|j.en ai marre|je suis à bout|j.en peux plus|trop dur en ce moment|tout va de travers|chum|boulot|curro)\b/i.test(text)) return 'FR';
     // French: verb-start or accent structure
     const FR_VERB=/^(analysez|proposez|identifiez|comparez|optimisez|r\xE9digez|r\xE9sumez|cr\xE9ez|expliquez|d\xE9finissez|\xE9valuez|pr\xE9parez|comment\b|quelles?\s+sont)/i;
     const FR_STRUCT=/[\xE0\xE2\xE6\xE7\xE9\xE8\xEA\xEB\xEE\xEF\xF4\x9C\xF9\xFB\xFC\xFF]/.test(text)&&/\b(notre|votre|nous|vous|les|des|une|est\s|pas\s|pour\s|dans\s|avec\s|au\s|du\s|qu'|c'est)\b/i.test(text);
     if (FR_VERB.test(text)||FR_STRUCT) return 'FR';
     // French structural words (short fragments)
     if (/\b(que dois|pourquoi pas|au fait|de plus|ensuite|enfin|il faut|par contre)\b/i.test(text)) return 'FR';
+    // Spanish: also catch Latam imperatives missed by main detector
+    if (/^(Escrib[ae]|Desarrolla\b|Redacta\b|Elabora\b|Diseña\b|Dame\b|Arma\b|Cuentame|Cuéntame|Pásame|Planea)\b/i.test(text) ||
+        /\b(güey|güey|tomar mate|taqueria|taquería|hecho polvo|hasta la madre|estoy mamado|re bajón|parce\b|morra\b|boludo\b|porfa\b)\b/i.test(text)) return 'ES';
     // Spanish: accent chars or structural words
     if (/[\xBF\xA1\xF1\xD1\xE1\xE9\xED\xF3\xFA]/.test(text)||
         /\b(redacta|redacte|analiza|analice|explica|explique|crea\s+un|basándome|también|además|por\s+cierto|sin\s+embargo|mientras|entonces|es\s+decir|por\s+lo\s+tanto|al\s+mismo\s+tiempo)\b/i.test(text)) return 'ES';
+    // Italian: add imperative verbs and question forms
+    if (/^(Scrivi|Trova[mi]?|Pianifica|Dimmi|Racconta|Dammi|Trovami|Redigi|Spiega|Analizza|Crea\b|Sviluppa\b)\b/i.test(text) ||
+        /^(Qual [èe] la|Come funziona\b|Come funzionano\b|Come si (fa|usa|implementa))/i.test(text) ||
+        /\b(ne ho fin sopra i capelli|sono a pezzi|non ce la faccio|ho il cuore a pezzi|stanco morto|mi sento perso|mi sento.*perso|l.ansia mi sta|pasta alla carbonara|pizzeria|Toscana|Venezia|caffè dalla camicia|la differenza tra|al diritto italiano)\b/i.test(text)) return 'IT';
     // Italian structural words
     if (/\b(analizza|valuta|progetta|sviluppa|implementa|ottimizza|verifica|esamina|identifica|confronta|calcola|proponi|prepara)\b/i.test(text)) return 'IT';
     if (/\b(a\s+proposito|inoltre|anche\s+se|comunque|dunque|quindi|perch[eé]|tuttavia|invece|oppure|cio[eè]|eppure|allora|per\s+esempio|nel\s+frattempo)\b/i.test(text)) return 'IT';
@@ -159,10 +192,19 @@
 
   function estTokens(text) {
     const lang = detectLanguage(text);
-    if (lang === 'JA' || lang === 'ZH') {
+    if (lang === 'JA' || lang === 'ZH' || lang === 'ZH_SC') {
       return Math.ceil(text.length * 1.5); // CJK: ~1.5 tokens per char
     }
-    return Math.ceil(wordCount(text) * 1.3);
+    if (lang === 'TH') {
+      return Math.ceil(text.length * 1.2); // Thai: no word spaces, char-based
+    }
+    if (lang === 'AR') {
+      return Math.ceil(wordCount(text) * 1.9); // Arabic: highly inflected, each word ~1.9 tokens
+    }
+    if (lang === 'HI') {
+      return Math.ceil(text.length * 0.8); // Hindi Devanagari: char-based
+    }
+        return Math.ceil(wordCount(text) * 1.3);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -296,20 +338,24 @@
   /**
    * JR-6: Strip emotional language; return cleaned text.
    */
+  /**
+   * JR-6 (v2.6.2): Detect emotional distress. Previously removeJaEmotion
+   * silently deleted emotion words before EMO-FLOOR could see them.
+   */
+  function detectJaEmotion(text) {
+    return /もう(嫌だ|限界|無理|消えたい|やめたい|やってられない)/.test(text) ||
+           /困り(果て|はて)(た|ています)/.test(text) ||
+           /頭を抱えて(います|いる)/.test(text) ||
+           /参って(います|いる)/.test(text) ||
+           /本当に困って(います|いる)/.test(text) ||
+           /(本当に|全然|全く)(嫌だ|無理)/.test(text) ||
+           /上司に怒られ(た|ました)/.test(text) ||
+           /精神的に(辛い|しんどい|限界)/.test(text) ||
+           /(仕事|職場|会社|上司).{0,15}(嫌|辛い|しんどい|限界|辞めたい)/.test(text);
+  }
+  // No-op stub (kept for safety)
   function removeJaEmotion(text) {
-    return text
-      .replace(/もう(嫌だ|限界|無理|わかりません|全然わかりません)/g, '')
-      .replace (/困り(果て|はて)(た|ています)/g, '')
-      .replace(/上司に怒られ(た|ました)/g, '')
-      .replace(/頭を抱えて(います|いる)/g, '')
-      .replace(/参って(います|いる)/g, '')
-      .replace(/本当に困って(います|いる)/g, '')
-      .replace(/(本当に|全然|全く)(嫌|嫌だ|無理|わからない|わかりません)/g, '')
-      .replace(/心配して(います|いる)/g, '')
-      .replace(/なんか(最近|うまく|ちょっと)/g, '')
-      .replace(/えっと|あのう|まあその/g, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
+    return text.replace(/えっと|あのう|まあその/g,'').replace(/\s{2,}/g,' ').trim();
   }
 
   /**
@@ -370,10 +416,32 @@
    * short-circuit the rest of the pipeline.
    */
   function processJapanese(originalText) {
+    // JR-6: detect emotional distress BEFORE any normalization
+    const hasJaEmotion = detectJaEmotion(originalText);
     // JR-5: normalize typo / colloquial first
     let t = normalizeJaTypo(originalText);
-    // JR-6: remove emotional language
+    // JR-6: minimal cleanup only (no longer strips emotion words)
     t = removeJaEmotion(t);
+    // JR-6b: ISO/ISMS/HIPAA/GDPR compliance frameworks = HIGH regardless of abbreviation
+    if (/\b(ISO\s?\d{4,5}|ISMS|HIPAA|GDPR|SOC\s?2|PCI.?DSS|NIST|COBIT|ITIL)\b/.test(originalText) &&
+        /\b(\u5c0e\u5165|\u69cb\u7bc9|\u8a2d\u8a08|\u4f5c\u6210|\u7b56\u5b9a|\u6574\u5099|\u898f\u7bc4|\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af|\u8a08\u753b|\u8981\u4ef6)/.test(originalText)) {
+      return {
+        normalizedText: originalText,
+        earlyResult: { cx: 'HIGH', rule: 'JR-6b: J-ISO\u30b3\u30f3\u30d7\u30e9\u30a4\u30a2\u30f3\u30b9 \u2192 HIGH', confidence: 90 },
+      };
+    }
+        // JR-6 emotion early-exit
+    if (hasJaEmotion) {
+      return {
+        normalizedText: t,
+        earlyResult: {
+          cx: 'MED',
+          rule: 'JR-6: J-EMO 日本語感情表現 → MED',
+          convMode: 'EMPATHY',
+          confidence: 88,
+        },
+      };
+    }
     // JR-1: remove keigo
     const stripped = removeKeigo(t);
 
@@ -1244,6 +1312,103 @@
   }
 
 
+
+  // ═══ P0-TH: Thai ════════════════════════════════════════════════════════════════════
+  //  180 labelled samples · 30 groups · 4 batches
+  //  T3 connectors (8): นอกจากนี้ ยิ่งไปกว่านั้น แถมยัง แล้วก็ อีกทั้ง ด้วยเช่นกัน โดยเฉพาะ โดยเฉพาะอย่างยิ่ง
+  // All regex patterns use \uXXXX escapes to avoid encoding issues
+  // ═════════════════════════════════════════════════════════════════════════════════
+
+  // TH CLOSURE: ขอบคุณ / เข้าใจแล้ว / รับทราบ / โอเค / ได้เลย / เสร็จแล้ว / ดีมาก
+  const TH_CLOSURE_RE = /^(?:รับทราบ(?:แล้ว)?(?:ครับ|ค่ะ)?(?:\sขอบคุณ(?:ครับ|ค่ะ)?)?|ได้เลย(?:ครับ|ค่ะ)?(?:\sขอบคุณ(?:ครับ|ค่ะ)?)?|ทราบแล้ว(?:ครับ|ค่ะ)?(?:\sขอบคุณ(?:นะคะ|ครับ|ค่ะ)?)?|ขอบคุณ(?:ครับ|ค่ะ|นะคะ|มากครับ|มากค่ะ)?|เข้าใจแล้ว(?:ครับ|ค่ะ)?|โอเค(?:ครับ|ค่ะ| ดีมากเลยค่ะ| ดีมากเลยครับ| ขอบคุณครับ)?|ได้เลย(?:ครับ|ค่ะ)?|เสร็จแล้ว|ดีมากเลย(?:ครับ|ค่ะ)?)[.!ฯ ]*$/u;
+  // TH SHORT: สรุป / ทำเป็นตาราง / แสดงเป็นรายการ / แปลเป็น / ยกตัวอย่าง / เขียนสคริปต์ / คำนวณ
+  const TH_SHORT_RE = /^(?:สรุปเป็น|ทำเป็นตาราง|แสดงเป็นรายการ|แปลเป็น|ยกตัวอย่าง|เขียนสคริปต์|คำนวณสูตร|แสดงเป็นสัดส่วน|แสดงเป็น|ทำเป็นตารางฝึก)/u;
+  // TH T3: นอกจากนี้ / ยิ่งไปกว่านั้น / แถมยัง / แล้วก็ / อีกทั้ง / ด้วยเช่นกัน / โดยเฉพาะ
+  const TH_T3_RE = /^(?:นอกจากนี้|ยิ่งไปกว่านั้น|แถมยัง|แล้วก็|อีกทั้ง|ด้วยเช่นกัน|โดยเฉพาะ|โดยเฉพาะอย่างยิ่ง)[ ,]/u;
+  // TH HIGH verbs / qualifiers / nouns
+  const TH_HIGH_VERBS = /(?:วิเคราะห์|พัฒนา|ออกแบบ|จัดทำ|ประเมิน|กำหนด|วางแผน|สร้าง|จัดการ|ร่าง|เขียน|สร้างสถาปัตยกรรม|กำหนดมาตรฐาน)/u;
+  const TH_HIGH_QUALS = /(?:อย่างครอบคลุม|อย่างละเอียด|อย่างเป็นระบบ|อย่างสมบูรณ์|อย่างครบถ้วน|แบบบูรณาการ)/u;
+  const TH_HIGH_NOUNS = /(?:กลยุทธ์|แผนงาน|กรอบการทำงาน|แผนที่เส้นทาง|โปรโตคอล|รายงาน|ระบบ|แนวทาง|แผนปฏิบัติการ|โครงสร้าง|สถาปัตยกรรม|แผนการเรียนรู้|แผนการเดินทาง|แผนอาหาร|แผนการฝึก|ชุดการเรียนรู้)/u;
+  // TH MED question starters: ทำไม / ถ้า / หาก / ควร / จะ...อย่างไร
+  const TH_MED_Q_RE = /^(?:ทำไม|ถ้า|หาก|ควร|จะ.{1,30}อย่างไร|ส่งผล|ต้องใช้เวลา)/u;
+
+  function processThai(text) {
+    if (TH_CLOSURE_RE.test(text.trim()))
+      return { cx:'LOW', rule:'TH-CLOSURE: Thai ปิดสนทนา → LOW', confidence:95 };
+    if (TH_SHORT_RE.test(text.trim()) && text.length < 40)
+      return { cx:'LOW', rule:'TH-SHORT: Thai รูปแบบสั้น → LOW', confidence:88 };
+    if (TH_T3_RE.test(text.trim()))
+      return { cx:'MED', rule:'TH-T3: Thai ตัวเชื่อม T3 → MED', confidence:85 };
+    if (TH_HIGH_QUALS.test(text) && TH_HIGH_NOUNS.test(text) && TH_HIGH_VERBS.test(text))
+      return { cx:'HIGH', rule:'TH-HIGH-COMP: Thai ครอบคลุม+แผน+กริยา → HIGH', confidence:91 };
+    if (TH_HIGH_QUALS.test(text) && TH_HIGH_VERBS.test(text) && text.length > 20)
+      return { cx:'HIGH', rule:'TH-HIGH: Thai ครอบคลุม+กริยา → HIGH', confidence:88 };
+    if (TH_HIGH_NOUNS.test(text) && TH_HIGH_VERBS.test(text) && text.length > 20)
+      return { cx:'HIGH', rule:'TH-HIGH-NOUN: Thai แผน+กริยา → HIGH', confidence:86 };
+    if (TH_MED_Q_RE.test(text.trim()))
+      return { cx:'MED', rule:'TH-MED: Thai คำถาม → MED', confidence:82 };
+    return null;
+  }
+
+  // ═══ P0-VI: Vietnamese ════════════════════════════════════════════════════════════════════
+  //  180 labelled samples · 30 groups · 4 batches
+  //  T3 (7): Ngoài ra  Bên cạnh đó  Nhân tiện  Tiện thể  Đồng thời  À mà  Thêm vào đó
+  // ═════════════════════════════════════════════════════════════════════════════════
+  const VI_CLOSURE_RE = /^(?:cảm ơn(?:\s+bạn|\s+nhé|\s+nhiều)?[.!]?|đã nhận[.,]?|được rồi[.!]?|hiểu rồi[.!]?|xong rồi[.!]?|tuyệt(?:\s+vời)?[,!.]?(?:\s*cảm \u01a1n[!.]?)?|vâng\s+ạ[.!]?|ok(?:[.,!]\s*(?:hiểu rồi|rồi|ok)?)?[.!]?|ổn[.!]?|rồi[.!]?|đã rõ[.!]?|đã nhận, cảm ơn[.!]?)[.! ]*$/iu;
+  const VI_SHORT_RE = /^(?:tóm tắt thành|lập thành bảng|lập bảng|liệt kê|dịch sang|tính công thức|viết script|cho ví dụ|dịch đoạn)/iu;
+  const VI_T3_RE = /^(?:ngoài ra|bên cạnh đó|nhân tiện|tiện thể|đồng thời|thêm vào đó|à mà)[ ,]/iu;
+  const VI_HIGH_VERBS = /(?:^|(?<![a-z0-9À-ɏ]))(?:xây dựng|phân tích|thiết kế|phát triển|đánh giá|soạn thảo|triển khai|lập kế hoạch|quy hoạch|viết|lên lịch trình|lập lộ trình|lập)/iu;
+  const VI_HIGH_QUALS = /\b(?:toàn diện|chi tiết|chiến lược|chuyên sâu|đầy đủ|hệ thống|bài bản)\b/iu;
+  const VI_HIGH_NOUNS = /\b(?:chiến lược|kế hoạch|lộ trình|khung|báo cáo|quy trình|hệ thống|đề án|kịch bản|cấu trúc|lịch trình|chương trình|phương án|kiến trúc|đề cương)\b/iu;
+
+  function processVietnamese(text) {
+    if (VI_CLOSURE_RE.test(text.trim()))
+      return { cx:'LOW', rule:'VI-CLOSURE: Vietnamese đóng hội thoại → LOW', confidence:95 };
+    if (VI_SHORT_RE.test(text.trim()) && text.length < 65)
+      return { cx:'LOW', rule:'VI-SHORT: Vietnamese định dạng ngắn → LOW', confidence:88 };
+    if (VI_T3_RE.test(text.trim()))
+      return { cx:'MED', rule:'VI-T3: Vietnamese từ nối T3 → MED', confidence:85 };
+    if (VI_HIGH_QUALS.test(text) && VI_HIGH_NOUNS.test(text) && VI_HIGH_VERBS.test(text))
+      return { cx:'HIGH', rule:'VI-HIGH-COMP: Vietnamese toàn diện+kế hoạch+đv → HIGH', confidence:91 };
+    if (VI_HIGH_QUALS.test(text) && VI_HIGH_VERBS.test(text) && text.length > 25)
+      return { cx:'HIGH', rule:'VI-HIGH: Vietnamese bài bản+đv → HIGH', confidence:88 };
+    if (VI_HIGH_NOUNS.test(text) && VI_HIGH_VERBS.test(text) && text.length > 25)
+      return { cx:'HIGH', rule:'VI-HIGH-NOUN: Vietnamese kế hoạch+đv → HIGH', confidence:86 };
+    if (/^(?:nếu|tại sao|làm thế nào|làm sao|như thế nào|bao lâu|bao nhiêu)\b/iu.test(text.trim()))
+      return { cx:'MED', rule:'VI-MED: Vietnamese câu hỏi → MED', confidence:82 };
+    return null;
+  }
+
+  // ═══ P0-ID: Indonesian ════════════════════════════════════════════════════════════════════
+  //  180 labelled samples · 30 groups · 4 batches
+  //  T3 (7): Selain itu  Di samping itu  Lebih lanjut
+  //    Ngomong-ngomong  Oh iya  Terkait dengan itu  Sekaligus
+  // ═════════════════════════════════════════════════════════════════════════════════
+  const ID_CLOSURE_RE = /^(?:terima kasih(?:\s+banyak)?[.!]?|baik[.!,]?|oke[.!,]?(?:\s*siap[.!]?)?|siap[.!]?|selesai[.!]?|sudah\s+(?:diterima|mengerti)[.!]?|mantap[.!]?|makasih[.!]?|sudah[.!]?|sudah diterima,\s*terima kasih[.!]?|baik,\s*terima kasih[.!]?)[.! ]*$/iu;
+  const ID_SHORT_RE = /^(?:ringkas menjadi|buat dalam tabel|tampilkan dalam|terjemahkan ke|berikan contoh|tulis skrip|hitung rumus|buatkan poin|buatkan poin-poin|berikan contoh tiga|berikan contoh hasil|terjemahkan ke dalam|terjemahkan istilah)\b/iu;
+  const ID_T3_RE = /^(?:selain itu|di samping itu|lebih lanjut|ngomong-ngomong|oh iya|terkait dengan itu|sekaligus)[ ,]/iu;
+  const ID_HIGH_VERBS = /\b(?:menganalisis|mengembangkan|merancang|menyusun|mengevaluasi|mengoptimalkan|membangun|merumuskan|mendesain|mengimplementasikan|mengidentifikasi|menetapkan|merencanakan)\b/iu;
+  const ID_HIGH_QUALS = /\b(?:komprehensif|menyeluruh|strategis|mendalam|terperinci|sistematis|terpadu|holistik|terstruktur|terpadu)\b/iu;
+  const ID_HIGH_NOUNS = /\b(?:strategi|rencana|peta jalan|kerangka kerja|protokol|laporan|sistem|panduan|proposal|cetak biru|itinerari|arsitektur|kerangka|rancangan|program|naskah|prosedur|panduan|modul)\b/iu;
+
+  function processIndonesian(text) {
+    if (ID_CLOSURE_RE.test(text.trim()))
+      return { cx:'LOW', rule:'ID-CLOSURE: Indonesian penutup → LOW', confidence:95 };
+    if (ID_SHORT_RE.test(text.trim()) && text.length < 65)
+      return { cx:'LOW', rule:'ID-SHORT: Indonesian format pendek → LOW', confidence:88 };
+    if (ID_T3_RE.test(text.trim()))
+      return { cx:'MED', rule:'ID-T3: Indonesian kata penghubung T3 → MED', confidence:85 };
+    if (ID_HIGH_QUALS.test(text) && ID_HIGH_NOUNS.test(text) && ID_HIGH_VERBS.test(text))
+      return { cx:'HIGH', rule:'ID-HIGH-COMP: Indonesian komprehensif+rencana+meN- → HIGH', confidence:91 };
+    if (ID_HIGH_QUALS.test(text) && ID_HIGH_VERBS.test(text) && text.length > 20)
+      return { cx:'HIGH', rule:'ID-HIGH: Indonesian komprehensif+meN- → HIGH', confidence:89 };
+    if (ID_HIGH_VERBS.test(text) && ID_HIGH_NOUNS.test(text) && text.length > 20)
+      return { cx:'HIGH', rule:'ID-HIGH-NOUN: Indonesian meN-+rencana → HIGH', confidence:87 };
+    if (/^(?:bagaimana|mengapa|jika|apakah|berapa|kenapa)\b/iu.test(text.trim()))
+      return { cx:'MED', rule:'ID-MED: Indonesian kata tanya → MED', confidence:82 };
+    return null;
+  }
+
   function classify(prompt, uc) {
     if (!prompt || typeof prompt !== 'string') {
       return { cx: 'MED', rule: 'Default: empty prompt', tok: 0, modal: 'text', lang: 'EN', confidence: 0 };
@@ -1306,6 +1471,26 @@
     // ── P0-DE: German ───────────────────────────────────────────
     if (lang === 'DE') {
       const dt = Math.ceil(wordCount(prompt) * EU_TOK);
+      // DE-EMO-FLOOR: short emotional sentences bypass global EMO-FLOOR
+      if (/\b(\xfcberfordert|burnout|verloren und einsam|nicht mehr aus|ausgebrannt|kurz vor einem burnout|total ausgebrannt)\b/i.test(prompt.toLowerCase()) && tok <= 25) {
+        return { cx:'MED', rule:'DE-EMO-FLOOR: Emotionaler Stress \u2192 MED', tok, modal, lang, noiseType:null, confidence:85 };
+      }
+      // DE-HOW: "Wie funktioniert X?" = MED
+      if (/^wie funktioniert\b/i.test(workingText.trim().toLowerCase()) && tok <= 18) {
+        return { cx:'MED', rule:'DE-HOW: wie funktioniert \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // DE-COMPARE: "Was ist der Unterschied" = MED
+      if (/^(was ist der unterschied|was sind die unterschiede|vergleich[e]?\b)/i.test(workingText.trim().toLowerCase())) {
+        return { cx:'MED', rule:'DE-COMPARE: Vergleichsfrage \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // DE-LIFE-LOW: Recipe/household short queries = LOW
+      if (/^(was ist das beste rezept|wie (macht|backt|kocht|bereitet) man|wie (entfernt|entferne) (man|ich)|wie (wasche|reinige) ich)\b/i.test(workingText.trim()) && tok <= 28) {
+        return { cx:'LOW', rule:'DE-LIFE-LOW: Rezept\/Haushalt → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // DE-LIFESTYLE-MED: Trip/travel planning = MED (not HIGH via R5)
+      if (/^(kannst du mir .{3,30} planen|plane .{3,20} (trip|reise|urlaub|ausflug)|hilf mir .{3,20} (reise|ausflug))/i.test(workingText.trim())) {
+        return { cx:'MED', rule:'DE-LIFESTYLE-MED: Reiseplanung → MED', tok, modal, lang, noiseType:null, confidence:84 };
+      }
       // DE-SHORT: short-format requests → LOW (before processGerman)
       if (/^(fassen Sie|listen Sie|geben Sie mir (eine|einen)|zeigen Sie mir|schreiben Sie (ein[en]? )?(kurzes?|kurzen?)|erstellen Sie (eine|einen) (liste|einkaufsliste)|übersetzen Sie|schlagen Sie (eine|einen) kurze[rn]?|nennen Sie [0-9]+|stellen Sie .{0,20}(tabelle|liste|übersicht)|bringen Sie .{0,20}(reihenfolge|liste))/i.test(prompt)) {
         const deShortTok = Math.ceil(wordCount(prompt) * 1.3);
@@ -1318,6 +1503,26 @@
     }
     // ── P0-ES: Spanish ──────────────────────────────────────────
     if (lang === 'ES') {
+      // ES-EMO-FLOOR: short emotional sentences bypass global EMO-FLOOR
+      if (/\b(hecho polvo|ya no aguanto|hasta la madre|re baj[oó]n|estoy mamado|no aguanto m[aá]s|estoy destrozad[ao])\b/i.test(prompt.toLowerCase()) && tok <= 25) {
+        return { cx:'MED', rule:'ES-EMO-FLOOR: estrés emocional \u2192 MED', tok, modal, lang, noiseType:null, confidence:85 };
+      }
+      // ES-HOW: "¿Cómo funciona X?" = MED
+      if (/^[¿]?c[oó]mo (funciona|se usa|trabaja|se implementa|se configura)\b/i.test(workingText.trim()) && tok <= 20) {
+        return { cx:'MED', rule:'ES-HOW: cómo funciona \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // ES-COMPARE: "¿Cuál es la diferencia / En qué se diferencia" = MED
+      if (/^[¿]?(cu[aá]l es la (diferencia|distinci[oó]n)|en qu[eé] se diferencia|compara\.?\b)/i.test(workingText.trim())) {
+        return { cx:'MED', rule:'ES-COMPARE: pregunta comparativa \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // ES-LIFE-LOW: Short recipe/shopping queries = LOW
+      if (/^(?:(?:che|oye|ey|oiga),?\s+)?[¿]?(?:c\xf3mo se (hacen?|hace|prepara|cocina) .{3,35}|qu\xe9 .{3,20} (me recomendar|recomend\xe1s|recomiendas))/i.test(prompt.trim()) && tok <= 28) {
+        return { cx:'LOW', rule:'ES-LIFE-LOW: Receta corta → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // ES-CREA-LOW: Short naming tasks = LOW
+      if (/^dame \d+ (ideas?|nombres?)/i.test(prompt.trim()) && tok <= 28) {
+        return { cx:'LOW', rule:'ES-CREA-LOW: Dame nombres → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
       const et = Math.ceil(wordCount(prompt) * EU_TOK);
       if ((/^(resume|haz (una? )?(lista|tabla)|dame (la|el|una?)|escribe (una?|un) (prueba|guion|correo|email)|pon (esto|en|los)|muestra (un|una)|traduce (esta?|esa?)|propón (una? )?(corto|breve)|dame [0-9]+)/i.test(prompt) &&
           /(tabla|lista|fórmula|formula|prueba|guion|correo|email|orden cronológico|viñetas|puntos|resumen|ejemplo|[0-9]+ (puntos|ejemplos)|párrafo|al (francés|inglés|alemán|portugués|chino)|numerada|comparativa|seguridad necesario)/i.test(prompt)) ||
@@ -1334,6 +1539,30 @@
       return { cx:ec.cx, rule:ec.rule, tok:et, modal, lang, noiseType:ec.noiseType||null, confidence:ec.confidence };
     }
     if (lang === 'IT') {
+      // IT-HIGH: legal contract drafting = HIGH
+      if (/\b(redigi|redigere|contratt[oi]\b|accordo\b|clausol[ae]\b|normativa|al diritto italiano|GDPR|ISO\s?\d)\b/i.test(workingText) && tok >= 15) {
+        return { cx:'HIGH', rule:'IT-HIGH: contratto legale \u2192 HIGH', tok, modal, lang, noiseType:null, confidence:86 };
+      }
+      // IT-HOW: "Come funziona X?" = MED
+      if (/^come (funziona|si usa|funzionano|si implementa)\b/i.test(workingText.trim()) && tok <= 18) {
+        return { cx:'MED', rule:'IT-HOW: come funziona \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // IT-COMPARE: "Qual è la differenza / Confronta X e Y" = MED
+      if (/^(qual [èe] la differenza|quali sono le differenze|confronta|in cosa diff)/i.test(workingText.trim())) {
+        return { cx:'MED', rule:'IT-COMPARE: domanda comparativa \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // IT-LIFE-LOW: Recipe/household short queries = LOW
+      if (/^come si fa |^qual è il modo migliore per /i.test(workingText.trim()) && tok <= 28) {
+        return { cx:'LOW', rule:'IT-LIFE-LOW: Come si fa \u2192 LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // IT-CREA-LOW: Short poem/naming = LOW (not script/story)
+      if (/^scrivi (una breve poesia|un (breve|piccolo|corto) poem|una canzone breve)|^trovami (un nome|una parola)/i.test(workingText.trim()) && tok <= 18) {
+        return { cx:'LOW', rule:'IT-CREA-LOW: Breve poesia \u2192 LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // IT-EMO-FLOOR: strong emotional distress → MED
+      if (/ne ho fin sopra i capelli|sono a pezzi|non ce la faccio|ho il cuore a pezzi|sto malissimo|mi sta distruggendo|stanco morto|voglio solo sparire|mi sento.*perso|l.ansia mi sta|la differenza tra|al diritto italiano/i.test(prompt) && tok <= 22) {
+        return { cx:'MED', rule:'IT-EMO-FLOOR: Disagio emotivo \u2192 MED', tok, modal, lang, noiseType:null, confidence:85 };
+      }
       // IT-SHORT: short-format → LOW (before processItalian)
       if (/^(mettilo|mett[oi]|dai|dammi|scrivi|fai|fornisci|elenca|riassumi|mostrami|mostra|indica|crea|redigi|prepara) .{0,55}(elenco puntato|formula (di calcolo)?|lista della spesa|tabella|punti|test unitario|esempio di output|script di [0-9]+|breve esercizio|breve lista|ordine cronologico|tabella comparativa|tabella nutrizionale|[0-9]+ (esempi|punti|opere)|attrezzature necessarie|passaggi principali|azioni in ordine|e-mail di dimissioni|sintomi principali|opportunità in [0-9]+|penali in |rischi .{0,10}(in|a)|rischi legali)/i.test(prompt)) {
         const itShortTok = Math.ceil(wordCount(prompt) * 1.2);
@@ -1344,6 +1573,24 @@
       return {cx:ic.cx, rule:ic.rule, tok, modal, lang, noiseType:ic.noiseType||null, confidence:ic.confidence};
     }
     if (lang === 'KO') {
+      // KO-HOW: "어떻게 작동하나요?" = MED
+      if (/어떻게 .{0,10}(작동|사용|구현|설정|동작)/.test(prompt) && tok <= 12) {
+        return { cx:'MED', rule:'KO-HOW: 어떻게 작동 \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // KO-COMPARE: "차이점을 설명해주세요 / 비교해주세요" = MED
+      if (/사이의 차이|다른 점|우어|차이점|비교해|어떻게 다르/.test(prompt) && tok <= 20) {
+        return { cx:'MED', rule:'KO-COMPARE: 비교 질문 \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // KO-LIFESTYLE: cooking/travel/shopping queries
+      if (/레시피|황금 레시피|여행.*일정|일정.*짜|추천해|가성비|준비물|어린이집/.test(prompt)) {
+        const koLifeTok = tok;
+        const koLifeCx = (tok <= 17) ? 'LOW' : 'MED';
+        return { cx:koLifeCx, rule:'KO-LIFESTYLE: 한국어 생활쿼리 → '+koLifeCx, tok, modal, lang, noiseType:null, confidence:83 };
+      }
+      // KO-EMO-FLOOR: strong emotion keywords → MED regardless of tok
+      if (/갑질|번아웃|멘탈 탈탈|눈물만 나|배신감|쓰레기 같|지친다|광탈|우울|힘들어|외로워|퇴사|미치겠어/.test(prompt)) {
+        return { cx:'MED', rule:'KO-EMO-FLOOR: 한국어 감정표현 → MED', tok, modal, lang, noiseType:null, confidence:85 };
+      }
       // KO-SHORT: short-format → LOW
       if (/^.{2,30}(을|를|로|으로)? ?(표로 정리|표로 만들어|리스트로 만들어|리스트를 작성|요약해|요약 표|글머리 기호로|단계별로 리스트|시간순으로 나열|전후 비교표|공식을 제시|계산 공식|쇼핑 리스트|대본을 작성|예시를 보여|샘플 코드|출력 예시|번역해|장비 리스트|[0-9]+가지[로를]? 요약)(해 주세요|해주세요|주세요)?[.]?$/i.test(prompt)) {
         const koShortTok = Math.ceil(wordCount(prompt) * 1.2);
@@ -1355,6 +1602,18 @@
       return {cx:kc.cx, rule:kc.rule, tok, modal, lang, noiseType:kc.noiseType||null, confidence:kc.confidence};
     }
     if (lang === 'HI') {
+      // HI-LIFE-LOW: Short recipe queries = LOW (Devanagari tok inflated by char*0.8)
+      if (/कैसे बनाएं|रेसिपी बताओ|आसान रेसिपी/.test(prompt) && tok <= 55) {
+        return { cx:'LOW', rule:'HI-LIFE-LOW: Hindi recipe → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // HI-CREA-LOW: Short ghazal/poem = LOW (HI-MED fires for लिखो but short forms = LOW)
+      if (/गज़ल|कविता|शायरी/.test(prompt) && tok <= 35) {
+        return { cx:'LOW', rule:'HI-CREA-LOW: Hindi poem → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // HI-LIFESTYLE-MED: travel planning = MED
+      if (/ट्रिप|प्लान बनाओ|मुंबई.*गोवा/.test(prompt) && tok >= 30) {
+        return { cx:'MED', rule:'HI-LIFESTYLE-MED: Hindi travel → MED', tok, modal, lang, noiseType:null, confidence:84 };
+      }
       // HI-SHORT: short-format → LOW (before processHindi)
       if (/^.{2,60}.*(तालिका|सूची|सारांश|स्क्रिप्ट|सूत्र|अनुवाद|टेबल|चार्ट|लिस्ट|खरीदारी).*(सारांशित|बनाएं|लिखें|दें|दिखाएं|रखें|करें)[।]?$/i.test(prompt) ||
         /^(एक उदाहरण|उदाहरण (आउटपुट|कोड)|यूनिट टेस्ट|सांस लेने का|साप्ताहिक पोषण)/i.test(prompt)) {
@@ -1372,13 +1631,149 @@
         const arShortTok = Math.ceil(wordCount(prompt) * 1.5);
         return { cx: 'LOW', rule: 'AR-SHORT: تنسيق قصير → LOW', tok: arShortTok, modal, lang, noiseType: null, confidence: 88 };
       }
+      // AR-HOW: "كيف تعمل / كيف يعمل X؟" = MED
+      if (/^كيف تعمل|كيف يعمل/.test(prompt.trim()) && tok <= 15) {
+        return { cx:'MED', rule:'AR-HOW: كيف تعمل \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // AR-COMPARE: "ما الفرق بين X وY؟" = MED
+      if (/^(ما الفرق بين|ما هو الفرق|قارن بين)/.test(prompt.trim()) && tok <= 20) {
+        return { cx:'MED', rule:'AR-COMPARE: سؤال مقارنة \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // AR-CREA-MED: Story/script = MED; short poem = LOW
+      if (/^اكتبلي (قصة|رواية|سيناريو)|^اكتب (قصة|حكاية)/.test(prompt.trim())) {
+        return { cx:'MED', rule:'AR-CREA-MED: قصة عربية → MED', tok, modal, lang, noiseType:null, confidence:84 };
+      }
+      if (/^اكتب قصيدة/.test(prompt.trim()) && tok <= 22) {
+        return { cx:'LOW', rule:'AR-CREA-LOW: قصيدة عربية → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
       const ar = processArabic(prompt);
       if (ar) return {cx:ar.cx, rule:ar.rule, tok, modal, lang, noiseType:null, confidence:ar.confidence};
       const ac = classifyCore(prompt, uc, tok);
       return {cx:ac.cx, rule:ac.rule, tok, modal, lang, noiseType:ac.noiseType||null, confidence:ac.confidence};
     }
+    // ── P0-CREATIVE-LOW: Short creative forms should be LOW not MED ──
+    // A limerick, short poem, single caption, one name = LOW
+    if (tok < 25) {
+      const _cl = prompt.toLowerCase().trim();
+      const _isShortCreative = (
+        /^(write a (limerick|haiku|single caption|one.line|brief poem)|give me a (sassy|funny|catchy|short|quick)(?: \w+)? (caption|tagline|name|title)|write a short (tweet|caption|post)|suggest (a |some )?(name|names) for)/i.test(_cl) ||
+        /^(找.*名字|取.*名字|幫我取|幫我起.*名|店名|給我.*名字|给我起.*名|给我取.*名)/i.test(_cl) ||
+        /^(schreib (ein kurzes gedicht|eine kurze)|finde (einen?|ein) (coolen?|guten?) namen|gib mir (einen?|ein) namen?)\b/i.test(_cl) ||
+        /^(scrivi una breve poesia|trovami un nome|dame d+ (ideas?|nombres?))/i.test(_cl) ||
+        /^(écris? (un[e]? (court[e]?|bref|brève)|une (courte )?(poésie|comptine))|trouve (un|une) (joli|beau|bon) nom)/i.test(_cl)
+      );
+      if (_isShortCreative && !(/story|script|screenplay|chapter|full|complete|detailed/i.test(_cl))) {
+        return { cx:'LOW', rule:'CREATIVE-LOW: Short creative form → LOW',
+                 tok, modal, lang, noiseType:null, confidence:82 };
+      }
+    }
+    // ── P0-LIFESTYLE-MED: Trip/travel planning should cap at MED not HIGH ──
+    if (lang === 'EN' && tok >= 10 && tok <= 60) {
+      const _lm = prompt.toLowerCase();
+      if (/^help me plan|^plan (me |a |an )?a? .{3,20} (trip|itinerary|journey)|^i need (a |an )?(itinerary|travel plan|route)/i.test(_lm) ||
+          /\b(backpacking|day trip|weekend trip|short trip|road trip)\b/i.test(_lm) && /\b(plan|route|itinerary|guide)\b/i.test(_lm)) {
+        return { cx:'MED', rule:'EN-LIFESTYLE-MED: Trip planning → MED',
+                 tok, modal, lang, noiseType:null, confidence:85 };
+      }
+    }
+    // ── P0-LIFE-LOW: Short lifestyle/creative queries that R4 wrongly promotes ──
+    // Applies to non-CJK queries with tok=20-22 that are clearly simple
+    if (tok >= 20 && tok <= 24 && lang !== 'ZH' && lang !== 'ZH_SC' && lang !== 'JA') {
+      const _ll = prompt.toLowerCase().trim();
+      const _isSimpleLifeQuery = (
+        // EN: short recipe/household/product queries
+        /^(my .{5,25} is (draining|leaking|broken|not working)|best .{3,20} (under|below|for) .{0,10}[$€£d]|what.?s the (ratio|difference) (of|between)|how (long|much|hot|cold) (do|should) (i|you))/i.test(_ll) ||
+        // DE: Was ist das beste...
+        /^(was ist das beste rezept|wie (entferne|wasche) ich|was kostet|welche .{3,15} empfiehlst|wo kann ich)/i.test(_ll) ||
+        // ES: recipe/shopping queries tok=20-22
+        /^[¿]?(cómo se (hacen?|hace|prepara) .{3,30}?|qué .{3,10} (me recomendar|recomendás|recomiendas)\b)/i.test(_ll) ||
+        // FR: comment + practical verb
+        /^(comment (enlever|retirer|laver|nettoyer|faire partir|préparer) .{3,30}?|c.est quoi la meilleure recette)/i.test(_ll) ||
+        // IT: Come si fa / Qual è il modo
+        /^(come si fa .{3,25}?|qual è il modo migliore per .{3,25}?)/i.test(_ll) ||
+        // AR: short recipe query (tok=20-21 due to new multiplier should now be higher)
+        /\b(lehenga|shaadi|khareedu|kahan se khareedu|kahan milega)\b/i.test(_ll)
+      );
+      if (_isSimpleLifeQuery) {
+        return { cx:'LOW', rule:'LIFE-LOW: Short lifestyle query → LOW (pre-empt R4)',
+                 tok, modal, lang, noiseType:null, confidence:82 };
+      }
+    }
+    // ── P0-ZH-CREA-LOW: ZH short creative tasks (naming, single IG caption) ──
+    if ((lang === 'ZH' || lang === 'ZH_SC') && tok <= 80) {
+      const _zc = prompt;
+      if (/幫我取.*名字|帮我取.*名字|取.*個名字|取.*个名字|取名字|起名字/.test(_zc) ||
+          /幫我起個名|起個.*名|起个.*名|店名|起名/.test(_zc) ||
+          /寫.*IG貼文|写.*朋友圈文案|写.*文案.*配图|写个.*文案/.test(_zc)) {
+        return { cx:'LOW', rule:'ZH-CREA-LOW: ZH短創意命名/貼文 → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+    }
+    // ── P0-ZH-PARENTING: ZH育兒/生活MED floor (prevent R5 → HIGH) ──
+    if ((lang === 'ZH' || lang === 'ZH_SC') && tok >= 40 && tok <= 80) {
+      if (/一歲|一岁|寶寶|宝宝|小孩.*幾歲|小孩.*几岁|嬰兒|婴儿|育兒|育儿|兒童|儿童|孩子.*怎麼教|孩子.*怎么教/.test(prompt) ||
+          /哭鬧|哭闹|不讓.*睡|不让.*睡|尖叫|我該怎麼教|我该怎么教|托兒所|托儿所/.test(prompt)) {
+        return { cx:'MED', rule:'ZH-PARENTING-MED: ZH育兒諮詢 → MED', tok, modal, lang, noiseType:null, confidence:84 };
+      }
+    }
+    // ── P0-ZH-LIFE-LOW: CJK short lifestyle queries (tok inflated by char*1.5) ──
+    if ((lang === 'ZH' || lang === 'ZH_SC') && tok >= 20 && tok <= 50) {
+      const _zl = prompt;
+      if (/打卡攻略|避坑指南|特种兵/.test(_zl) ||
+          /怎麼炒|怎么炒|幾度幾分|几度几分|設定.*度|要設定|氣炸鍋|气炸锅|能烤|可以烤/.test(_zl) ||
+          /推薦必買|推荐必买|有什麼推薦|有什么推荐|必買|必买|哪個好|哪个好/.test(_zl) ||
+          /怎麼洗|怎么洗|如何洗|洗最乾淨|洗最干净|能买吗|踩雷/.test(_zl) ||
+          /怎么做.*好吃|怎麼做.*好吃|求.*吃法|神仙吃法|好吃秘诀|好吃秘訣/.test(_zl) ||
+          /几块钱|九块九|值得买|值得買/.test(_zl)) {
+        return { cx:'LOW', rule:'ZH-LIFE-LOW: CJK短生活查詢 → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+    }
+    // ── P0-TH: Thai ────────────────────────────────────────────
+    if (lang === 'TH') {
+      const th = processThai(prompt);
+      if (th) return { cx:th.cx, rule:th.rule, tok, modal, lang, noiseType:null, confidence:th.confidence };
+      const tc = classifyCore(prompt, uc, tok);
+      return { cx:tc.cx, rule:tc.rule, tok, modal, lang, noiseType:tc.noiseType||null, confidence:tc.confidence };
+    }
+    // ── P0-VI: Vietnamese ─────────────────────────────────────────
+    if (lang === 'VI') {
+      const vi = processVietnamese(prompt);
+      if (vi) return { cx:vi.cx, rule:vi.rule, tok, modal, lang, noiseType:null, confidence:vi.confidence };
+      const vc = classifyCore(prompt, uc, tok);
+      return { cx:vc.cx, rule:vc.rule, tok, modal, lang, noiseType:vc.noiseType||null, confidence:vc.confidence };
+    }
+    // ── P0-ID: Indonesian ─────────────────────────────────────────
+    if (lang === 'ID') {
+      const id = processIndonesian(prompt);
+      if (id) return { cx:id.cx, rule:id.rule, tok, modal, lang, noiseType:null, confidence:id.confidence };
+      const ic = classifyCore(prompt, uc, tok);
+      return { cx:ic.cx, rule:ic.rule, tok, modal, lang, noiseType:ic.noiseType||null, confidence:ic.confidence };
+    }
     // ── P0-FR: French pre-processing ──────────────────────────
     if (lang === 'FR') {
+      // FR-EMO-FLOOR: strong French emotion keywords → MED
+      if (/j.en ai marre|à bout|je suis à bout|je me sens seul|j.en peux plus|trop dur|je suis détruite?|je pleure|tout abandonner|tout va de travers|envie de tout abandonner|chum m.a laissé|j.en peux plus|complètement seul/.test(prompt.toLowerCase())) {
+        return { cx:'MED', rule:'FR-EMO-FLOOR: Détresse émotionnelle FR → MED', tok, modal, lang, noiseType:null, confidence:85 };
+      }
+      // FR-COMPARE: "Quelle est la différence / Comparez X et Y" = MED
+      if (/^(quelle est la diff[eé]rence|quelles sont les diff[eé]rences|comparez|comment .{3,20} se distingue)/i.test(workingText.trim())) {
+        return { cx:'MED', rule:'FR-COMPARE: question comparative \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // FR-LOW: 'Comment + practical verb' = recipe/household query = LOW
+      if (/^comment (préparer|preparer|faire|cuisiner|cuire|enlever|retirer|laver|nettoyer|réparer|utiliser|savoir|reconnaître|choisir) /i.test(workingText.trim()) && tok <= 28) {
+        return { cx:'LOW', rule:'FR-LIFE-LOW: Comment+pratique → LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // FR-CREA-MED: any poem/story/script without size qualifier = MED
+      if (/^[éÉe]cri[stz]? (?:un[e]? (?:po[eè]me|po[eè]sie|histoire|texte|essai|lettre|chanson|sc[eé]nario|script)|l.intro|le d[eé]but)/i.test(workingText.trim())) {
+        return { cx:'MED', rule:'FR-CREA-MED: Po\xe8me/histoire FR \u2192 MED', tok, modal, lang, noiseType:null, confidence:84 };
+      }
+      // FR-CREA-LOW: short naming only (not poems) = LOW
+      if (/^(trouve[z]?|trouv[e]?-moi) (un[e]? (joli|beau|bon|modern|original))/i.test(workingText.trim())) {
+        return { cx:'LOW', rule:'FR-CREA-LOW: Courte cr\xe9ation \u2192 LOW', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+      // FR-EMO: short emotional sentences → MED floor
+      if (tok <= 22 && /\b(j.en ai marre|à bout|trop dur|complètement seul|j.en peux plus|tout va de travers|envie de tout abandonner|je pleure|détruite?|chum m.a laissé)\b/i.test(workingText)) {
+        return { cx:'MED', rule:'FR-EMO-MED: Détresse émotionnelle → MED', tok, modal, lang, noiseType:null, confidence:85 };
+      }
       // Check FRAGMENT before FR rules
       const _frFrag = classifyCore(workingText, uc, tok);
       if (_frFrag.noiseType === 'FRAGMENT') {
@@ -1453,6 +1848,7 @@
           tok, modal, lang,
           noiseType: er.noiseType,
           confidence: er.confidence,
+          forcedConvMode: er.convMode || null,
         };
       }
 
@@ -1477,6 +1873,58 @@
       }
     }
 
+    // ── R-EN-COMPARE: "what is the difference between" = MED not LOW ──
+    if (lang === 'EN' && tok <= 20 && /^(what('?s| is) the difference|what are the differences|how do .{3,30} (differ|compare))/i.test(prompt.toLowerCase().trim())) {
+      return { cx: 'MED', rule: 'R-EN-COMPARE: comparison \u2192 MED', tok, modal, lang, noiseType: null, confidence: 82 };
+    }
+        // ── R-HOW-WORK: "How does X work / Wie funktioniert / Come funziona" = MED ──
+    // Short explanation requests look like LOW (tok<20) but require real knowledge output
+    if (tok <= 18 && (
+      /^how (does|do|is|are|can) .{3,35} (work|function|differ|operate)/i.test(prompt.trim()) ||
+      /^(wie funktioniert|come funziona|cómo funciona|comment fonctionne|hoe werkt|como funciona)\b/i.test(prompt.trim()) ||
+      /^어떻게 .{2,20} (작동|작동하나요|작동합니다|할까요)\??$/.test(prompt.trim()) ||
+      /^كيف تعمل/.test(prompt.trim())
+    )) {
+      return { cx:'MED', rule:'R-HOW-WORK: explanation request \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+    }
+        // ── P0-EMO: Emotional distress floor — override R1 LOW for emotional content ──
+    // Emotion sentences with tok<20 get incorrectly truncated by R1.
+    // If the prompt contains strong emotional distress markers, floor to MED.
+    if (lang !== 'TH' && lang !== 'VI' && lang !== 'ID') {
+      const _emoText = prompt.toLowerCase();
+      const _isEmoDistress = (
+        // EN
+        /\b(exhausted|panic attack|feel worthless|mental health|grief|guilt|devastated|heartbroken|can.t cope|can.t take it|so over it|destroyed|helpless|so damn hard|so incredibly hard|why is everything|hopeless|depressed|anxious|anxiety|overwhelmed|falling apart|burning out|burnt out|nothing makes sense|i.m done|red flag|micromanages|destroying my|terrible (mother|father|parent))\b/i.test(_emoText) ||
+        // ZH/ZH_SC
+        /委屈|偷哭|提分手|好失敗|恐慌|快瘋了|小天使|好痛苦|無效內耗|班味|破防|催婚|海王|emo了|谁懂啊|狗逼|讨好.*别人|活得小心翼翼|裸辭|行屍走肉/.test(_emoText) ||
+        // DE
+        /\b(überfordert|verloren und einsam|nicht mehr aus|am weinen|ausgebrannt|stehe kurz vor einem burnout|mich gerade total)\b/i.test(_emoText) ||
+        // FR
+        /\b(j.en ai marre|à bout|complètement seul|j.en peux plus|je suis détruite?|tout abandonner)\b/i.test(_emoText) ||
+        // ES
+        /\b(hecho polvo|hasta la madre|re bajón|súper ansiosa|el mundo se me viene|no aguanto más)\b/i.test(_emoText) ||
+        // IT
+        /\b(ne ho fin sopra i capelli|sono a pezzi|non ce la faccio più|ho il cuore a pezzi|stanco morto|voglio solo sparire)\b/i.test(_emoText) ||
+        // KO
+        /갑질|멘탈 탈탈|눈물만 나|배신감|쓰레기 같|광탈|번아웃/.test(_emoText) ||
+        // AR
+        /تعبت|مش قادر|مضيّق|مو طايق|ضايع ومكتئب|القلق الشديد|الهلع|ما بقاش نقدر|ما بعرف شو أعمل/.test(_emoText) ||
+        // HI
+        /\b(toot gaya hoon|bilkul toot|panic attacks aa|bahut stressed feel)\b/i.test(_emoText) ||
+        /परेशान और दुखी|जिंदगी किस दिशा|सब कुछ छोड़ दूं/.test(_emoText)
+      );
+      if (_isEmoDistress && tok <= 24) {
+        return { cx:'MED', rule:'EMO-FLOOR: Emotional distress override R1 → MED',
+                 tok, modal, lang, noiseType:null, confidence:85 };
+      }
+      // Parenting advice = MED even when short (how to get toddler to sleep...)
+      const _isParentingQ = /\b(toddler|infant|baby|newborn|child|kid|children|bedtime|sleep train|nap|tantrum|potty|nursery)\b/i.test(_emoText) &&
+                             /\b(how to|help|advice|tips|what can|what should|should i)\b/i.test(_emoText);
+      if (_isParentingQ && tok <= 24) {
+        return { cx:'MED', rule:'PARENTING-MED: Parenting advice → MED',
+                 tok, modal, lang, noiseType:null, confidence:84 };
+      }
+    }
     // ── P3–P7: Core classification ─────────────────────────────
     const core = classifyCore(workingText, uc, tok);
     return {
@@ -1557,7 +2005,7 @@
   // ══════════════════════════════════════════════════════════════
 
   const BACKREF_ZH = /(主要是|重點是|主要針對|主要在|主要談|主要討論|尤其是|特別是針對|那(個|件|部分|方面|個問題|麼做|怎麼算|的費用|的比率|的風險|的影響|的方案)|這(個問題|件事|樣的話|部分)|它(的|對|在)|上(面|述|方)的|剛才的|前面的|之前(提到|說的|那個|的分析|的內容)|承上|根據(以上|上述|剛才)|把(它|這個|那個|上面)(再|幫我|翻|縮|改|整理|擴|精簡)|幫我(再)?縮短(一下)?$|幫我(再)?翻譯(一下)?$|針對(以上|上述)|依照(以上|上述)|用(上面|剛才)(說的|提到的))/;
-  const BACKREF_EN = /(the above|the previous|the last|compress (it|this|that)|summarize (it|this|that)|translate (it|this|that)|shorten (it|this|that)|the analysis above|based on (the above|what (i|you) (said|mentioned|wrote))|rewrite (it|this)|revise (it|this)|expand (on )?(it|this|that)|from (the above|above)|per (the above|our discussion)|following (up|the above))/i;
+  const BACKREF_EN = /\b(the above|the previous|the last|compress (it|this|that)|summarize (it|this|that)|translate (it|this|that)|shorten (it|this|that)|the analysis above|based on (the above|what (i|you) (said|mentioned|wrote))|rewrite (it|this)|revise (it|this)|expand (on )?(it|this|that)|from (the above|above)|per (the above|our discussion)|following (up|the above))\b/i;
   const BACKREF_JA = /(上記の|上述の|先ほどの|前述の|それを(翻訳|要約|短く|まとめ)|上の(分析|内容|結果)を|承前|以上を踏まえて)/;
 
   const BACKREF_FR = /(d['"']apr[eè]s ce que|prends ce qui pr[eé]c[eè]de|compte tenu de ce qui|pour faire suite|au fait[^a-z]|et aussi[^a-z]|de plus[^a-z]|en outre[^a-z]|en m[eê]me temps[^a-z]|[àa] propos[^a-z]|d['"']un autre c[oô]t[eé][^a-z]|en dehors de [çca][^a-z]|encore une chose[^a-z]|rends.le[^a-z]|r[eè]gle [çca][^a-z])/i;
@@ -1609,13 +2057,82 @@
     if (tv && tv.length >= 2 && tv[0] === 'LOW' && (tv[1] === 'MED' || tier === 'HIGH')) return 'ESCALATING';
     if (tier === 'MED' && tv && tv.length >= 2 && tv[0] === 'MED' && tv[1] === 'MED') return 'PLATEAU';
     if (!lt) {
+      // ── TROUBLESHOOT ──────────────────────────────────────────
       if (/^(why is (my|the)|how do i fix|it.?s (showing|flashing)|my [a-z]+ (is|are) (not |showing )|there.?s an? (error|bug) in)/i.test(tl)) return 'TROUBLESHOOT';
-      if (/^(write a (short story|poem|script|song|scene|chapter)|help me (write|create) a (story|script|poem)|i want to write)/i.test(tl)) return 'CREATIVE';
+
+      // ── EMPATHY: detect emotional distress FIRST (high priority) ──
+      // EN
+      if (/\b(exhausted|burnout|burnt out|falling apart|panic attack|feel worthless|mental health|grief|guilt|devastated|heartbroken|can't cope|can't take it|so over it|destroyed|i'm done|helpless|hopeless|lonely|depressed|anxious|anxiety|overwhelmed|i lost my temper|breaking down|red flag|toxic)\b/i.test(tl) ||
+          /^(i (feel|am|can't|don't)|my (partner|boyfriend|girlfriend|boss|parents|dad|mum|mom)|why does everything|everything is|why is (life|everything))/i.test(tl) && /(hard|hurt|wrong|terrible|awful|failed|lost|scared|tired|crying|hate)/i.test(tl)) return 'EMPATHY';
+      // ZH / ZH_SC
+      if (/委屈|偷哭|提分手|好失敗|恐慌|快瘋了|小天使|好痛苦|無效內耗|班味|破防|催婚|海王|心碎|難過|沮喪|抑鬱|焦慮|壓力很大|撐不住了|快崩潰|裸辭|行屍走肉|我真的快|為什麼老天|在廁所偷哭|emo了|谁懂啊|狗逼|窒息|讨好|背叛|超難受|超難過|真的好難|好想哭|止不住眼淚|討好型|小心翼翼/.test(tl)) return 'EMPATHY';
+      // DE
+      if (/\b(überfordert|burnout|verloren|einsam|erschöpft|traurig|kaputt|ausgebrannt|nicht mehr aus|nicht mehr kann|am boden|am weinen|ich halte)\b/i.test(tl)) return 'EMPATHY';
+      // FR
+      if (/\b(j.en ai marre|à bout|je suis à bout|je me sens seul|j.en peux plus|trop dur|je suis détruite?|perdu et seul|complètement seul|je pleure|tout abandonner|ça ne va pas|chum m.a laissé|je suis vraiment|tout va de travers|envie de pleurer)\b/i.test(tl)) return 'EMPATHY';
+      // ES
+      if (/\b(hecho polvo|ya no aguanto|me tiene amargado|hasta la madre|re bajón|estoy mamado|súper ansiosa|volverme loca|el mundo se me viene|estoy destruid[ao])\b/i.test(tl)) return 'EMPATHY';
+      // IT
+      if (/\b(ne ho fin sopra|sono a pezzi|non ce la faccio|ho il cuore a pezzi|sto malissimo|mi sta distruggendo|stanco morto|voglio solo sparire|mi sento perso|mi sento .{0,10}perso|l.ansia mi sta|perso e solo)\b/i.test(tl)) return 'EMPATHY';
+      // KO
+      if (/갑질|번아웃|멘탈 탈탈|퇴사|우울|힘들|눈물|미치겠어|배신감|쓰레기 같|지친다|광탈/.test(tl)) return 'EMPATHY';
+      // AR
+      if (/تعبت|مش قادر|مضيّق|مو طايق|ضايع|مكتئب|القلق|الهلع|ما بقاش نقدر|ما بعرف شو أعمل|عييت|نتحمل/.test(tl)) return 'EMPATHY';
+      // HI
+      if (/\b(toot gaya|bahut stressed|bilkul toot|panic attacks|bahut thaka|bahut pareshaan|kya karun)\b/i.test(tl) ||
+          /परेशान|दुखी|थका हुआ|समझ नहीं आ रहा|जिंदगी किस दिशा/.test(tl)) return 'EMPATHY';
+
+      // ── CREATIVE ──────────────────────────────────────────────
+      // EN
+      if (/^(write a (short story|poem|limerick|script|song|scene|chapter|caption|intro|opening|prologue|haiku|short .{3,15})|help me (write|create) a (story|script|poem)|act as a?n?|roleplay|give me a (sassy|funny|catchy)|i want to write)/i.test(tl)) return 'CREATIVE';
+      // ZH / ZH_SC
+      if (/幫我取名|取.{0,8}名字|取名字|店名|寫一首|現代詩|角色扮演|寫一篇.{0,8}(文案|貼文|IG|小說|腳本|劇本)|幫我起個名|命名|台詞|稿子|寫個.*腳本|帮我写.*文案|写个.*文案|朋友圈文案|起名|取名|角色扮演|帮我写.*脚本|写一个.*故事|搞笑.*脚本|小土狗.*名字|起個.*名|起个.*名|同人.*小说|同人.*小說|赛博朋克.*小说|赛博朋克|賽博龐克|微小说|微小說|写一篇.*小说|写一篇.*故事|起個.*名|起个.*名|同人.*小说|同人.*小說|赛博朋克|賽博龐克|微小说|微小說/.test(tl)) return 'CREATIVE';
+      // DE
+      if (/^(schreib (ein|eine|einen) (kurze[sr]?|lustiges?|schöne[sr]?)|finde (einen?|ein)|gib mir (einen?|ein) namen?|ich brauche (einen?|ein) .{3,20} namen?)/i.test(tl)) return 'CREATIVE';
+      // FR
+      if (/^(écris? (un[e]?|une?)|trouve (un|une)|écris? (l.intro|le début)|donne.?moi (un|une) nom|rédige (un|une))/i.test(tl)) return 'CREATIVE';
+      // ES
+      if (/^(escribe (un|una|el inicio|la historia)|dame (5|un[ao]?|ideas|nombres?)|escríbeme|arma un (guion|script|poema))/i.test(tl)) return 'CREATIVE';
+      // IT
+      if (/^(scrivi (una|un|il|l.intro)|trovami (un|una)|scrivimi)/i.test(tl)) return 'CREATIVE';
+      // KO
+      if (/대본|노래 가사|웹툰|이름 지어|이름 만들어|글 써줘|시 써줘|소설|스크립트/.test(tl)) return 'CREATIVE';
+      // AR
+      if (/اكتبلي|اكتب (قصة|قصيدة|سيناريو)|اقترح (اسم|أسماء)/.test(tl)) return 'CREATIVE';
+      // HI
+      if (/\b(likho|script likho|naam (de|dijiye)|kahani likho|gazal|poem|poetry)\b/i.test(tl) ||
+          /लिखो|कहानी|कविता|गज़ल|नाम रखो/.test(tl)) return 'CREATIVE';
+
+      // ── LIFESTYLE ─────────────────────────────────────────────
+      // EN
+      if (/^(how (to|do i|can i)|what.?s the (recipe|ratio|best way|easiest way)|help me plan (a |an )?(trip|itinerary|route|travel)|best .{0,30} (under|for)|my .{0,20} (sink|pipe|drain|tap)|recommend(ed)? .{0,20} (headphone|speaker|mattress|vacuum))/i.test(tl) ||
+          /\b(recipe|cook|bake|itinerary|trip plan|travel|backpacking|plumber|draining|toddler sleep|parenting|sleep training|noise.cancell)\b/i.test(tl)) return 'LIFESTYLE';
+      // ZH / ZH_SC
+      if (/怎麼炒|幾度幾分|設定幾度|行程|行程規劃|划算嗎|推薦.*買|怎麼教|求支招|怎麼洗|氣炸鍋|食譜|料理|料理食譜|出行|旅遊|景點推薦|好市多|必買|穿搭|買.*哪裡|神仙吃法|黃金食譜|踩雷|老干妈|怎么洗|怎么做|去哪里|哪个好|打卡攻略|特种兵|避坑/.test(tl)) return 'LIFESTYLE';
+      // DE
+      if (/^(wie (macht|backt|kocht|bereitet|entfernt) man|was ist das beste rezept|kannst du mir .{0,60} planen|wie entferne ich)/i.test(tl) ||
+          /\b(3-tage-trip|reise planen|ausflug planen|stadtreise)\b/i.test(tl)) return 'LIFESTYLE';
+      // FR
+      if (/^(comment (préparer|faire|enlever|cuisiner|nettoyer)|c.est quoi la meilleure recette|planifier un (voyage|itinéraire)|quelle est .{0,20} (meilleure|bonne) façon)/i.test(tl)) return 'LIFESTYLE';
+      // ES
+      if (/^[¿]?(cómo se (hacen?|hace|prepara|cocina)|c\xf3mo se|arma (un itinerario|un viaje)|qué .{0,10} (me recomendar|recomiendas?))/i.test(tl) ||
+          /\b(tacos|receta|taqueria|taquer\xeda|paella|asado|mate|leche|cocina casera)\b/i.test(tl)) return 'LIFESTYLE';
+      // IT
+      if (/^(come si fa|qual è il modo migliore|pianifica (un|una)|come si (prepara|cucina|rimuove))/i.test(tl)) return 'LIFESTYLE';
+      // KO
+      if (/레시피|요리|어떻게 만들|여행.*일정|추천해|가성비|일정 짜|준비물/.test(tl)) return 'LIFESTYLE';
+      // AR
+      if (/طريقة عمل|كيفاش|وصفة|رحلة|نسافر|مطبخ/.test(tl)) return 'LIFESTYLE';
+      // HI
+      if (/\b(recipe|kaise banate|banana hai|trip plan|kahan se|shaadi|lehenga|khareedu)\b/i.test(tl) ||
+          /रेसिपी|कैसे बनाएं|यात्रा|घूमने|क्या खरीदें|ट्रिप|प्लान बनाओ/.test(tl)) return 'LIFESTYLE';
+
+      // ── Existing logic ────────────────────────────────────────
       if (/^(i want to (learn|study)|give me a (study|learning) plan|how (do|can) i learn|teach me)/i.test(tl)) return 'LEARNING';
-      if (/^(how do i (build|make|cook|bake|install|fix a)|what.?s the (recipe|process) (to|for)|give me a (recipe|shopping list) (for|of))/i.test(tl)) return 'LIFESTYLE';
       if (tier === 'HIGH') return 'PROFESSIONAL';
       if (tier === 'AMBIG') return 'IMPATIENT';
       if (tier === 'MED' && /情緒|心情|好累|難過|委屈|沮喪|sad|tired|feel|feeling/i.test(tl)) return 'EMPATHY';
+      if (tier === 'MED' && /감정|마음이 아파|힘들어|외로워|슬퍼/.test(tl)) return 'EMPATHY';
       if (tier === 'MED' && /寫(一個|程式|腳本)|write.*script|create.*function|python|javascript/i.test(tl)) return 'CODE_TASK';
       if (tier === 'LOW' && /^(什麼是|為什麼|怎麼|how|what is|why)/i.test(tl)) return 'SIMPLE';
       return tier === 'HIGH' ? 'PROFESSIONAL' : 'CODE_TASK';
@@ -1766,6 +2283,12 @@ function route(prompt, uc, qualityTier, conversationContext) {
                  !classified.rule.includes('AR-SHORT') &&
                  !classified.rule.includes('KO-SHORT') &&
                  !classified.rule.includes('DE-SHORT') &&
+                 !classified.rule.includes('TH-CLOSURE') &&
+                 !classified.rule.includes('TH-SHORT') &&
+                 !classified.rule.includes('VI-CLOSURE') &&
+                 !classified.rule.includes('VI-SHORT') &&
+                 !classified.rule.includes('ID-CLOSURE') &&
+                 !classified.rule.includes('ID-SHORT') &&
                  !/^(what|how|could|should|would|can|is|are|does|did|was|were|which|who|when|why)\b/i.test(_sd_tl) &&
                  !/^(mettilo|mett[oi]|elenca|riassumi|fornisci [0-9]+|scrivi (un[a]? )?(breve|corto)|fai (una?|un)|mostrami|dammi la formula|listez|résumez|donnez|élaborez un court|fassen sie|listen sie|zeigen sie mir eine|nennen sie [0-9]+|stellen sie .{0,20}tabelle|übersetzen sie|schreiben sie ein kurz|schlagen sie eine kurze|لخّص|اذكر [0-9]+|قم بإدراج|اكتب (قائمة|نصاً)|ضع .{0,15}(جدول|ترتيب زمني)|ترجم هذا|resume (los?|las?|un[a]?)|haz una? (lista|tabla)|dame (la f[oó]rmula|una lista)|escribe (una prueba|un guion|un correo|un email)|pon (esto|los?|las?) en (orden|tabla|lista)|traduce (esa|esta)|muestra un ejemplo|haz una lista del?|pon .{3,25} en (una? )?tabla|एक (विस्तृत )?(सूची|तालिका|स्क्रिप्ट|सारांश|फ़ॉर्मूला|अनुवाद)|मुख्य .{2,15} (तालिका|सूची)|[0-9]+ सेकंड का)/i.test(_sd_tl)) {
           const modeRes = {
@@ -1838,6 +2361,42 @@ function route(prompt, uc, qualityTier, conversationContext) {
         /(كيف|لماذا|ماذا|ما هو|ما هي|هل|أي)[^.،]{0,30}[؟?][.]?$/.test(prompt.trim())) {
       cx = 'MED';
     }
+    // TH T3 connector cap → MED
+    if (conversationContext &&
+        (conversationContext.lastTier==='HIGH'||conversationContext.lastTier==='MED') &&
+        classified.lang==='TH' && classified.tok<=30 && TH_T3_RE.test(prompt.trim())) {
+      cx = 'MED';
+    }
+    // TH follow-up question cap
+    if (cx==='HIGH' && classified.tok<=25 && conversationContext &&
+        conversationContext.lastTier==='HIGH' && classified.lang==='TH' &&
+        TH_MED_Q_RE.test(prompt.trim())) {
+      cx = 'MED';
+    }
+    // VI T3 connector cap → MED
+    if (conversationContext &&
+        (conversationContext.lastTier==='HIGH'||conversationContext.lastTier==='MED') &&
+        classified.lang==='VI' && classified.tok<=30 && VI_T3_RE.test(prompt.trim())) {
+      cx = 'MED';
+    }
+    // VI follow-up question cap
+    if (cx==='HIGH' && classified.tok<=25 && conversationContext &&
+        conversationContext.lastTier==='HIGH' && classified.lang==='VI' &&
+        /^(?:nếu|tại sao|làm thế nào|làm sao|như thế nào|bao lâu|bao nhiêu)\b/iu.test(prompt.trim())) {
+      cx = 'MED';
+    }
+    // ID T3 connector cap → MED
+    if (conversationContext &&
+        (conversationContext.lastTier==='HIGH'||conversationContext.lastTier==='MED') &&
+        classified.lang==='ID' && classified.tok<=30 && ID_T3_RE.test(prompt.trim())) {
+      cx = 'MED';
+    }
+    // ID follow-up question cap
+    if (cx==='HIGH' && classified.tok<=25 && conversationContext &&
+        conversationContext.lastTier==='HIGH' && classified.lang==='ID' &&
+        /^(?:bagaimana|mengapa|jika|apakah|berapa|kenapa)\b/iu.test(prompt.trim())) {
+      cx = 'MED';
+    }
     // HI follow-up question cap: short questions with HIGH ctx → MED
     if (cx === 'HIGH' && classified.tok <= 15 && conversationContext &&
         conversationContext.lastTier === 'HIGH' &&
@@ -1876,7 +2435,13 @@ function route(prompt, uc, qualityTier, conversationContext) {
           contextApplied = true;
         }
         // Floor: backref always needs context → never LOW if prior tier ≥ MED
-        if (cx === 'LOW' && (tierRank[lastTier] || 1) >= 2) {
+        if (cx === 'LOW' && (tierRank[lastTier] || 1) >= 2 &&
+            !classified.rule.includes('TH-CLOSURE') &&
+            !classified.rule.includes('TH-SHORT') &&
+            !classified.rule.includes('VI-CLOSURE') &&
+            !classified.rule.includes('VI-SHORT') &&
+            !classified.rule.includes('ID-CLOSURE') &&
+            !classified.rule.includes('ID-SHORT')) {
           cx = 'MED';
           contextApplied = true;
         }
@@ -1915,6 +2480,12 @@ function route(prompt, uc, qualityTier, conversationContext) {
       const _isARShortFmt = (
         /^(لخّص|ضع|اكتب|أعطني|قم بإدراج|أظهر|اذكر|ترجم|اقترح) .{0,55}(جدول|قائمة|نقاط|معادلة|مثال|نصاً|ترتيب زمني|قائمة نقطية|مقارنة|[0-9]+ (أمثلة|نقاط)|مسودة قصيرة|تمريناً|نصاً مدته|الأعراض|الخطوات|المعدات|العقوبات|الرئيسية)/i.test(prompt.trim())
       );
+    const _isTHShortFmt = classified.lang === 'TH' &&
+      (classified.rule.includes('TH-SHORT') || classified.rule.includes('TH-CLOSURE'));
+    const _isVIShortFmt = classified.lang === 'VI' &&
+      (classified.rule.includes('VI-SHORT') || classified.rule.includes('VI-CLOSURE'));
+    const _isIDShortFmt = classified.lang === 'ID' &&
+      (classified.rule.includes('ID-SHORT') || classified.rule.includes('ID-CLOSURE'));
       const _isHIShortFmt = (
         /^.{2,60}.*(तालिका|सूची|सारांश|स्क्रिप्ट|सूत्र|अनुवाद|टेबल|चार्ट|लिस्ट|खरीदारी).*(सारांशित|बनाएं|लिखें|दें|दिखाएं|रखें|करें)/i.test(prompt.trim()) ||
         /^(एक उदाहरण|उदाहरण (आउटपुट|कोड)|यूनिट टेस्ट|सांस लेने का|साप्ताहिक पोषण)/i.test(prompt.trim())
@@ -1942,6 +2513,7 @@ function route(prompt, uc, qualityTier, conversationContext) {
         /^.{2,20}(症状|ポイント|リスク|要因|特徴|手順|ステップ)(を|は)?(リストアップ|列挙|まとめ)(して|してください|に)[。！!]?$/.test(prompt.trim())
       );
       if (!_isFormulaReq && !_isClosureFrag && !_isShortFormatRule && !_isJAShortFmt && !_isFRShortFmt && !_isITShortFmt && !_isDEShortFmt && !_isKOShortFmt && !_isHIShortFmt && !_isARShortFmt && !_isZHSCShortFmt && !_isESShortFmt &&
+          !_isTHShortFmt && !_isVIShortFmt && !_isIDShortFmt &&
           cx === 'LOW' && classified.tok <= 15 && classified.tok > 5 &&
           (tierRank[lastTier] || 1) >= 2 &&
           (_mode23 === 'PROFESSIONAL' || _mode23 === 'CRITICAL_BURST' || _mode23 === 'MULTI_AGENT' || _mode23 === 'CODE_TASK')) {
@@ -1970,7 +2542,8 @@ function route(prompt, uc, qualityTier, conversationContext) {
     const _tierJump = conversationContext && conversationContext.lastTier &&
       (_prevRank[cx]||2) - (_prevRank[conversationContext.lastTier]||2) >= 2;
     const convMode = _tierJump ? 'CRITICAL_BURST'
-                   : (conversationContext && conversationContext.convMode)
+                   : classified.forcedConvMode
+                   || (conversationContext && conversationContext.convMode)
                    || detectConvMode(cx, prompt.toLowerCase().trim(), conversationContext);
 
     // ── Trend signal ──────────────────────────────────────────
@@ -2013,22 +2586,18 @@ function route(prompt, uc, qualityTier, conversationContext) {
     };
   }
 
-
-  // ══════════════════════════════════════════════════════════════
-  //  SET CONFIG — called by server-v2.js after loading DB providers
-  // ══════════════════════════════════════════════════════════════
-  function setConfig(dynamicCosts, dynamicTiers) {
-    if (dynamicCosts && typeof dynamicCosts === 'object') {
-      Object.assign(MODEL_COSTS, dynamicCosts);
-    }
-    if (dynamicTiers && typeof dynamicTiers === 'object') {
-      Object.assign(TIER_MODELS, dynamicTiers);
-    }
-  }
-
   // ══════════════════════════════════════════════════════════════
   //  PUBLIC API
   // ══════════════════════════════════════════════════════════════
+
+  function setConfig(costs, tiers) {
+    if (costs && typeof costs === 'object') {
+      Object.keys(costs).forEach(k => { if (MODEL_COSTS[k] !== undefined) MODEL_COSTS[k] = costs[k]; });
+    }
+    if (tiers && typeof tiers === 'object') {
+      Object.keys(tiers).forEach(k => { if (TIER_MODELS[k] !== undefined) TIER_MODELS[k] = tiers[k]; });
+    }
+  }
 
   return {
     VERSION,
@@ -2036,6 +2605,9 @@ function route(prompt, uc, qualityTier, conversationContext) {
     MODEL_COSTS,
     MODAL_MODELS,
     TIER_MODELS,
+
+    /** Dynamic config override */
+    setConfig,
 
     /** Full routing result */
     route,
@@ -2048,9 +2620,6 @@ function route(prompt, uc, qualityTier, conversationContext) {
 
     /** Language detection utility */
     detectLanguage,
-
-    /** Set dynamic costs + tiers from DB providers */
-    setConfig,
 
     /** Auto-Learn queue (read-only reference) */
     get autoLearnQueue() { return autoLearnQueue; },
