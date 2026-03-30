@@ -67,7 +67,7 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[headers]]
-  for = "/casca-classifier.js"
+  for = "/casca-classifier.cjs"
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
