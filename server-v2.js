@@ -49,7 +49,12 @@ const PORT              = process.env.PORT                    || 3001;
 const PROMOTE_THRESHOLD = parseInt(process.env.CACHE_PROMOTE_THRESHOLD || '3',  10);
 const PROMOTE_WINDOW_H  = parseInt(process.env.CACHE_PROMOTE_WINDOW_H  || '24', 10);
 const CACHE_TTL_DAYS    = parseInt(process.env.CACHE_TTL_DAYS          || '7',  10);
-const CORS_ORIGIN       = process.env.CORS_ORIGIN             || '*';
+const CORS_ORIGIN       = (() => {
+  const raw = process.env.CORS_ORIGIN || '*';
+  if (raw === '*') return '*';
+  const list = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return list.length === 1 ? list[0] : list;
+})();
 const LLM_TIMEOUT_MS    = parseInt(process.env.LLM_TIMEOUT_MS || '30000', 10);
 const FRONTEND_URL      = process.env.FRONTEND_URL            || 'http://localhost:8080';
 
