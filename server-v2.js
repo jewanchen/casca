@@ -27,44 +27,20 @@ import crypto           from 'crypto';
 import Stripe           from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createRequire }  from 'module';
-import { readFileSync }   from 'fs';
 
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
 
 // ── Load CommonJS classifier (UMD) from ESM server ──────────────
-const _require = createRequire(import.meta.url);
-
-// ── DEBUG: inspect file on disk before require() ─────────────────
-try {
-  const _raw = readFileSync(new URL('./casca-classifier.js', import.meta.url), 'utf8');
-  console.log('[debug] classifier file size:', _raw.length, 'chars');
-  console.log('[debug] first 120:', _raw.slice(0, 120));
-  console.log('[debug] last 80:', _raw.slice(-80));
-} catch (e) {
-  console.error('[debug] classifier file READ ERROR:', e.message);
-}
-
-let _classifier;
-try {
-  _classifier = _require('./casca-classifier.js');
-} catch (e) {
-  console.error('[debug] require() threw:', e.message, e.stack);
-  _classifier = {};
-}
-console.log('[debug] typeof _classifier:', typeof _classifier);
-console.log('[debug] constructor:', _classifier?.constructor?.name);
-console.log('[debug] keys:', Object.keys(_classifier || {}));
-console.log('[debug] typeof route:', typeof (_classifier?.route));
-console.log('[debug] typeof classify:', typeof (_classifier?.classify));
-console.log('[debug] typeof VERSION:', typeof (_classifier?.VERSION));
-// ── END DEBUG ────────────────────────────────────────────────────
-
-const cascaRoute  = typeof _classifier.route === 'function'
-  ? _classifier.route
-  : () => { throw new Error('casca-classifier.js did not export route()'); };
+// IMPORTANT: file MUST be .cjs so Node.js treats it as CommonJS
+// despite package.json having "type": "module".
+const _require    = createRequire(import.meta.url);
+const _classifier = _require('./casca-classifier.cjs');
+console.log('[casca] classifier v' + (_classifier.VERSION || '?') +
+            ' loaded — ' + Object.keys(_classifier).length + ' exports');
+const cascaRoute  = _classifier.route;
 const setConfig   = typeof _classifier.setConfig === 'function'
                       ? _classifier.setConfig
-                      : () => { /* no-op: setConfig not exported by classifier */ };
+                      : () => {};
 
 // ════════════════════════════════════════════════════════════════
 //  CONFIG
