@@ -3,2150 +3,1890 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Casca Intelligence Terminal</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<title>Casca — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// ══════════════════════════════════════════════════
+//  CASCA CONFIG  —  replace with your values
+// ══════════════════════════════════════════════════
+const CASCA_CONFIG = {
+  supabaseUrl:    'https://azxutenowfoamphdjwya.supabase.co',
+  supabaseAnonKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eHV0ZW5vd2ZvYW1waGRqd3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzU3MDUsImV4cCI6MjA4OTg1MTcwNX0.V_8BFYZ_kwYYuuCyGlllipaptKPNR2iJ6E8_SdMx7Ho',
+  apiBase: 'https://api.cascaio.com',
+};
+</script>
+
 <style>
-/* ════════════════════════════════════════════════════════════
-   CASCA INTELLIGENCE TERMINAL — DESIGN SYSTEM
-   ════════════════════════════════════════════════════════════ */
-:root {
-  --bg:       #050505;
-  --bg1:      #0a0a0a;
-  --bg2:      #111111;
-  --bg3:      #181818;
-  --bg4:      #222222;
-  --border:   #2a2a2a;
-  --border2:  #383838;
-  --green:    #00E676;
-  --green2:   #00C853;
-  --green-bg: rgba(0,230,118,0.06);
-  --green-glow: rgba(0,230,118,0.15);
-  --blue:     #00B0FF;
-  --blue2:    #0091EA;
-  --blue-bg:  rgba(0,176,255,0.06);
-  --red:      #FF3B30;
-  --red-bg:   rgba(255,59,48,0.08);
-  --amber:    #FFB300;
-  --amber-bg: rgba(255,179,0,0.08);
-  --t1:       #f0f0f0;
-  --t2:       #c0c0c0;
-  --t3:       #909090;
-  --t4:       #666666;
-  --mono:     'JetBrains Mono', monospace;
-  --display:  'Orbitron', sans-serif;
-  --font:     'Space Grotesk', sans-serif;
-  --r:        6px;
-  --r2:       10px;
+:root{
+  --bg:#080c14;--bg2:#0d1421;--bg3:#111827;--bg4:#161f30;--bg5:#1a2640;
+  --teal:#00d4aa;--teal2:#00b894;--teal3:rgba(0,212,170,0.12);
+  --blue:#3b9eff;--blue2:rgba(59,158,255,0.12);
+  --red:#ff5f6d;--red2:rgba(255,95,109,0.12);
+  --amber:#ffb347;--amber2:rgba(255,179,71,0.12);
+  --purple:#a78bfa;--purple2:rgba(167,139,250,0.12);
+  --b1:rgba(255,255,255,0.055);--b2:rgba(255,255,255,0.1);--b3:rgba(255,255,255,0.16);
+  --t1:#f0f4fa;--t2:#b8ccde;--t3:#8aaec6;--t4:#6080a0;
+  --font:'Plus Jakarta Sans',sans-serif;--mono:'JetBrains Mono',monospace;--display:'Syne',sans-serif;
+  --r8:8px;--r12:12px;--r16:16px;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--t1);font-family:var(--font);font-size:13px;display:flex;flex-direction:column}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 
-html, body {
-  height: 100%;
-  background: var(--bg);
-  color: var(--t1);
-  font-family: var(--font);
-  font-size: 15px;
-  overflow: hidden;
-}
+/* ── TOP NAV ─────────────────────────────────────── */
+.topnav{height:52px;border-bottom:0.5px solid var(--b1);display:flex;align-items:center;padding:0 20px;gap:0;flex-shrink:0;background:var(--bg);position:relative;z-index:100}
+.topnav-logo{display:flex;align-items:center;gap:8px;width:200px;flex-shrink:0;border-right:0.5px solid var(--b1);padding-right:20px;margin-right:16px}
+.logo-svg{width:26px;height:26px}
+.logo-text{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:0.04em;background:linear-gradient(135deg,#e8f4fd 0%,var(--teal) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.topnav-tabs{display:flex;align-items:center;gap:2px;flex:1}
+.tnav-tab{padding:6px 14px;font-size:12px;font-weight:500;color:var(--t3);cursor:pointer;border-radius:6px;transition:all 0.15s;white-space:nowrap;font-family:var(--font)}
+.tnav-tab:hover{color:var(--t2);background:var(--b1)}
+.tnav-tab.active{color:var(--t1);background:var(--bg3)}
+.topnav-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.status-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(0,212,170,0.08);border:0.5px solid rgba(0,212,170,0.2);border-radius:20px;font-size:11px;font-family:var(--display);font-weight:600;color:var(--teal);letter-spacing:0.04em}
+.status-dot{width:5px;height:5px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.org-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg3);border:0.5px solid var(--b2);border-radius:6px;font-size:12px;color:var(--t2);cursor:pointer}
+.org-avatar{width:18px;height:18px;border-radius:4px;background:var(--blue2);border:0.5px solid rgba(59,158,255,0.3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--blue);font-family:var(--display)}
 
-/* ── Scanline texture ────────────────────────────────── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.15) 2px,
-    rgba(0,0,0,0.15) 4px
-  );
-  pointer-events: none;
-  z-index: 1000;
-  opacity: 0.4;
-}
+/* ── BODY LAYOUT ─────────────────────────────────── */
+.body-wrap{display:flex;flex:1;overflow:hidden}
 
-/* ── Green grid bg ───────────────────────────────────── */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0,230,118,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,230,118,0.025) 1px, transparent 1px);
-  background-size: 32px 32px;
-  pointer-events: none;
-}
+/* ── SIDEBAR ─────────────────────────────────────── */
+.sidebar{width:200px;min-width:200px;border-right:0.5px solid var(--b1);display:flex;flex-direction:column;background:var(--bg);overflow-y:auto}
+.sb-section{padding:10px 10px 4px;margin-top:4px}
+.sb-section-label{font-size:10px;font-family:var(--display);font-weight:600;letter-spacing:0.1em;color:var(--t4);padding:0 6px;margin-bottom:6px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r8);cursor:pointer;transition:all 0.12s;color:var(--t3);font-size:12px;font-weight:500}
+.sb-item:hover{color:var(--t2);background:var(--b1)}
+.sb-item.active{color:var(--t1);background:var(--bg3);font-weight:600}
+.sb-icon{width:15px;height:15px;flex-shrink:0;opacity:0.75}
+.sb-item.active .sb-icon{opacity:1}
+.sb-badge{margin-left:auto;font-size:9px;padding:2px 6px;border-radius:10px;font-family:var(--display);font-weight:700}
+.b-teal{background:var(--teal3);color:var(--teal)}
+.b-red{background:var(--red2);color:var(--red)}
+.sidebar-footer{margin-top:auto;padding:12px 10px;border-top:0.5px solid var(--b1)}
+.trust-summary{background:var(--bg3);border:0.5px solid var(--b1);border-radius:var(--r8);padding:10px 12px}
+.ts-title{font-size:10px;font-family:var(--display);font-weight:600;color:var(--teal);letter-spacing:0.06em;margin-bottom:7px}
+.ts-row{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t3);padding:1.5px 0}
+.ts-check{color:var(--teal);font-size:10px}
 
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+/* ── MAIN ─────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg)}
+.page{display:none;flex-direction:column;flex:1}
+.page.active{display:flex}
+.page-header{padding:16px 20px 0;flex-shrink:0}
+.ph-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.ph-title{font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:-0.01em}
+.ph-sub{font-size:12px;color:var(--t3);margin-top:1px}
+.ph-actions{display:flex;gap:8px}
+.page-content{padding:0 20px 20px;flex:1}
 
-/* ════════════════════════════════════════════════════════════
-   LAYOUT
-   ════════════════════════════════════════════════════════════ */
-.shell {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
+/* ── BUTTONS ─────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:var(--r8);border:0.5px solid var(--b2);background:transparent;color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;font-family:var(--font)}
+.btn:hover{background:var(--b1);color:var(--t1);border-color:var(--b3)}
+.btn-primary{background:var(--teal);color:var(--bg);border-color:var(--teal);font-weight:700;font-family:var(--display)}
+.btn-primary:hover{background:var(--teal2);border-color:var(--teal2);color:var(--bg)}
+.btn-danger{background:var(--red2);color:var(--red);border-color:rgba(255,95,109,0.3)}
+.btn-danger:hover{background:rgba(255,95,109,0.2)}
+.btn-success{background:var(--teal3);color:var(--teal);border-color:rgba(0,212,170,0.3)}
 
-/* ── Header ──────────────────────────────────────────── */
-.header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  height: 52px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(5,5,5,0.95);
-  backdrop-filter: blur(12px);
-}
+/* ── METRICS ─────────────────────────────────────── */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.mc{background:var(--bg3);border:0.5px solid var(--b1);border-radius:var(--r12);padding:14px 16px;transition:border-color 0.2s}
+.mc:hover{border-color:var(--b2)}
+.mc-label{font-size:10px;font-family:var(--display);font-weight:600;letter-spacing:0.08em;color:var(--t3);margin-bottom:8px;text-transform:uppercase}
+.mc-val{font-family:var(--display);font-size:20px;font-weight:500;letter-spacing:-0.02em;line-height:1}
+.mc-sub{font-size:10px;color:var(--t3);margin-top:5px;display:flex;align-items:center;gap:4px}
+.mc-up{color:var(--teal)}
+.mc-down{color:var(--red)}
+.mc-neutral{color:var(--t3)}
+.mc-accent-teal{border-top:2px solid var(--teal)}
+.mc-accent-blue{border-top:2px solid var(--blue)}
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
+/* ── CARDS ─────────────────────────────────────── */
+.card{background:var(--bg3);border:0.5px solid var(--b1);border-radius:var(--r12);overflow:hidden}
+.card-header{padding:14px 16px;border-bottom:0.5px solid var(--b1);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--t3);text-transform:uppercase}
+.card-body{padding:14px 16px}
+.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.chart-wrap{position:relative;width:100%}
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.logo-hex {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-}
-.logo-name {
-  font-family: var(--display);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--green);
-  text-shadow: 0 0 12px var(--green-glow);
-}
-.logo-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border2);
-}
-.header-title {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--t1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
+/* ── TABLE ─────────────────────────────────────── */
+.data-table{width:100%;border-collapse:collapse}
+.data-table thead th{font-size:10px;font-family:var(--display);font-weight:600;letter-spacing:0.08em;color:var(--t3);text-transform:uppercase;padding:9px 12px;border-bottom:0.5px solid var(--b1);text-align:left;white-space:nowrap}
+.data-table tbody td{padding:8px 12px;border-bottom:0.5px solid var(--b1);font-size:11px;vertical-align:middle;color:var(--t2)}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover td{background:var(--b1);color:var(--t1)}
 
-.header-center {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ── TAGS ─────────────────────────────────────── */
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-family:var(--display);font-weight:700;letter-spacing:0.06em;padding:2px 7px;border-radius:3px;text-transform:uppercase}
+.tag-low{background:var(--teal3);color:var(--teal)}
+.tag-med{background:var(--amber2);color:var(--amber)}
+.tag-high{background:var(--red2);color:var(--red)}
+.tag-cache{background:var(--b1);color:var(--t3)}
+.model-tag{display:inline-flex;font-size:10px;font-family:var(--display);font-weight:500;padding:2px 8px;border-radius:3px}
+.mt-flash{background:var(--blue2);color:#93c5fd}
+.mt-mini{background:rgba(134,239,172,0.1);color:#86efac}
+.mt-haiku{background:var(--amber2);color:#fcd34d}
+.mt-gpt4{background:var(--red2);color:#fca5a5}
+.mt-sonnet{background:var(--purple2);color:#c4b5fd}
+.mt-cache{background:var(--b1);color:var(--t3)}
 
-/* Master Toggle */
-.master-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 24px;
-  padding: 5px 14px 5px 6px;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s;
-}
-.master-toggle:hover { border-color: var(--green); }
-.master-toggle.active { border-color: var(--green); background: var(--green-bg); }
+/* ── STREAM ─────────────────────────────────────── */
+.stream-box{font-family:var(--mono);font-size:10px;background:var(--bg2);border-radius:var(--r8);padding:10px 12px;max-height:210px;overflow-y:auto;border:0.5px solid var(--b1);line-height:1.7}
+.sl{display:flex;gap:8px}
+.sl-t{color:var(--t4);min-width:52px;flex-shrink:0}
+.sl-m{min-width:116px;flex-shrink:0}
+.sl-g{color:var(--teal)}
+.sl-b{color:var(--blue)}
+.sl-a{color:var(--amber)}
+.sl-r{color:var(--t4)}
 
-.toggle-knob {
-  width: 32px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--bg4);
-  position: relative;
-  transition: background 0.2s;
-  flex-shrink: 0;
-}
-.master-toggle.active .toggle-knob { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
-.toggle-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #fff;
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  transition: left 0.2s, box-shadow 0.2s;
-}
-.master-toggle.active .toggle-thumb { left: 17px; box-shadow: 0 0 4px rgba(0,230,118,0.4); }
+/* ── TOGGLES ─────────────────────────────────────── */
+.toggle{display:flex;align-items:center;gap:8px;cursor:pointer}
+.tog-track{width:28px;height:15px;border-radius:8px;background:var(--b2);position:relative;transition:background 0.2s;flex-shrink:0}
+.tog-track.on{background:var(--teal)}
+.tog-thumb{width:11px;height:11px;border-radius:50%;background:white;position:absolute;top:2px;left:2px;transition:left 0.2s}
+.tog-track.on .tog-thumb{left:15px}
+.tog-label{font-size:11px;color:var(--t2)}
 
-.toggle-label {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--t1);
-  transition: color 0.2s;
-}
-.master-toggle.active .toggle-label { color: var(--green); }
+/* ── PROGRESS ─────────────────────────────────────── */
+.prog-wrap{background:var(--bg2);height:4px;border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width 0.6s ease}
+.pf-teal{background:var(--teal)}
+.pf-blue{background:var(--blue)}
+.pf-amber{background:var(--amber)}
+.pf-red{background:var(--red)}
+.pf-purple{background:var(--purple)}
 
-.mode-badge {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  padding: 3px 8px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  transition: all 0.25s;
-}
-.mode-badge.off {
-  background: var(--bg3);
-  color: var(--t1);
-  border: 1px solid var(--border2);
-}
-.mode-badge.on {
-  background: var(--green-bg);
-  color: var(--green);
-  border: 1px solid rgba(0,230,118,0.3);
-  box-shadow: 0 0 8px var(--green-glow);
-}
+/* ── ALERTS ─────────────────────────────────────── */
+.alert{border-radius:var(--r8);padding:10px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:12px}
+.alert-teal{background:rgba(0,212,170,0.07);border:0.5px solid rgba(0,212,170,0.2);color:var(--teal)}
+.alert-red{background:var(--red2);border:0.5px solid rgba(255,95,109,0.3);color:var(--red)}
+.alert-amber{background:var(--amber2);border:0.5px solid rgba(255,179,71,0.3);color:var(--amber)}
+.alert-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;margin-top:3px}
+.alert-body{flex:1;color:var(--t1)}
+.alert-body strong{font-weight:600}
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+/* ── SIM INPUT ─────────────────────────────────────── */
+select,textarea,input[type=text]{font-size:11px;font-family:var(--font);padding:7px 10px;background:var(--bg2);border:0.5px solid var(--b2);border-radius:var(--r8);color:var(--t1);outline:none;transition:border-color 0.2s;width:100%}
+select:focus,textarea:focus,input[type=text]:focus{border-color:var(--teal)}
+textarea{resize:none;height:68px;line-height:1.5}
+.field-label{font-size:10px;font-family:var(--display);font-weight:600;letter-spacing:0.08em;color:var(--t3);text-transform:uppercase;margin-bottom:5px;display:block}
+.field-group{margin-bottom:10px}
 
-.header-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-}
-.header-stat-val {
-  font-family: var(--mono);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--green);
-  text-shadow: 0 0 8px var(--green-glow);
-  line-height: 1;
-}
-.header-stat-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--t1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.header-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--border2);
-}
+/* ── PROVIDER ROWS ─────────────────────────────────── */
+.prov-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--b1)}
+.prov-row:last-child{border-bottom:none}
+.prov-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pd-green{background:var(--teal)}
+.pd-amber{background:var(--amber)}
+.prov-info{flex:1}
+.prov-name{font-size:12px;font-weight:600;color:var(--t1);font-family:var(--display)}
+.prov-sub{font-size:10px;color:var(--t3);margin-top:1px}
+.prov-lat{font-size:11px;font-family:var(--mono);color:var(--t3);min-width:52px;text-align:right}
+.chip{font-size:10px;padding:2px 7px;border-radius:10px;font-family:var(--display);font-weight:600}
+.chip-live{background:var(--teal3);color:var(--teal)}
+.chip-warn{background:var(--amber2);color:var(--amber)}
 
-.pulse-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-  animation: pulse-anim 2s infinite;
-}
-@keyframes pulse-anim {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
-}
+/* ── UPTIME GRID ─────────────────────────────────── */
+.uptime-grid{display:flex;gap:2px;flex-wrap:wrap}
+.ud{width:14px;height:24px;border-radius:2px;cursor:pointer;transition:opacity 0.15s}
+.ud:hover{opacity:0.8}
 
-/* ── Body ────────────────────────────────────────────── */
-.body {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 0;
-  overflow: hidden;
-}
+/* ── ROUTING RULE ─────────────────────────────────── */
+.rule-row{display:grid;grid-template-columns:1fr 130px 80px 70px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--b1);font-size:11px}
+.rule-row:last-child{border-bottom:none}
+.rule-row.header{font-size:10px;font-family:var(--display);color:var(--t3);font-weight:600;letter-spacing:0.06em;text-transform:uppercase}
 
-/* ════════════════════════════════════════════════════════════
-   LEFT — CONVERSATION PANEL
-   ════════════════════════════════════════════════════════════ */
-.chat-panel {
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  overflow: hidden;
-}
+/* ── BYPASS BANNER ─────────────────────────────────── */
+.bypass-banner{background:rgba(0,212,170,0.06);border:0.5px solid rgba(0,212,170,0.2);border-radius:var(--r8);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px}
+.bypass-text{font-size:11px;color:var(--t2);flex:1}
+.bypass-code{font-family:var(--mono);font-size:10px;background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--teal);border:0.5px solid var(--b2)}
 
-.chat-header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg1);
-}
-.chat-header-title {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--t1);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.clear-btn {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--t1);
-  background: none;
-  border: 1px solid var(--border2);
-  border-radius: var(--r);
-  padding: 3px 8px;
-  cursor: pointer;
-  letter-spacing: 0.08em;
-  transition: all 0.15s;
-}
-.clear-btn:hover { color: var(--t1); border-color: var(--t1); }
+/* ── SLA BOX ─────────────────────────────────────── */
+.sla-box{background:var(--bg2);border-radius:var(--r8);padding:12px 14px}
+.sla-title{font-family:var(--display);font-size:11px;font-weight:600;color:var(--t2);margin-bottom:8px;letter-spacing:0.02em}
+.sla-item{font-size:11px;color:var(--t2);padding:3px 0;display:flex;gap:7px;line-height:1.5}
+.sla-item::before{content:'·';color:var(--t3);flex-shrink:0}
 
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+/* ── REGION ROW ─────────────────────────────────── */
+.region-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--b1);font-size:11px}
+.region-row:last-child{border-bottom:none}
 
-/* ── Empty state ─────────────────────────────────────── */
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  opacity: 0.5;
-  pointer-events: none;
-}
-.empty-hex {
-  width: 48px;
-  height: 48px;
-  opacity: 0.3;
-}
-.empty-title {
-  font-family: var(--display);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--green);
-}
-.empty-sub {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--t1);
-  text-align: center;
-  line-height: 1.6;
-  max-width: 220px;
-}
+/* ── SAVINGS BANNER ─────────────────────────────── */
+.savings-banner{background:linear-gradient(135deg,rgba(0,212,170,0.08) 0%,rgba(0,212,170,0.04) 100%);border:0.5px solid rgba(0,212,170,0.2);border-radius:var(--r12);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sb-big{font-family:var(--display);font-size:24px;font-weight:500;color:var(--teal);letter-spacing:-0.02em}
+.sb-label{font-size:11px;color:rgba(0,212,170,0.7);font-family:var(--display);letter-spacing:0.04em;margin-bottom:3px}
+.sb-sub{font-size:10px;color:rgba(0,212,170,0.5);margin-top:2px}
 
-/* ── Message bubbles ─────────────────────────────────── */
-.msg-row {
-  display: flex;
-  gap: 10px;
-  animation: msg-in 0.25s ease both;
-}
-@keyframes msg-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.msg-row.user { flex-direction: row-reverse; }
-
-.msg-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--mono);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.msg-avatar.user-av { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(0,176,255,0.2); }
-.msg-avatar.ai-av   { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,230,118,0.2); }
-
-.msg-content { max-width: calc(100% - 80px); display: flex; flex-direction: column; gap: 4px; }
-.msg-row.user .msg-content { align-items: flex-end; }
-
-.msg-bubble {
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 15px;
-  line-height: 1.6;
-  word-break: break-word;
-  position: relative;
-  backdrop-filter: blur(4px);
-}
-.msg-bubble.user-bubble {
-  background: rgba(0,176,255,0.14);
-  border: 1px solid rgba(0,176,255,0.35);
-  color: #ffffff;
-  border-top-right-radius: 2px;
-  box-shadow: 0 2px 12px rgba(0,176,255,0.08);
-}
-.msg-bubble.ai-bubble {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid #404040;
-  color: #f4f4f4;
-  border-top-left-radius: 2px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-}
-
-.msg-meta {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--t1);
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 0 2px;
-}
-
-/* ── Routing badge on AI messages ────────────────────── */
-.routing-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 2px 7px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  margin-top: 5px;
-}
-.rb-low    { background: rgba(0,230,118,0.1);  color: var(--green); border: 1px solid rgba(0,230,118,0.2); }
-.rb-med    { background: rgba(255,179,0,0.1);  color: var(--amber); border: 1px solid rgba(255,179,0,0.2); }
-.rb-high   { background: rgba(255,59,48,0.1);  color: var(--red);   border: 1px solid rgba(255,59,48,0.2); }
-.rb-cache  { background: rgba(0,176,255,0.1);  color: var(--blue);  border: 1px solid rgba(0,176,255,0.2); }
-
-/* ── Thinking indicator ──────────────────────────────── */
-.thinking {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 10px 14px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  border-top-left-radius: 2px;
-}
-.thinking-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--green);
-  animation: think 1.2s infinite ease;
-}
-.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes think {
-  0%, 60%, 100% { opacity: 0.2; transform: scale(0.8); }
-  30% { opacity: 1; transform: scale(1.2); }
-}
-
-/* ── Input area ──────────────────────────────────────── */
-.chat-input-area {
-  flex-shrink: 0;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
-  background: var(--bg1);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.suggested-prompts {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.suggest-btn {
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 3px;
-  border: 1px solid var(--border2);
-  background: transparent;
-  color: var(--t1);
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-  letter-spacing: 0.04em;
-}
-.suggest-btn:hover { color: var(--t1); border-color: var(--green); background: var(--green-bg); }
-
-.input-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-.chat-textarea {
-  flex: 1;
-  padding: 9px 12px;
-  background: var(--bg2);
-  border: 1px solid rgba(255,255,255,0.6);
-  border-radius: var(--r2);
-  color: var(--t1);
-  font-family: var(--font);
-  font-size: 15px;
-  outline: none;
-  resize: none;
-  min-height: 40px;
-  max-height: 120px;
-  line-height: 1.5;
-  transition: border-color 0.15s;
-}
-.chat-textarea:focus { border-color: #ffffff; box-shadow: 0 0 0 2px rgba(255,255,255,0.12); }
-.chat-textarea::placeholder { color: var(--t1); }
-
-.send-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r);
-  border: 1px solid var(--border2);
-  background: var(--bg2);
-  color: var(--t1);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-.send-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-bg); }
-.send-btn.active { background: var(--green); border-color: var(--green); color: #000; }
-.send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-/* ════════════════════════════════════════════════════════════
-   RIGHT — INTELLIGENCE PANEL
-   ════════════════════════════════════════════════════════════ */
-.intel-panel {
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: #0d0d0d;
-  gap: 0;
-  border-left: 1px solid rgba(0,230,118,0.12);
-}
-
-.intel-section {
-  border-bottom: 1px solid rgba(0,230,118,0.08);
-  padding: 16px 18px;
-}
-.intel-section:last-child { border-bottom: none; }
-
-.section-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--green);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border2);
-}
-
-/* ── Big metric ──────────────────────────────────────── */
-.big-metric {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.big-num {
-  font-family: var(--display);
-  font-size: 38px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--green);
-  text-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(0,230,118,0.1);
-  transition: all 0.4s ease;
-}
-.big-unit {
-  font-family: var(--mono);
-  font-size: 14px;
-  color: var(--t1);
-}
-.big-sub {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--t1);
-  line-height: 1.5;
-}
-
-/* ── Stat grid ───────────────────────────────────────── */
-.stat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.stat-card {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: var(--r);
-  padding: 12px 14px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.stat-card:hover { border-color: rgba(0,230,118,0.3); box-shadow: 0 0 12px rgba(0,230,118,0.05); }
-.stat-card:hover { border-color: var(--border2); }
-.stat-card.highlight { border-color: rgba(0,230,118,0.25); background: var(--green-bg); }
-.stat-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--t1);
-  margin-bottom: 4px;
-}
-.stat-val {
-  font-family: var(--mono);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--t1);
-  line-height: 1;
-  transition: all 0.3s;
-}
-.stat-val.green { color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
-.stat-val.blue  { color: var(--blue); }
-.stat-val.red   { color: var(--red); }
-.stat-val.amber { color: var(--amber); }
-
-/* ── Classification display ──────────────────────────── */
-.cx-display {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--r);
-  border: 1px solid var(--border2);
-  background: var(--bg2);
-  transition: all 0.3s;
-  margin-bottom: 10px;
-}
-.cx-display.cx-low   { border-color: rgba(0,230,118,0.4); background: rgba(0,230,118,0.09); box-shadow: 0 0 16px rgba(0,230,118,0.07); }
-.cx-display.cx-med   { border-color: rgba(255,179,0,0.4); background: rgba(255,179,0,0.09); box-shadow: 0 0 16px rgba(255,179,0,0.07); }
-.cx-display.cx-high  { border-color: rgba(255,59,48,0.45); background: rgba(255,59,48,0.11); box-shadow: 0 0 16px rgba(255,59,48,0.08); }
-.cx-display.cx-cache { border-color: rgba(0,176,255,0.4);  background: rgba(0,176,255,0.09); box-shadow: 0 0 16px rgba(0,176,255,0.07); }
-
-.cx-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
-.cx-info { flex: 1; }
-.cx-level {
-  font-family: var(--display);
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  margin-bottom: 3px;
-  transition: color 0.3s;
-}
-.cx-level.green { color: var(--green); }
-.cx-level.amber { color: var(--amber); }
-.cx-level.red   { color: var(--red); }
-.cx-level.blue  { color: var(--blue); }
-.cx-reason {
-  font-size: 14px;
-  color: var(--t1);
-  line-height: 1.5;
-}
-
-/* ── SLA Shield ──────────────────────────────────────── */
-.sla-shield {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(255,59,48,0.06);
-  border: 1px solid rgba(255,59,48,0.25);
-  border-radius: var(--r);
-  margin-bottom: 10px;
-  animation: shield-pulse 2s infinite;
-}
-.sla-shield.visible { display: flex; }
-@keyframes shield-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,48,0.2); }
-  50%       { box-shadow: 0 0 0 6px rgba(255,59,48,0); }
-}
-.shield-icon { font-size: 24px; }
-.shield-text { flex: 1; }
-.shield-title {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--red);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-.shield-sub { font-size: 13px; color: rgba(255,59,48,0.9); line-height: 1.4; }
-
-/* ── Rule display ────────────────────────────────────── */
-.rule-box {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: var(--r);
-  padding: 8px 12px;
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--t1);
-  line-height: 1.5;
-  min-height: 36px;
-  word-break: break-word;
-}
-.rule-box .rule-tag {
-  color: var(--green);
-  font-weight: 700;
-}
-
-/* ── Cost comparison ─────────────────────────────────── */
-.cost-compare {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.cost-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: var(--r);
-  border: 1px solid var(--border2);
-  background: var(--bg2);
-}
-.cost-row.casca-row {
-  border-color: rgba(0,230,118,0.35);
-  background: rgba(0,230,118,0.08);
-  box-shadow: 0 0 12px rgba(0,230,118,0.05);
-}
-.cost-model {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--t1);
-  flex: 1;
-  letter-spacing: 0.04em;
-}
-.cost-row.casca-row .cost-model { color: var(--green); }
-.cost-price {
-  font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--t1);
-}
-.cost-row.casca-row .cost-price { color: var(--green); }
-.cost-saving-badge {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 3px;
-  background: rgba(0,230,118,0.1);
-  color: var(--green);
-  border: 1px solid rgba(0,230,118,0.2);
-}
-
-/* ── Session stats ───────────────────────────────────── */
-.session-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.session-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.session-val {
-  font-family: var(--mono);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--green);
-}
-.session-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--t1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* ── Progress bars ───────────────────────────────────── */
-.progress-wrap { margin-bottom: 8px; }
-.progress-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-.progress-name {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--t1);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.progress-pct {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--t1);
-}
-.progress-track {
-  height: 3px;
-  background: var(--bg4);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.6s ease;
-}
-
-/* ── Config drawer ───────────────────────────────────── */
-.config-btn {
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: var(--r);
-  border: 1px solid var(--border2);
-  background: transparent;
-  color: var(--t1);
-  cursor: pointer;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  transition: all 0.15s;
-}
-.config-btn:hover { color: var(--t1); border-color: var(--t1); }
-
-.config-drawer {
-  display: none;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: var(--r);
-  padding: 12px;
-  margin-top: 10px;
-  flex-direction: column;
-  gap: 8px;
-}
-.config-drawer.open { display: flex; }
-.config-field label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--t1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.config-field input {
-  width: 100%;
-  padding: 6px 10px;
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: var(--r);
-  color: var(--t1);
-  font-family: var(--mono);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.config-field input:focus { border-color: var(--green); }
-.config-save {
-  width: 100%;
-  padding: 7px;
-  background: var(--green);
-  border: none;
-  border-radius: var(--r);
-  color: #000;
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.config-save:hover { background: var(--green2); }
-
-/* ── Toast ───────────────────────────────────────────── */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(12px);
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: var(--r2);
-  padding: 8px 16px;
-  font-family: var(--mono);
-  font-size: 14px;
-  color: var(--t1);
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.25s;
-  z-index: 2000;
-  white-space: nowrap;
-}
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* ════════════════════════════════════════════════════════════
-   RESPONSIVE — MOBILE FIRST
-   ════════════════════════════════════════════════════════════ */
-
-/* ── Tablet ≤900px ───────────────────────────────────── */
-@media (max-width: 900px) {
-  .body { grid-template-columns: 1fr 300px; }
-  .header-title { display: none; }
-  .header-stat  { display: none; }
-  .header-divider { display: none; }
-}
-
-/* ── Mobile ≤660px ───────────────────────────────────── */
-@media (max-width: 660px) {
-  html, body { overflow: hidden; }
-
-  .header {
-    padding: 0 12px;
-    height: 56px;
-    gap: 8px;
-  }
-  .logo-name { font-size: 14px; }
-  .logo-sep  { display: none; }
-  .header-stat, .header-divider { display: none; }
-  .mode-badge { display: none; }
-  .toggle-label { font-size: 11px; }
-
-  /* Body: chat on top, intel below — stacked, both visible with tabs */
-  .body {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
-    overflow: hidden;
-  }
-
-  .chat-panel {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  /* Mobile tab bar to switch between chat and intel */
-  .mob-tabs {
-    display: flex !important;
-    flex-shrink: 0;
-  }
-
-  /* Intel panel: collapsible drawer on mobile */
-  .intel-panel {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
-    border-left: none;
-    border-top: 1px solid rgba(0,230,118,0.15);
-  }
-  .intel-panel.mob-open {
-    max-height: 55vh;
-    overflow-y: auto;
-  }
-
-  .chat-messages { padding: 12px; gap: 12px; }
-  .page-content  { padding: 0 12px 60px; }
-
-  .msg-bubble { font-size: 14px !important; padding: 11px 14px !important; }
-  .msg-avatar { width: 28px; height: 28px; font-size: 10px; }
-
-  .suggested-prompts {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .suggested-prompts::-webkit-scrollbar { display: none; }
-  .suggest-btn { flex-shrink: 0; font-size: 12px; padding: 5px 10px; }
-
-  .chat-textarea { font-size: 15px; }
-  .send-btn      { width: 44px; height: 44px; }
-
-  .intel-section { padding: 12px 14px; }
-  .stat-grid     { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-val      { font-size: 15px !important; }
-  .big-num       { font-size: 34px !important; }
-}
-
-/* ── Very small ≤380px ───────────────────────────────── */
-@media (max-width: 380px) {
-  .stat-grid { grid-template-columns: 1fr 1fr; }
-  .msg-bubble { font-size: 13px !important; }
-  .header { height: 52px; }
-}
-
-/* ════════════════════════════════════════════════════════════
-   AUTH OVERLAY — matches casca-admin style, adapted for dark
-   ════════════════════════════════════════════════════════════ */
-.auth-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.auth-box {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 14px;
-  padding: 38px 36px 32px;
-  width: 380px;
-  max-width: 92vw;
-  box-shadow: 0 0 0 1px rgba(0,230,118,0.08), 0 24px 60px rgba(0,0,0,0.6);
-  position: relative;
-}
-.auth-logo-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.auth-logo-name {
-  font-family: var(--display);
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  color: var(--green);
-  text-shadow: 0 0 12px var(--green-glow);
-}
-.auth-logo-tag {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--t1);
-  background: rgba(0,230,118,0.1);
-  border: 1px solid rgba(0,230,118,0.2);
-  padding: 2px 8px;
-  border-radius: 3px;
-  letter-spacing: 0.08em;
-}
-.auth-sub {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--t1);
-  margin-bottom: 26px;
-  letter-spacing: 0.04em;
-}
-.auth-error {
-  display: none;
-  background: var(--red-bg);
-  border: 1px solid rgba(255,59,48,0.3);
-  color: var(--red);
-  font-size: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-bottom: 14px;
-  font-family: var(--mono);
-}
-.auth-success-msg {
-  display: none;
-  background: rgba(0,230,118,0.07);
-  border: 1px solid rgba(0,230,118,0.25);
-  color: var(--green);
-  font-size: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-bottom: 14px;
-  font-family: var(--mono);
-}
-.auth-field {
-  margin-bottom: 14px;
-}
-.auth-field label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--t1);
-  margin-bottom: 5px;
-}
-.auth-field input {
-  width: 100%;
-  padding: 10px 13px;
-  background: var(--bg3);
-  border: 1px solid rgba(255,255,255,0.6);
-  border-radius: 7px;
-  color: var(--t1);
-  font-family: var(--font);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.auth-field input:focus {
-  border-color: #ffffff;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.12);
-}
-.auth-btn-submit {
-  width: 100%;
-  padding: 12px;
-  background: var(--green);
-  color: #000;
-  border: none;
-  border-radius: 7px;
-  font-family: var(--display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  margin-bottom: 10px;
-}
-.auth-btn-submit:hover:not(:disabled) { background: var(--green2); }
-.auth-btn-submit:active:not(:disabled) { transform: scale(0.98); }
-.auth-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-.auth-forgot-link {
-  display: block;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--t1);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: right;
-  margin-top: -4px;
-  margin-bottom: 12px;
-  padding: 0;
-  transition: color 0.15s;
-}
-.auth-forgot-link:hover { color: var(--green); }
-.auth-footer-note {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--t1);
-  text-align: center;
-  margin-top: 8px;
-  letter-spacing: 0.04em;
-}
-/* User badge in header (shown after login) */
-.user-badge {
-  display: none;
-  align-items: center;
-  gap: 7px;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  padding: 4px 10px 4px 6px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.user-badge:hover { border-color: var(--green); }
-.user-avatar {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--green-bg);
-  border: 1px solid rgba(0,230,118,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--green);
-}
-.user-email {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--t1);
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.logout-btn {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--t1);
-  background: none;
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  padding: 3px 7px;
-  cursor: pointer;
-  letter-spacing: 0.06em;
-  transition: all 0.15s;
-}
-.logout-btn:hover { color: var(--red); border-color: var(--red); }
-
+/* ── STAT ROW ─────────────────────────────────────── */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--b1);font-size:11px}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:var(--t3)}
+.stat-val{font-weight:600;color:var(--t1)}
 </style>
 </head>
 <body>
 
-
-<!-- ══ AUTH OVERLAY ══════════════════════════════════════ -->
-<div class="auth-overlay" id="auth-overlay">
-  <div class="auth-box">
-    <div class="auth-logo-row">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" fill="rgba(0,230,118,0.07)" stroke="rgba(0,230,118,0.4)" stroke-width="0.8"/>
-        <path d="M12 2L16.5 7.5L12 13L7.5 7.5Z" fill="rgba(0,230,118,0.18)"/>
-        <circle cx="12" cy="13" r="2.2" fill="url(#ag1)"/>
-        <circle cx="12" cy="2" r="1.2" fill="rgba(0,230,118,0.9)"/>
-        <defs><radialGradient id="ag1"><stop offset="0%" stop-color="#00E676"/><stop offset="100%" stop-color="#00B0FF"/></radialGradient></defs>
-      </svg>
-      <span class="auth-logo-name">CASCA</span>
-      <span class="auth-logo-tag">DEMO</span>
+<!-- TOP NAV -->
+<div class="topnav">
+  <div class="topnav-logo">
+    <svg class="logo-svg" viewBox="0 0 26 26" fill="none">
+      <path d="M13 2L23 8V18L13 24L3 18V8L13 2Z" fill="rgba(0,212,170,0.08)" stroke="rgba(0,212,170,0.3)" stroke-width="0.7"/>
+      <path d="M13 2L18 8L13 14L8 8Z" fill="rgba(0,212,170,0.18)"/>
+      <path d="M8 8L3 18L13 14Z" fill="rgba(59,158,255,0.13)"/>
+      <path d="M18 8L23 18L13 14Z" fill="rgba(0,212,170,0.1)"/>
+      <circle cx="13" cy="14" r="2.2" fill="url(#g1)"/>
+      <circle cx="13" cy="2" r="1.3" fill="rgba(0,212,170,0.8)"/>
+      <defs><radialGradient id="g1"><stop offset="0%" stop-color="#00d4aa"/><stop offset="100%" stop-color="#3b9eff"/></radialGradient></defs>
+    </svg>
+    <span class="logo-text">Casca</span>
+  </div>
+  <div class="topnav-tabs">
+    <div class="tnav-tab active" onclick="switchPage('dashboard',this)">Overview</div>
+    <div class="tnav-tab" onclick="switchPage('router',this)">Live Router</div>
+    <div class="tnav-tab" onclick="switchPage('quality',this)">品質保證</div>
+    <div class="tnav-tab" onclick="switchPage('compliance',this)">資料合規</div>
+    <div class="tnav-tab" onclick="switchPage('reliability',this)">可用性 SLA</div>
+    <div class="tnav-tab" onclick="switchPage('rules',this)">路由規則</div>
+    <div class="tnav-tab" onclick="switchPage('providers',this)">Providers</div>
+    <div class="tnav-tab" onclick="switchPage('audit',this)">Cost Audit</div>
+    <div class="tnav-tab" onclick="switchPage('autolearn',this)" style="position:relative">Auto-Learn<span id="learn-badge" style="display:none;position:absolute;top:3px;right:3px;background:#E24B4A;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center">0</span></div>
+    <div class="tnav-tab" onclick="switchPage('apikeys',this)">🔑 API Keys</div>
+    <div class="tnav-tab" onclick="switchPage('logs',this)">📋 使用紀錄</div>
+    <div class="tnav-tab" onclick="switchPage('cache',this)">💾 快取池</div>
+  </div>
+  <div class="topnav-right">
+    <div class="status-chip"><span class="status-dot"></span>Live</div>
+    <!-- account chip — populated by loadMe() after login -->
+    <div class="org-chip" id="account-chip" onclick="switchPage('apikeys',null)" title="API 用量 / 帳戶">
+      <div class="org-avatar" id="account-avatar">?</div>
+      <span id="account-name" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未登入</span>
+      <span id="account-quota" style="color:var(--t4);font-size:10px;margin-left:3px"></span>
     </div>
-    <div class="auth-sub">Intelligence Terminal — 授權人員限定</div>
-    <div class="auth-error" id="auth-error"></div>
-    <div class="auth-success-msg" id="auth-success"></div>
-    <div class="auth-field">
-      <label>Email</label>
-      <input type="email" id="auth-email" placeholder="you@vastitw.com" autocomplete="username" spellcheck="false">
-    </div>
-    <div class="auth-field">
-      <label>Password</label>
-      <input type="password" id="auth-pw" placeholder="••••••••" autocomplete="new-password">
-    </div>
-    <button class="auth-btn-submit" id="auth-btn" onclick="authSignIn()">登入</button>
-    <button class="auth-forgot-link" onclick="authForgotPassword()">忘記密碼？</button>
-    <div class="auth-footer-note">僅限授權人員使用。如需帳號請聯絡 CTO。</div>
   </div>
 </div>
 
-<div class="shell">
-
-  <!-- ══ HEADER ══════════════════════════════════════════ -->
-  <header class="header">
-    <div class="header-left">
-      <div class="logo">
-        <svg class="logo-hex" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" fill="rgba(0,230,118,0.07)" stroke="rgba(0,230,118,0.4)" stroke-width="0.8"/>
-          <path d="M12 2L16.5 7.5L12 13L7.5 7.5Z" fill="rgba(0,230,118,0.18)"/>
-          <circle cx="12" cy="13" r="2.2" fill="url(#ggrad)"/>
-          <circle cx="12" cy="2" r="1.2" fill="rgba(0,230,118,0.9)"/>
-          <defs><radialGradient id="ggrad"><stop offset="0%" stop-color="#00E676"/><stop offset="100%" stop-color="#00B0FF"/></radialGradient></defs>
-        </svg>
-        <span class="logo-name">CASCA</span>
-      </div>
-      <div class="logo-sep"></div>
-      <span class="header-title">Intelligence Terminal v2.1</span>
+<div class="body-wrap">
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-section">
+    <div class="sb-section-label">ANALYTICS</div>
+    <div class="sb-item active" onclick="switchPage('dashboard',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="currentColor"><rect x="1" y="1" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2"/><rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2"/></svg>
+      Overview
+      <span class="sb-badge b-teal">Live</span>
     </div>
-
-    <div class="header-center">
-      <div class="master-toggle" id="masterToggle" onclick="toggleEngine()">
-        <div class="toggle-knob"><div class="toggle-thumb"></div></div>
-        <span class="toggle-label">Casca Engine</span>
-      </div>
-      <div class="mode-badge off" id="modeBadge">Direct / OpenAI</div>
+    <div class="sb-item" onclick="switchPage('router',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8L5 5L8.5 9.5L11 6.5L13 8" stroke-linecap="round"/></svg>
+      Live Router
     </div>
-
-    <div class="header-right">
-      <div class="pulse-dot" id="pulseDot"></div>
-    <div class="user-badge" id="user-badge">
-      <div class="user-avatar" id="user-avatar">?</div>
-      <span class="user-email" id="user-email">—</span>
+    <div class="sb-item" onclick="switchPage('audit',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 11L5.5 7.5L8 10L12 4.5" stroke-linecap="round"/></svg>
+      Cost Audit
     </div>
-    <button class="logout-btn" id="logout-btn" style="display:none" onclick="authSignOut()">登出</button>
-      <div class="header-divider"></div>
-      <div class="header-stat">
-        <span class="header-stat-val" id="hd-savings">—</span>
-        <span class="header-stat-label">Session Saved</span>
-      </div>
-      <div class="header-divider"></div>
-      <div class="header-stat">
-        <span class="header-stat-val" id="hd-requests">0</span>
-        <span class="header-stat-label">Requests</span>
-      </div>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">TRUST</div>
+    <div class="sb-item" onclick="switchPage('quality',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7.5" cy="7.5" r="5.5"/><path d="M4.5 7.5L6.5 9.5L10.5 5.5" stroke-linecap="round"/></svg>
+      品質保證
     </div>
-  </header>
-
-  <!-- ══ BODY ════════════════════════════════════════════ -->
-  <div class="body">
-
-    <!-- ── LEFT: CHAT PANEL ─────────────────────────── -->
-    <div class="chat-panel">
-
-      <div class="chat-header">
-        <span class="chat-header-title">// Conversation Stream</span>
-        <button class="clear-btn" onclick="clearChat()">Clear</button>
-      </div>
-
-      <div class="chat-messages" id="chatMessages">
-        <div class="empty-state" id="emptyState">
-          <svg class="empty-hex" viewBox="0 0 48 48" fill="none">
-            <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" stroke="rgba(0,230,118,0.3)" stroke-width="1"/>
-            <path d="M24 14L32 19V29L24 34L16 29V19L24 14Z" fill="rgba(0,230,118,0.06)" stroke="rgba(0,230,118,0.2)" stroke-width="0.8"/>
-            <circle cx="24" cy="24" r="3" fill="rgba(0,230,118,0.4)"/>
-          </svg>
-          <div class="empty-title">AWAITING INPUT</div>
-          <div class="empty-sub">Toggle Casca Engine ON to see intelligent routing in action</div>
-        </div>
-      </div>
-
-      <div class="chat-input-area">
-        <div class="suggested-prompts" id="suggPrompts">
-          <button class="suggest-btn" onclick="useSuggest(this)">退貨政策是什麼？</button>
-          <button class="suggest-btn" onclick="useSuggest(this)">幫我分析Q3財務報表</button>
-          <button class="suggest-btn" onclick="useSuggest(this)">合約法律風險評估</button>
-          <button class="suggest-btn" onclick="useSuggest(this)">幫我寫一封道歉信</button>
-          <button class="suggest-btn" onclick="useSuggest(this)">What is machine learning?</button>
-        </div>
-        <div class="input-row">
-          <textarea
-            class="chat-textarea"
-            id="chatInput"
-            placeholder="輸入訊息，按 Enter 送出 (Shift+Enter 換行)..."
-            rows="1"
-          ></textarea>
-          <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M14 8L2 3l3 5-3 5 12-5z" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+    <div class="sb-item" onclick="switchPage('compliance',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="1.5" width="10" height="12" rx="1.5"/><path d="M5 6h5M5 8.5h5M5 11h3" stroke-linecap="round"/></svg>
+      資料合規
+      <span class="sb-badge b-teal">SOC 2</span>
     </div>
-
-    <!-- ── RIGHT: INTELLIGENCE PANEL ───────────────── -->
-    <div class="intel-panel">
-
-      <!-- Classification -->
-      <div class="intel-section">
-        <div class="section-label">Routing Decision</div>
-
-        <div class="cx-display" id="cxDisplay">
-          <div class="cx-icon" id="cxIcon">⬡</div>
-          <div class="cx-info">
-            <div class="cx-level" id="cxLevel">STANDBY</div>
-            <div class="cx-reason" id="cxReason">等待第一個請求...</div>
-          </div>
-        </div>
-
-        <div class="sla-shield" id="slaShield">
-          <div class="shield-icon">🛡</div>
-          <div class="shield-text">
-            <div class="shield-title">SLA 強制保護啟動</div>
-            <div class="shield-sub">關鍵任務已強制升級至頂級模型，品質零妥協</div>
-          </div>
-        </div>
-
-        <div class="rule-box" id="ruleBox">
-          <span class="rule-tag">—</span> 路由規則尚未觸發
-        </div>
-      </div>
-
-      <!-- Cost Analysis -->
-      <div class="intel-section">
-        <div class="section-label">Cost Analysis</div>
-
-        <div class="big-metric">
-          <span class="big-num" id="savingPct">—</span>
-          <span class="big-unit" id="savingUnit">%</span>
-        </div>
-        <div class="big-sub" id="savingDesc">Casca 路由節省比例</div>
-
-        <div class="cost-compare" id="costCompare" style="margin-top:12px">
-          <div class="cost-row">
-            <span class="cost-model">GPT-4o (baseline)</span>
-            <span class="cost-price" id="baseCost">—</span>
-          </div>
-          <div class="cost-row casca-row">
-            <span class="cost-model">Casca → <span id="routedModel">—</span></span>
-            <span class="cost-price" id="cascaCost">—</span>
-            <span class="cost-saving-badge" id="savingBadge" style="display:none">—</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Metrics -->
-      <div class="intel-section">
-        <div class="section-label">Live Metrics</div>
-
-        <div class="stat-grid">
-          <div class="stat-card" id="sc-model">
-            <div class="stat-label">Model Used</div>
-            <div class="stat-val" id="sv-model">—</div>
-          </div>
-          <div class="stat-card" id="sc-latency">
-            <div class="stat-label">Latency</div>
-            <div class="stat-val" id="sv-latency">—</div>
-          </div>
-          <div class="stat-card" id="sc-tokens">
-            <div class="stat-label">Tokens</div>
-            <div class="stat-val" id="sv-tokens">—</div>
-          </div>
-          <div class="stat-card highlight" id="sc-cx">
-            <div class="stat-label">Complexity</div>
-            <div class="stat-val green" id="sv-cx">—</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Session Summary -->
-      <div class="intel-section">
-        <div class="section-label">Session Summary</div>
-
-        <div class="session-bar">
-          <div class="session-stat"><div class="session-val" id="ss-total">0</div><div class="session-label">Total</div></div>
-          <div class="session-stat"><div class="session-val" id="ss-saved" style="color:var(--green)">$0.0000</div><div class="session-label">Saved</div></div>
-          <div class="session-stat"><div class="session-val" id="ss-cost" style="color:var(--blue)">$0.0000</div><div class="session-label">Spent</div></div>
-          <div class="session-stat"><div class="session-val" id="ss-avgpct" style="color:var(--amber)">0%</div><div class="session-label">Avg Save</div></div>
-        </div>
-
-        <div class="progress-wrap">
-          <div class="progress-head">
-            <span class="progress-name">LOW</span>
-            <span class="progress-pct" id="pp-low">0%</span>
-          </div>
-          <div class="progress-track"><div class="progress-fill" id="pf-low" style="width:0%;background:var(--green)"></div></div>
-        </div>
-        <div class="progress-wrap">
-          <div class="progress-head">
-            <span class="progress-name">MED</span>
-            <span class="progress-pct" id="pp-med">0%</span>
-          </div>
-          <div class="progress-track"><div class="progress-fill" id="pf-med" style="width:0%;background:var(--amber)"></div></div>
-        </div>
-        <div class="progress-wrap">
-          <div class="progress-head">
-            <span class="progress-name">HIGH</span>
-            <span class="progress-pct" id="pp-high">0%</span>
-          </div>
-          <div class="progress-track"><div class="progress-fill" id="pf-high" style="width:0%;background:var(--red)"></div></div>
-        </div>
-        <div class="progress-wrap">
-          <div class="progress-head">
-            <span class="progress-name">CACHE</span>
-            <span class="progress-pct" id="pp-cache">0%</span>
-          </div>
-          <div class="progress-track"><div class="progress-fill" id="pf-cache" style="width:0%;background:var(--blue)"></div></div>
-        </div>
-      </div>
-
-      <!-- Config -->
-      <div class="intel-section">
-        <div class="section-label">Configuration</div>
-        <button class="config-btn" id="configToggleBtn" onclick="toggleConfig()">⚙ Edit API Keys</button>
-        <div class="config-drawer" id="configDrawer">
-          <div class="config-field" style="background:rgba(0,230,118,0.04);border:1px solid rgba(0,230,118,0.15);border-radius:6px;padding:8px 12px;margin-bottom:4px">
-            <label style="color:var(--green)">🔒 OpenAI Key</label>
-            <div style="font-family:var(--mono);font-size:11px;color:var(--t1);padding:4px 0;letter-spacing:0.04em">Managed server-side · Never exposed to browser</div>
-          </div>
-          <div class="config-field">
-            <label>Casca API Key</label>
-            <input type="password" id="cfg-casca" placeholder="csk_..." autocomplete="off">
-          </div>
-          <div class="config-field">
-            <label>Casca Base URL</label>
-            <input type="text" id="cfg-url" placeholder="https://api.cascaio.com/v1/chat/completions">
-          </div>
-          <button class="config-save" onclick="saveConfig()">Save Configuration</button>
-        </div>
-      </div>
-
-    </div><!-- /intel-panel -->
-  </div><!-- /body -->
-<!-- ── MOBILE TAB BAR ─────────────────────── -->
-<div class="mob-tabs" style="display:none;flex-shrink:0;border-top:1px solid var(--border);background:var(--bg1);">
-  <button id="mob-tab-chat"  onclick="mobTab('chat')"  style="flex:1;padding:11px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:0.08em;background:rgba(0,230,118,0.08);border:none;border-bottom:2px solid var(--green);color:var(--green);cursor:pointer;text-transform:uppercase">
-    ⬡ Chat
-  </button>
-  <button id="mob-tab-intel" onclick="mobTab('intel')" style="flex:1;padding:11px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:0.08em;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--t3);cursor:pointer;text-transform:uppercase">
-    ◈ Results
-  </button>
+    <div class="sb-item" onclick="switchPage('reliability',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7.5 1.5L9.5 5.5L14 6L10.5 9.5L11.5 14L7.5 11.5L3.5 14L4.5 9.5L1 6L5.5 5.5Z"/></svg>
+      可用性 SLA
+    </div>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">CONFIGURE</div>
+    <div class="sb-item" onclick="switchPage('rules',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="currentColor"><circle cx="7.5" cy="7.5" r="2.5"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>
+      路由規則
+    </div>
+    <div class="sb-item" onclick="switchPage('providers',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="12" height="8" rx="1.5"/><path d="M4.5 7.5L6.5 9.5L10.5 5.5" stroke-linecap="round"/></svg>
+      Providers
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="trust-summary">
+      <div class="ts-title">TRUST STATUS</div>
+      <div class="ts-row"><span class="ts-check">✓</span> 品質 SLA 啟用</div>
+      <div class="ts-row"><span class="ts-check">✓</span> Zero-log 模式</div>
+      <div class="ts-row"><span class="ts-check">✓</span> Bypass 就緒</div>
+      <div class="ts-row"><span class="ts-check">✓</span> 99.94% 可用率</div>
+    </div>
+  </div>
 </div>
-</div><!-- /shell -->
 
-<div class="toast" id="toast"></div>
+<!-- MAIN CONTENT -->
+<div class="main">
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">Overview</div><div class="ph-sub"><span id="overview-company">—</span> · 過去 30 天</div></div>
+      <div class="ph-actions">
+        <button class="btn">↓ 匯出報告</button>
+        <button class="btn btn-primary">+ 新增用途</button>
+      </div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="metrics">
+      <div class="mc mc-accent-teal">
+        <div class="mc-label">本月節省費用</div>
+        <div class="mc-val" style="color:var(--teal)">$18,240</div>
+        <div class="mc-sub"><span class="mc-up">↑ 較上月 +12%</span></div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">品質評分</div>
+        <div class="mc-val" style="color:var(--teal)" id="dash-qs">93.4%</div>
+        <div class="mc-sub"><span class="mc-up">高於 88% 基準</span></div>
+      </div>
+      <div class="mc mc-accent-blue">
+        <div class="mc-label">系統可用率</div>
+        <div class="mc-val" style="color:var(--blue)">99.94%</div>
+        <div class="mc-sub">SLA 目標 99.9%</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">路由請求數</div>
+        <div class="mc-val">1.24M</div>
+        <div class="mc-sub">過去 30 天</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">每日費用對比</span><div style="display:flex;gap:10px;font-size:10px;font-family:var(--display);color:var(--t3)"><span style="color:var(--red)">— 基準</span><span style="color:var(--teal)">— 路由後</span></div></div>
+        <div class="card-body"><div class="chart-wrap" style="height:154px"><canvas id="costChart"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">模型分配</span></div>
+        <div class="card-body" style="display:flex;gap:16px;align-items:center">
+          <div class="chart-wrap" style="height:154px;width:150px;flex-shrink:0"><canvas id="pieChart"></canvas></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#3b9eff;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Gemini Flash</span><span style="font-family:var(--display);font-weight:600">38%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#86efac;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">GPT-4o-mini</span><span style="font-family:var(--display);font-weight:600">31%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#4a6480;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Cache hits</span><span style="font-family:var(--display);font-weight:600">14%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#c4b5fd;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Claude Haiku</span><span style="font-family:var(--display);font-weight:600">10%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#ff5f6d;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">GPT-4o</span><span style="font-family:var(--display);font-weight:600">7%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">各用途節省</span></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>客服支援</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">$8,120</span></div><div class="prog-wrap"><div class="prog-fill pf-teal" style="width:67%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>內容生成</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">$5,840</span></div><div class="prog-wrap"><div class="prog-fill pf-blue" style="width:48%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>知識查詢</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">$3,190</span></div><div class="prog-wrap"><div class="prog-fill pf-purple" style="width:26%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>程式碼審查</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">$1,090</span></div><div class="prog-wrap"><div class="prog-fill pf-amber" style="width:9%"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">各模型品質評分</span></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>Gemini 2.0 Flash</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">94.2%</span></div><div class="prog-wrap"><div class="prog-fill pf-teal" style="width:94%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>GPT-4o-mini</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">91.8%</span></div><div class="prog-wrap"><div class="prog-fill pf-blue" style="width:92%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>Claude Haiku</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">93.5%</span></div><div class="prog-wrap"><div class="prog-fill pf-purple" style="width:93%"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>GPT-4o</span><span style="font-family:var(--display);font-weight:600;color:var(--teal)">98.1%</span></div><div class="prog-wrap"><div class="prog-fill pf-amber" style="width:98%"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">最新請求紀錄</span></div>
+      <table class="data-table"><thead><tr><th>時間</th><th>領域</th><th>複雜度</th><th>Tokens</th><th>路由至</th><th>費用</th><th>節省</th><th>品質</th><th>觸發規則</th><th>延遲</th></tr></thead><tbody id="dash-log"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LIVE ROUTER ═══ -->
+<div class="page" id="page-router">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">Live Router</div><div class="ph-sub">測試路由決策，監控即時流量</div></div>
+      <div class="ph-actions"><button class="btn" id="auto-btn" onclick="toggleAuto()">▶ 自動模擬</button><button class="btn" onclick="clearStream()">清除紀錄</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="bypass-banner">
+      <div class="bypass-text">緊急旁路：設定 <span class="bypass-code">CASCA_BYPASS=true</span> 即可完全繞過閘道器，直連 AI Provider，5 秒生效，無需聯絡我方。</div>
+      <button class="btn btn-danger" onclick="toggleBypass(this)">啟用旁路</button>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">送出請求</span></div>
+        <div class="card-body">
+          <div class="field-group"><label class="field-label">用途標籤</label><select id="sim-uc">
+            <optgroup label="── Batch 1 領域">
+              <option value="support">客服支援</option>
+              <option value="content">內容生成</option>
+              <option value="knowledge">知識查詢</option>
+              <option value="code">程式碼</option>
+              <option value="analysis">分析</option>
+            </optgroup>
+            <optgroup label="── Batch 2 領域">
+              <option value="hr">HR 人資</option>
+              <option value="finance">財務</option>
+              <option value="legal">法務</option>
+              <option value="marketing">行銷</option>
+              <option value="product">產品</option>
+              <option value="ops">營運</option>
+              <option value="data">數據</option>
+            </optgroup>
+          </select></div>
+          <div class="field-group"><label class="field-label">提示詞</label><textarea id="sim-prompt">What is the status of order #12345?</textarea></div>
+          <div class="field-group"><label class="field-label">品質門檻</label><select id="sim-q"><option value="high">高（>95%）— 保守路由</option><option value="med" selected>中（>88%）— 平衡</option><option value="low">低（>80%）— 最大節省</option></select></div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn btn-primary" onclick="runSim()" style="flex:1;justify-content:center">路由請求（本機）</button>
+            <button class="btn" onclick="runSimApi()" style="flex:1;justify-content:center" title="透過後端 /api/v1/chat/completions">路由請求（API）</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">路由決策</span></div>
+        <div class="card-body" id="sim-result" style="color:var(--t3);font-size:11px;text-align:center;padding:32px 16px">點擊「路由請求」查看決策</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">即時請求串流</span></div>
+      <div class="card-body" style="padding:10px 12px">
+        <div class="stream-box" id="live-stream"><div class="sl"><span class="sl-t">ready</span><span style="color:var(--t4)">等待請求...</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ QUALITY ═══ -->
+<div class="page" id="page-quality">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">品質保證</div><div class="ph-sub">自訂基準 · 即時監控 · SLA 退款</div></div>
+      <div class="ph-actions"><button class="btn btn-danger" onclick="triggerRollback()">緊急回滾至 GPT-4o</button><button class="btn">測試警報</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div id="q-alert" class="alert alert-teal"><div class="alert-dot"></div><div class="alert-body"><strong>品質正常</strong> — 目前評分 93.4%，高於客戶設定基準 88.0%。過去 24 小時無退化事件。</div><button class="btn btn-success" style="flex-shrink:0;font-size:11px">查看報告</button></div>
+    <div class="three-col">
+      <div class="mc"><div class="mc-label">目前品質評分</div><div class="mc-val" style="color:var(--teal)">93.4%</div><div class="mc-sub">採樣 5% 請求</div></div>
+      <div class="mc"><div class="mc-label">客戶設定基準</div><div class="mc-val" style="color:var(--blue)">88.0%</div><div class="mc-sub">低於此值觸發警報</div></div>
+      <div class="mc"><div class="mc-label">SLA 退款門檻</div><div class="mc-val" style="color:var(--amber)">連續 3 天</div><div class="mc-sub">低於基準即全退</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">黃金標準基準</span><button class="btn" style="font-size:11px">上傳 CSV</button></div>
+        <div class="card-body">
+          <div style="border:1px dashed var(--b2);border-radius:var(--r8);padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="alert('上傳介面 (Demo)')">
+            <div style="font-size:22px;margin-bottom:6px;opacity:0.4">↑</div>
+            <div style="font-size:11px;color:var(--t3)">上傳黃金標準範例 (CSV)<br>格式: input, expected_output</div>
+          </div>
+          <div class="stat-row"><span class="stat-label">已上傳範例</span><span class="stat-val">42 筆</span></div>
+          <div class="stat-row"><span class="stat-label">評估維度</span><span class="stat-val">準確性 · 語氣 · 格式</span></div>
+          <div class="stat-row"><span class="stat-label">Judge 模型</span><span class="stat-val">GPT-4o (採樣)</span></div>
+          <div class="stat-row"><span class="stat-label">採樣頻率</span><span class="stat-val">每 500 請求取 5%</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">品質 SLA 合約條款</span><button class="btn" onclick="alert('PDF下載 (Demo)')">↓ PDF</button></div>
+        <div class="card-body">
+          <div class="sla-box">
+            <div class="sla-title">品質保障條款 — 可執行退款</div>
+            <div class="sla-item">路由導致品質評分連續 3 天低於客戶設定基準，當月費用全額退還</div>
+            <div class="sla-item">品質退化 30 分鐘內發送 Email + Slack + Webhook 警報</div>
+            <div class="sla-item">客戶可隨時一鍵回滾，60 秒生效，無需通知我方</div>
+            <div class="sla-item">每週自動生成品質報告，客戶可下載存檔</div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:var(--t3);line-height:1.6">回滾將在 60 秒內把所有流量切回 GPT-4o 基準模型。品質恢復後可重新啟用路由。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COMPLIANCE ═══ -->
+<div class="page" id="page-compliance">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">資料合規</div><div class="ph-sub">Zero-log · API 金鑰隔離 · DPA · SOC 2</div></div>
+      <div class="ph-actions"><button class="btn" onclick="alert('架構圖下載 (Demo)')">↓ 資料流程圖</button><button class="btn" onclick="alert('DPA下載 (Demo)')">↓ DPA 範本</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="mc"><div class="mc-label">提示詞儲存</div><div class="mc-val" style="color:var(--teal)">停用</div><div class="mc-sub mc-up">Zero-log 模式</div></div>
+      <div class="mc"><div class="mc-label">DPA 狀態</div><div class="mc-val" style="color:var(--blue)">已簽署</div><div class="mc-sub">2024-01-15</div></div>
+      <div class="mc"><div class="mc-label">SOC 2 Type II</div><div class="mc-val" style="color:var(--amber)">進行中</div><div class="mc-sub">預計 2024-Q3</div></div>
+      <div class="mc"><div class="mc-label">API 金鑰位置</div><div class="mc-val" style="color:var(--teal);font-size:16px">客戶 Vault</div><div class="mc-sub mc-up">我方不持有副本</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">資料存取控制</span></div>
+        <div class="card-body">
+          <div class="prov-row">
+            <div class="prov-info"><div class="prov-name">提示詞內容儲存</div><div class="prov-sub">請求原文不落地於我方系統</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div><span class="tog-label">停用</span></div>
+          </div>
+          <div class="prov-row">
+            <div class="prov-info"><div class="prov-name">Debug 模式儲存</div><div class="prov-sub">開啟後資料存至客戶自有 S3/GCS</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div><span class="tog-label">停用</span></div>
+          </div>
+          <div class="prov-row">
+            <div class="prov-info"><div class="prov-name">匿名化分析</div><div class="prov-sub">僅記錄 token 數、模型、時間戳、費用</div></div>
+            <div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div><span class="tog-label">啟用</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">API 金鑰隔離架構</span></div>
+        <div class="card-body">
+          <div style="font-family:var(--mono);font-size:10px;background:var(--bg2);border-radius:var(--r8);padding:12px 14px;margin-bottom:12px;line-height:2;color:var(--t3)">
+            客戶應用程式<br>
+            <span style="color:var(--t4)">  ↓ HTTPS (TLS 1.3)</span><br>
+            <span style="color:var(--teal)">Casca Gateway (記憶體處理)</span><br>
+            <span style="color:var(--t4)">  ↓ 只傳 metadata → DB</span><br>
+            <span style="color:var(--t4)">  ↓ 請求原文直接轉發</span><br>
+            AI Provider<br>
+            <span style="color:var(--teal)">提示詞內容：不落地 ✓</span>
+          </div>
+          <div class="stat-row"><span class="stat-label">金鑰存放位置</span><span class="stat-val">客戶 AWS Secrets Manager</span></div>
+          <div class="stat-row"><span class="stat-label">存取方式</span><span class="stat-val">Assume-Role 臨時授權</span></div>
+          <div class="stat-row"><span class="stat-label">我方持有副本</span><span class="stat-val" style="color:var(--teal)">否</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RELIABILITY ═══ -->
+<div class="page" id="page-reliability">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">可用性 SLA</div><div class="ph-sub">雙區域部署 · 99.9% SLA · 硬體旁路</div></div>
+      <div class="ph-actions"><button class="btn btn-danger" id="bypass-rel-btn" onclick="toggleBypassRel(this)">啟用緊急旁路</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div id="rel-alert" style="display:none" class="alert alert-red"><div class="alert-dot"></div><div class="alert-body"><strong>旁路模式啟用</strong> — 所有請求正直連 AI Provider，繞過 Casca 閘道器。路由優化與費用節省暫停。</div><button class="btn btn-success" onclick="deactivateBypassRel()" style="flex-shrink:0;font-size:11px">停用旁路</button></div>
+    <div class="metrics">
+      <div class="mc mc-accent-blue"><div class="mc-label">本月可用率</div><div class="mc-val" style="color:var(--blue)">99.94%</div><div class="mc-sub">SLA 目標 99.9%</div></div>
+      <div class="mc"><div class="mc-label">本月停機時間</div><div class="mc-val" style="color:var(--teal)">26 分鐘</div><div class="mc-sub">SLA 上限 43 分鐘</div></div>
+      <div class="mc"><div class="mc-label">P99 延遲</div><div class="mc-val">387ms</div><div class="mc-sub">目標 &lt;500ms</div></div>
+      <div class="mc"><div class="mc-label">P1 事故數</div><div class="mc-val" style="color:var(--teal)">0</div><div class="mc-sub">本月</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">過去 90 天可用率</span></div>
+        <div class="card-body">
+          <div class="uptime-grid" id="uptime-grid" style="margin-bottom:10px"></div>
+          <div style="display:flex;gap:14px;font-size:10px;color:var(--t3)">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--teal)"></span>正常</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--amber)"></span>部分降級</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--red)"></span>中斷</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">多區域部署狀態</span></div>
+        <div class="card-body">
+          <div class="region-row"><div class="prov-dot pd-green"></div><div style="flex:1"><div class="prov-name">us-east-1（主要）</div><div class="prov-sub">P99: 312ms · 錯誤率: 0.02%</div></div><span class="chip chip-live">Primary</span></div>
+          <div class="region-row"><div class="prov-dot pd-green"></div><div style="flex:1"><div class="prov-name">eu-west-1（備援）</div><div class="prov-sub">P99: 341ms · 錯誤率: 0.01%</div></div><span class="chip" style="background:var(--blue2);color:var(--blue)">Standby</span></div>
+          <div style="margin-top:12px">
+            <div class="sla-box">
+              <div class="sla-title">可用性 SLA 退款條款</div>
+              <div class="sla-item">月可用率 99.0–99.9%：退還 10%</div>
+              <div class="sla-item">月可用率 95.0–99.0%：退還 25%</div>
+              <div class="sla-item">月可用率 &lt;95%：退還 50%</div>
+              <div class="sla-item">停機 15 分鐘內通報客戶</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ROUTING RULES ═══ -->
+<div class="page" id="page-rules">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">路由規則</div><div class="ph-sub">設定每個用途的模型策略與品質門檻</div></div>
+      <div class="ph-actions"><button class="btn btn-primary" onclick="alert('已儲存 (Demo)')">儲存變更</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><span class="card-title">路由策略表</span></div>
+      <div class="card-body" style="padding:0 16px">
+        <div class="rule-row header"><span>用途 + 複雜度</span><span>目標模型</span><span>品質門檻</span><span>狀態</span></div>
+        <div id="rules-table"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">複雜度分類邏輯</span></div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-low">LOW</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">&lt;200 token 且含關鍵字：status, order, track, FAQ, what is, when → Gemini Flash / Cache</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-med">MED</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">200–1500 token 或任務：summarize, draft, explain, extract, classify → GPT-4o-mini / Haiku</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0"><span class="tag tag-high">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">&gt;1500 token 或任務：analyze, reason, compare, legal, medical, code → GPT-4o / Claude Sonnet</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PROVIDERS ═══ -->
+<div class="page" id="page-providers">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">Providers</div><div class="ph-sub">8 個 Provider 支援，每客戶獨立設定</div></div>
+      <div class="ph-actions"><button class="btn btn-primary">+ 新增 Provider</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header"><span class="card-title">支援 Provider 總覽</span><span style="font-size:10px;color:var(--t3)">客戶可混用任意組合</span></div>
+      <div class="card-body" style="padding:0 16px">
+        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">OpenAI</div><div class="prov-sub">GPT-4o · GPT-4o-mini · GPT-4o-vision · GPT-4-turbo</div></div><div class="prov-lat">620ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">Anthropic</div><div class="prov-sub">Claude 3.5 Sonnet · Claude Haiku · Claude Opus · Vision 支援</div></div><div class="prov-lat">480ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">Google Vertex AI</div><div class="prov-sub">Gemini 2.0 Flash · Gemini 1.5 Pro · Flash Vision · 影像分析</div></div><div class="prov-lat">310ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">Azure OpenAI</div><div class="prov-sub">Azure GPT-4o · Azure GPT-4o-mini · 企業合規部署</div></div><div class="prov-lat">540ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">AWS Bedrock</div><div class="prov-sub">Llama3-70B · Mistral-7B · Titan Express</div></div><div class="prov-lat">720ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">Groq</div><div class="prov-sub">Llama3-70B · Mixtral-8x7B · 超低延遲推論</div></div><div class="prov-lat">95ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">Cohere</div><div class="prov-sub">Command R+ · Command R · 長文本優化</div></div><div class="prov-lat">410ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
+        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">Mistral AI</div><div class="prov-sub">Mistral Large · Mistral Small · Mistral 7B</div></div><div class="prov-lat">380ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">每 1M Token 費用比較</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:200px"><canvas id="costCompareChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AUTO-LEARN ═══ -->
+<div class="page" id="page-autolearn">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">Auto-Learn 引擎</div><div class="ph-sub">自動收集 AMBIGUOUS 案例 → 人工確認 → 模型自動更新</div></div>
+      <div class="ph-actions"><button class="btn btn-primary" onclick="triggerRetrain()">▶ 立即重新訓練</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="two-col" style="margin-bottom:10px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">學習狀態</span></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">累計標注</div><div style="font-family:var(--display);font-size:18px;font-weight:700" id="total-labeled">1,000</div></div>
+            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">待標注隊列</div><div style="font-family:var(--display);font-size:18px;font-weight:700;color:var(--amber)" id="queue-count">0</div></div>
+            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">分類準確率</div><div style="font-family:var(--display);font-size:18px;font-weight:700;color:var(--teal)" id="acc-score">94.1%</div></div>
+            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">上次訓練</div><div style="font-family:var(--display);font-size:14px;font-weight:500" id="last-train">—</div></div>
+          </div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:6px">訓練進度</div>
+          <div style="background:var(--bg2);border-radius:4px;height:6px;overflow:hidden"><div id="train-bar" style="height:100%;background:var(--teal);border-radius:4px;width:0%;transition:width 1s"></div></div>
+          <div style="font-size:10px;color:var(--t3);margin-top:4px" id="train-status">待命中，累積 10 筆標注即自動觸發更新</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">自動學習流程</span></div>
+        <div class="card-body" style="padding:0 10px">
+          <div style="display:flex;flex-direction:column;gap:0">
+            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--b1)"><div style="width:22px;height:22px;border-radius:50%;background:#dbeafe;color:#1e40af;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">1</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>收集</strong> — 路由引擎實時標記信心度 &lt;80% 的請求</div></div>
+            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--b1)"><div style="width:22px;height:22px;border-radius:50%;background:#d1fae5;color:#065f46;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">2</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>標注</strong> — 人工確認每筆的正確分類（20分鐘/天）</div></div>
+            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--b1)"><div style="width:22px;height:22px;border-radius:50%;background:#fef3c7;color:#78350f;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">3</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>訓練</strong> — 每累積 10 筆自動更新分類規則權重</div></div>
+            <div style="display:flex;gap:10px;padding:8px 0"><div style="width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#4c1d95;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">4</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>部署</strong> — 新規則自動歸納進 Casca，準確率持續提升</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">標注隊列（AMBIGUOUS 案例）</span><span style="font-size:10px;color:var(--t3)">點擊難度按鈕完成標注</span></div>
+      <div class="card-body" id="annotation-queue">
+        <div style="text-align:center;color:var(--t3);font-size:12px;padding:20px 0">尚無待標注案例。使用 Live Router 模擬請求以產生標注隊列。</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">已完成標注（最近 10 筆）</span></div>
+      <div class="card-body" style="padding:0 16px"><table class="data-table"><thead><tr><th>時間</th><th>提示詞</th><th>領域</th><th>原始</th><th>確認難度</th></tr></thead><tbody id="labeled-log"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AUTH BAR (injected top-right) ═══ -->
+<div id="auth-bar" style="display:none;position:fixed;top:9px;right:200px;z-index:200;display:flex;align-items:center;gap:8px">
+  <div id="auth-logged-in" style="display:none;align-items:center;gap:8px">
+    <span id="auth-email" style="font-size:11px;color:var(--t3);font-family:var(--mono)"></span>
+    <button class="btn" style="font-size:10px;padding:3px 9px" onclick="authSignOut()">登出</button>
+  </div>
+  <div id="auth-logged-out" style="display:none;align-items:center;gap:6px">
+    <button class="btn btn-primary" style="font-size:11px;padding:4px 12px" onclick="showAuthModal()">登入 / 註冊</button>
+  </div>
+</div>
+
+<!-- Auth modal -->
+<div id="auth-modal" style="display:none;position:fixed;inset:0;background:#00000060;z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--bg3);border:0.5px solid var(--b2);border-radius:var(--r16);padding:28px;width:360px;max-width:90vw">
+    <div style="font-family:var(--display);font-size:16px;font-weight:600;margin-bottom:18px">登入 Casca</div>
+    <div id="auth-error" style="display:none;background:var(--red2);border:0.5px solid rgba(255,95,109,0.3);color:var(--red);font-size:11px;padding:8px 12px;border-radius:6px;margin-bottom:12px"></div>
+    <div style="margin-bottom:10px"><label class="field-label">Email</label><input id="auth-email-in" type="email" placeholder="you@company.com" style="width:100%"></div>
+    <div style="margin-bottom:16px"><label class="field-label">Password</label><input id="auth-pw-in" type="password" placeholder="••••••••" style="width:100%"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="authSignIn()">登入</button>
+      <button class="btn" style="flex:1;justify-content:center" onclick="authSignUp()">註冊</button>
+    </div>
+    <button onclick="hideAuthModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer">×</button>
+  </div>
+</div>
+
+<!-- ═══ API KEYS PAGE ═══ -->
+<div class="page" id="page-apikeys">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">API Keys</div><div class="ph-sub">管理你的 API 金鑰，每個 Key 只顯示一次</div></div>
+      <div class="ph-actions"><button class="btn btn-primary" onclick="generateKey()">+ 生成新 Key</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <!-- New key reveal -->
+    <div id="new-key-banner" style="display:none;background:rgba(0,212,170,0.07);border:0.5px solid rgba(0,212,170,0.3);border-radius:var(--r12);padding:14px 18px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--teal);font-weight:600;margin-bottom:6px">✓ 新 API Key 已建立 — 請立即複製，之後無法再次查看</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <code id="new-key-value" style="flex:1;font-family:var(--mono);font-size:12px;background:var(--bg);padding:8px 12px;border-radius:6px;border:0.5px solid var(--b2);color:var(--teal);word-break:break-all"></code>
+        <button class="btn btn-primary" onclick="copyNewKey()">複製</button>
+      </div>
+    </div>
+
+    <!-- Generate form -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><span class="card-title">建立新 API Key</span></div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div style="flex:1"><label class="field-label">Key 名稱（選填）</label><input id="key-label-in" type="text" placeholder="如：Production App、Test環境"></div>
+          <button class="btn btn-primary" onclick="generateKey()" style="flex-shrink:0">生成 Key</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key list -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><span class="card-title">現有 API Keys</span><span id="keys-loading" style="font-size:10px;color:var(--t3)">載入中…</span></div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead><tr><th>名稱</th><th>前綴</th><th>狀態</th><th>最後使用</th><th>建立時間</th><th>操作</th></tr></thead>
+          <tbody id="keys-tbody"><tr><td colspan="6" style="text-align:center;color:var(--t3);padding:20px">請先登入以查看 API Keys</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Account info card -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><span class="card-title">帳戶資訊</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">
+          <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:4px;font-family:var(--display);letter-spacing:0.06em">方案</div>
+            <div style="font-family:var(--display);font-size:15px;font-weight:700;color:var(--teal)" id="me-plan">—</div>
+          </div>
+          <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:4px;font-family:var(--display);letter-spacing:0.06em">Credit 餘額</div>
+            <div style="font-family:var(--display);font-size:15px;font-weight:700" id="me-balance">—</div>
+          </div>
+          <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center;grid-column:span 2">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:4px;font-family:var(--display);letter-spacing:0.06em">本月用量</div>
+            <div style="font-size:11px;font-family:var(--mono);margin-bottom:5px" id="me-quota-text">— / —</div>
+            <div style="background:var(--bg);border-radius:3px;height:5px;overflow:hidden">
+              <div id="me-quota-bar" style="height:100%;border-radius:3px;width:0%;transition:width 0.6s;background:var(--teal)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SDK / Integration Guide -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">整合指南 / SDK</span></div>
+      <div class="card-body">
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <button class="btn active" onclick="showSdkTab('curl',this)" id="sdk-tab-curl">cURL</button>
+          <button class="btn" onclick="showSdkTab('js',this)" id="sdk-tab-js">JavaScript</button>
+          <button class="btn" onclick="showSdkTab('python',this)" id="sdk-tab-python">Python</button>
+        </div>
+        <!-- cURL -->
+        <div id="sdk-curl">
+          <pre style="background:var(--bg);border:0.5px solid var(--b2);border-radius:var(--r8);padding:14px;font-family:var(--mono);font-size:11px;color:var(--teal);overflow-x:auto;line-height:1.6">curl -X POST https://api.cascaio.com/api/route \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <span id="sdk-key-curl">YOUR_API_KEY</span>" \
+  -d '{
+    "prompt": "幫我分析 Q3 的客服 CSAT 下降原因",
+    "uc": "support",
+    "qualityTier": "default"
+  }'</pre>
+          <button class="btn" style="margin-top:8px;font-size:11px" onclick="copySdk('sdk-curl')">複製</button>
+        </div>
+        <!-- JS -->
+        <div id="sdk-js" style="display:none">
+          <pre style="background:var(--bg);border:0.5px solid var(--b2);border-radius:var(--r8);padding:14px;font-family:var(--mono);font-size:11px;color:var(--teal);overflow-x:auto;line-height:1.6">const res = await fetch('https://api.cascaio.com/api/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer <span id="sdk-key-js">YOUR_API_KEY</span>'
+  },
+  body: JSON.stringify({
+    prompt: '幫我分析 Q3 的客服 CSAT 下降原因',
+    uc: 'support',
+    qualityTier: 'default'
+  })
+});
+const data = await res.json();
+// data.cx    → 'LOW' | 'MED' | 'HIGH'
+// data.model → 'GPT-4o-mini'
+// data.costUsd → 0.0000142</pre>
+          <button class="btn" style="margin-top:8px;font-size:11px" onclick="copySdk('sdk-js')">複製</button>
+        </div>
+        <!-- Python -->
+        <div id="sdk-python" style="display:none">
+          <pre style="background:var(--bg);border:0.5px solid var(--b2);border-radius:var(--r8);padding:14px;font-family:var(--mono);font-size:11px;color:var(--teal);overflow-x:auto;line-height:1.6">import requests
+
+resp = requests.post(
+    'https://api.cascaio.com/api/v1/chat/completions',
+    headers={
+        'Authorization': 'Bearer <span id="sdk-key-py">YOUR_API_KEY</span>',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'prompt': '幫我分析 Q3 的客服 CSAT 下降原因',
+        'uc': 'support',
+        'qualityTier': 'default',
+    }
+)
+data = resp.json()
+print(data['cx'], data['model'], data['costUsd'])</pre>
+          <button class="btn" style="margin-top:8px;font-size:11px" onclick="copySdk('sdk-python')">複製</button>
+        </div>
+
+        <!-- Response shape -->
+        <div style="margin-top:16px;font-size:11px;color:var(--t3)">
+          <div style="font-family:var(--display);font-weight:600;color:var(--t2);margin-bottom:6px">Response JSON 結構</div>
+          <pre style="background:var(--bg);border:0.5px solid var(--b2);border-radius:var(--r8);padding:12px;font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.7">{
+  "cx":        "MED",          // 難度分級: LOW | MED | HIGH
+  "model":     "GPT-4o-mini",  // 實際路由的模型
+  "tokens":    148,            // 估算 token 數
+  "costUsd":   0.0000222,      // 本次費用 (USD)
+  "savingsPct":97,             // 相對 GPT-4o 基準節省 %
+  "rule":      "R3: 生成任務 → MED",
+  "lang":      "ZH",
+  "latencyMs": 4
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOGS PAGE ═══ -->
+<div class="page" id="page-logs">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">使用紀錄</div><div class="ph-sub">你的 API 請求歷史（最近 200 筆）</div></div>
+      <div class="ph-actions">
+        <button class="btn" onclick="loadLogs()">↺ 重新整理</button>
+      </div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="metrics" id="logs-metrics" style="margin-bottom:14px">
+      <div class="mc mc-accent-teal"><div class="mc-label">總請求數</div><div class="mc-val" id="lm-total">—</div></div>
+      <div class="mc"><div class="mc-label">本月費用</div><div class="mc-val" id="lm-cost">—</div></div>
+      <div class="mc"><div class="mc-label">平均節省</div><div class="mc-val" style="color:var(--teal)" id="lm-savings">—</div></div>
+      <div class="mc"><div class="mc-label">Auto-Learn 標記</div><div class="mc-val" style="color:var(--amber)" id="lm-autolearn">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">請求明細</span><span id="logs-loading" style="font-size:10px;color:var(--t3)"></span></div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead><tr><th>時間</th><th>難度</th><th>模型</th><th>Tokens</th><th>費用</th><th>節省</th><th>語言</th><th>Auto-Learn</th><th>延遲</th></tr></thead>
+          <tbody id="logs-tbody"><tr><td colspan="9" style="text-align:center;color:var(--t3);padding:20px">請先登入以查看紀錄</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CACHE POOL ═══ -->
+<div class="page" id="page-cache">
+  <div class="page-header">
+    <div class="ph-top">
+      <div>
+        <div class="ph-title">💾 我的快取池</div>
+        <div class="ph-sub">專屬語意快取 — 重複請求自動命中，成本歸零</div>
+      </div>
+      <div class="ph-actions">
+        <button class="btn" onclick="loadCache()">↺ 重新整理</button>
+        <button class="btn btn-danger" onclick="flushAllCache()" title="清除所有快取">🗑 全部清除</button>
+      </div>
+    </div>
+  </div>
+  <div class="page-content">
+    <!-- Metrics bar -->
+    <div class="metrics" style="margin-bottom:14px">
+      <div class="mc mc-accent-teal">
+        <div class="mc-label">快取條目</div>
+        <div class="mc-val" id="cache-count">—</div>
+        <div class="mc-sub">總快取數</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">累計命中次數</div>
+        <div class="mc-val" style="color:var(--teal)" id="cache-hits">—</div>
+        <div class="mc-sub">自動節省呼叫</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">累計節省費用</div>
+        <div class="mc-val" style="color:var(--teal)" id="cache-saved">—</div>
+        <div class="mc-sub">USD</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">晉升門檻</div>
+        <div class="mc-val" style="font-size:14px">3 次 / 24h</div>
+        <div class="mc-sub">重複即自動快取</div>
+      </div>
+    </div>
+
+    <!-- How it works callout -->
+    <div style="background:rgba(0,212,170,0.05);border:0.5px solid rgba(0,212,170,0.2);border-radius:var(--r12);padding:12px 16px;margin-bottom:12px;display:flex;gap:16px;align-items:center">
+      <div style="font-size:20px">⚡</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.7">
+        <strong style="color:var(--teal)">自動晉升機制：</strong>同一個 prompt 在 24 小時內出現 3 次，Casca 自動將 LLM 回答存入你的專屬快取。
+        下次相同問題 <strong>直接從快取回傳</strong>，延遲 &lt;5ms，費用 $0.00，完全隔離其他租戶。
+        快取 TTL 為 7 天，到期自動清除。
+      </div>
+    </div>
+
+    <!-- Cache entry table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">快取條目清單</span>
+        <span id="cache-loading" style="font-size:10px;color:var(--t3)"></span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="data-table" id="cache-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;min-width:200px">Prompt（標準化）</th>
+              <th>難度</th>
+              <th>模型</th>
+              <th>命中次數</th>
+              <th>節省費用</th>
+              <th>原始成本</th>
+              <th>最後命中</th>
+              <th>到期</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cache-tbody">
+            <tr><td colspan="9" style="text-align:center;color:var(--t3);padding:24px">
+              請先登入並使用 API，快取條目會在達到門檻後自動出現
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COST AUDIT ═══ -->
+<div class="page" id="page-audit">
+  <div class="page-header">
+    <div class="ph-top">
+      <div><div class="ph-title">Cost Audit</div><div class="ph-sub">費用明細 · 年化節省 · 各應用拆解</div></div>
+      <div class="ph-actions"><button class="btn">↓ 匯出報告</button></div>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="savings-banner">
+      <div><div class="sb-label">推算年化節省</div><div class="sb-big">$218,880 / 年</div><div class="sb-sub">基於過去 30 天推算</div></div>
+      <div style="text-align:right"><div class="sb-label">你的淨節省</div><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--teal)">$170,726 / 年</div><div class="sb-sub">扣除平台費後的實際節省</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><span class="card-title">月費用趨勢（基準 vs 實際）</span><div style="display:flex;gap:10px;font-size:10px;font-family:var(--display);color:var(--t3)"><span style="color:var(--red)">— 基準</span><span style="color:var(--teal)">— 實際</span></div></div>
+        <div class="card-body"><div class="chart-wrap" style="height:160px"><canvas id="auditChart"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">各應用費用明細</span></div>
+        <div class="card-body" style="padding:0 16px">
+          <table class="data-table">
+            <thead><tr><th>應用程式</th><th>請求數</th><th>實際費用</th><th>節省金額</th><th>節省率</th></tr></thead>
+            <tbody>
+              <tr><td style="color:var(--t1);font-weight:500">客服聊天機器人</td><td>641K</td><td>$8,920</td><td style="color:var(--teal);font-weight:600">$8,120</td><td style="color:var(--teal)">48%</td></tr>
+              <tr><td style="color:var(--t1);font-weight:500">內容生成 Pipeline</td><td>312K</td><td>$6,410</td><td style="color:var(--teal);font-weight:600">$5,840</td><td style="color:var(--teal)">48%</td></tr>
+              <tr><td style="color:var(--t1);font-weight:500">知識查詢助手</td><td>198K</td><td>$3,890</td><td style="color:var(--teal);font-weight:600">$3,190</td><td style="color:var(--teal)">45%</td></tr>
+              <tr><td style="color:var(--t1);font-weight:500">程式碼審查</td><td>89K</td><td>$2,640</td><td style="color:var(--teal);font-weight:600">$1,090</td><td style="color:var(--amber)">29%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /body-wrap -->
 
 <script>
-// ════════════════════════════════════════════════════════════════
-//  CONFIG — single source of truth
-// ════════════════════════════════════════════════════════════════
-const CONFIG = {
-  // OpenAI key is NEVER stored in the frontend.
-  // Engine OFF calls the backend with bypass:true — key stays server-side.
-  CASCA_API_KEY:   localStorage.getItem('casca_api_key')  || 'YOUR_CASCA_KEY',
-  CASCA_BASE_URL:  localStorage.getItem('casca_base_url') || 'https://casca-production.up.railway.app/api/v1/chat/completions',
-  DEFAULT_MODEL:   'gpt-4o',
-};
-
-// ════════════════════════════════════════════════════════════════
-//  STATE
-// ════════════════════════════════════════════════════════════════
-let cascaEnabled = false;
-let messages     = [];      // conversation history
-let isLoading    = false;
-
-// Session stats
-const session = {
-  total:    0,
-  totalCost: 0,
-  totalSaved: 0,
-  counts:   { LOW: 0, MED: 0, HIGH: 0, CACHE: 0 },
-  savings:  [],
-};
-
-// ════════════════════════════════════════════════════════════════
-//  ROUTING COPY
-// ════════════════════════════════════════════════════════════════
-const CX_CONFIG = {
-  HIGH: {
-    icon:   '🔴',
-    color:  'red',
-    cls:    'cx-high',
-    rb:     'rb-high',
-    label:  'HIGH',
-    reason: '絕對精準模式：偵測到關鍵任務。Casca 已強制使用頂級模型，不計成本保證零誤差。',
-  },
-  MED: {
-    icon:   '🟡',
-    color:  'amber',
-    cls:    'cx-med',
-    rb:     'rb-med',
-    label:  'MED',
-    reason: '效率優化模式：偵測到中等複雜度任務。Casca 已自動平衡品質與支出。',
-  },
-  LOW: {
-    icon:   '🟢',
-    color:  'green',
-    cls:    'cx-low',
-    rb:     'rb-low',
-    label:  'LOW',
-    reason: '極致節流模式：偵測到簡單查詢。Casca 使用輕量化引擎，成本降至最低。',
-  },
-  CACHE: {
-    icon:   '⚡',
-    color:  'blue',
-    cls:    'cx-cache',
-    rb:     'rb-cache',
-    label:  'CACHE',
-    reason: '零成本快取：語意重複命中。本次請求 0 延遲且完全免費。',
-  },
-};
-
-// Cost per 1M tokens (input+output blended) for baseline comparison
-const MODEL_COSTS = {
-  'gpt-4o':              5.00,
-  'gpt-4o-mini':         0.15,
-  'gemini-2.0-flash-exp':0.10,
-  'claude-3-5-sonnet':   3.00,
-  'claude-3-haiku':      0.25,
-  'cache':               0.00,
-};
-
-// ════════════════════════════════════════════════════════════════
-//  ENGINE TOGGLE
-// ════════════════════════════════════════════════════════════════
-function toggleEngine() {
-  cascaEnabled = !cascaEnabled;
-  const toggle = document.getElementById('masterToggle');
-  const badge  = document.getElementById('modeBadge');
-  toggle.classList.toggle('active', cascaEnabled);
-  if (cascaEnabled) {
-    badge.className  = 'mode-badge on';
-    badge.textContent = '⬡ Casca Engine ACTIVE';
-  } else {
-    badge.className  = 'mode-badge off';
-    badge.textContent = 'Direct / OpenAI';
-  }
-  showToast(cascaEnabled ? '⬡ Casca Engine 已啟動 — 智慧路由中' : 'Direct mode — 直連 OpenAI');
+// ── NAV ──────────────────────────────
+function switchPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tnav-tab,.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  // sync sidebar
+  document.querySelectorAll('.sb-item').forEach(i=>{if(i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+id+"'"))i.classList.add('active')});
+  document.querySelectorAll('.tnav-tab').forEach(i=>{if(i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+id+"'"))i.classList.add('active')});
 }
 
-// ════════════════════════════════════════════════════════════════
-//  SEND MESSAGE
-// ════════════════════════════════════════════════════════════════
-async function sendMessage() {
-  const ta    = document.getElementById('chatInput');
-  const text  = ta.value.trim();
-  if (!text || isLoading) return;
+// ── ROUTING — powered by Casca Classifier ──────────────
+// classifyV12 / checkCache / detectModal / selectModel / mCosts
+// are handled by the classifier engine.
 
-  // Hide empty state
-  document.getElementById('emptyState').style.display = 'none';
+// State that Portal UI still needs directly
+let autoLearnQueue = [];
+let totalLearnCount = 0;
+let accuracyScore = 94.1;
 
-  // Add user message to array + UI
-  messages.push({ role: 'user', content: text });
-  appendBubble('user', text);
-  ta.value = '';
-  ta.style.height = 'auto';
+/**
+ * route(uc, prompt, qualityTier)
+ * Thin bridge — delegates to CascaClassifier.route()
+ * Returns the same shape the dashboard UI expects:
+ * { m, c, cx, tok, cost, base, pct, rule, modal }
+ */
+function route(uc, pr, q) {
+  const eng = typeof CascaClassifier !== 'undefined'
+    ? CascaClassifier
+    : null;
 
-  // Show thinking
-  const thinkId = appendThinking();
-  setLoading(true);
-
-  const t0 = Date.now();
-
-  try {
-    let result;
-    if (cascaEnabled) {
-      result = await callCasca(messages);
-    } else {
-      result = await callDirect(messages);
-    }
-
-    const latencyMs = Date.now() - t0;
-    removeThinking(thinkId);
-
-    const content = result.content;
-    const casca   = result.casca || {};
-
-    // Add assistant to history
-    messages.push({ role: 'assistant', content });
-
-    // Render bubble
-    const cx = (casca.cx || '').toUpperCase();
-    appendBubble('ai', content, cx, casca.model, casca.pct);
-
-    // Update dashboard
-    if (cascaEnabled && cx) {
-      updateDashboard({
-        cx:       cx,
-        model:    casca.model || CONFIG.DEFAULT_MODEL,
-        pct:      casca.pct   || 0,
-        rule:     casca.rule  || '',
-        latency:  latencyMs,
-        tokens:   result.tokens || 0,
-        cost:     casca.costUsd || estimateCost(casca.model, result.tokens),
-        cacheHit: casca.cacheHit || false,
-      });
-    } else {
-      // Direct mode
-      updateDashboard({
-        cx:      null,
-        model:   CONFIG.DEFAULT_MODEL,
-        pct:     0,
-        rule:    'Direct mode — Casca Engine OFF',
-        latency: latencyMs,
-        tokens:  result.tokens || 0,
-        cost:    estimateCost(CONFIG.DEFAULT_MODEL, result.tokens),
-      });
-    }
-
-  } catch (err) {
-    removeThinking(thinkId);
-    appendBubble('ai', `⚠ 錯誤：${err.message}`, null, null, null, true);
+  if (!eng) {
+    // Graceful degradation: engine script not loaded yet
+    console.warn('[Casca] classifier not loaded');
+    return { m:'GPT-4o-mini', c:'MED', cx:'MED', tok:120,
+             cost:0.000018, base:0.0006, pct:97,
+             rule:'fallback (engine not loaded)', modal:'text' };
   }
 
-  setLoading(false);
-}
+  const result = eng.route(pr, uc, q || 'default');
 
-// ════════════════════════════════════════════════════════════════
-//  API CALLS
-// ════════════════════════════════════════════════════════════════
-// callOpenAI is intentionally REMOVED.
-// Engine OFF now calls the Casca backend with bypass:true.
-// The OpenAI API key never leaves the server.
-async function callDirect(msgs) {
-  const res = await fetch(CONFIG.CASCA_BASE_URL, {
-    method:  'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${CONFIG.CASCA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      messages: msgs,
-      model:    CONFIG.DEFAULT_MODEL,
-      bypass:   true,   // ← tells backend: skip classification, route direct to GPT-4o
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error || `Direct ${res.status}`);
+  // Sync AMBIG items into local autoLearnQueue for the UI
+  // (engine already queues them internally; we mirror here for display)
+  if (result.autoLearn) {
+    autoLearnQueue.push({
+      prompt: pr, uc, rule: result.rule,
+      lang: result.lang, noiseType: result.noiseType,
+      ts: new Date().toLocaleTimeString()
+    });
+    totalLearnCount++;
+    updateLearnBadge();
   }
 
-  const data    = await res.json();
-  const content = data.choices?.[0]?.message?.content || '';
-  const tokens  = (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0);
-  return { content, tokens, casca: data._casca || {} };
-}
-
-async function callCasca(msgs) {
-  const res = await fetch(CONFIG.CASCA_BASE_URL, {
-    method:  'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${CONFIG.CASCA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      messages: msgs,
-      model:    CONFIG.DEFAULT_MODEL,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error || `Casca ${res.status}`);
-  }
-
-  const data    = await res.json();
-  const content = data.choices?.[0]?.message?.content || '';
-  const tokens  = (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0);
-  const casca   = data._casca || {
-    cx:        data.cx,
-    model:     data.model,
-    pct:       data.savingsPct,
-    rule:      data.rule,
-    costUsd:   data.costUsd,
-    cacheHit:  data.cacheHit,
+  // Return shape expected by dashboard UI
+  return {
+    m:    result.isCache ? 'Cache hit' : result.model,
+    c:    result.isCache ? 'LOW'       : result.cx,
+    cx:   result.isCache ? 'LOW'       : result.cx,
+    tok:  result.tok,
+    cost: result.cost,
+    base: result.base,
+    pct:  result.pct,
+    rule: result.rule,
+    modal: result.modal || 'text',
+    lang: result.lang,
+    noiseType: result.noiseType,
+    confidence: result.confidence,
   };
-  return { content, tokens, casca };
 }
 
-function estimateCost(model, tokens) {
-  const ratePerM = MODEL_COSTS[model] || MODEL_COSTS['gpt-4o'];
-  return (tokens / 1_000_000) * ratePerM;
-}
-
-// ════════════════════════════════════════════════════════════════
-//  DASHBOARD UPDATE
-// ════════════════════════════════════════════════════════════════
-function updateDashboard({ cx, model, pct, rule, latency, tokens, cost, cacheHit }) {
-  const effectiveCx = cacheHit ? 'CACHE' : (cx || 'MED');
-  const cfg         = CX_CONFIG[effectiveCx] || CX_CONFIG.MED;
-
-  // ── Classification display ──────────────────────────
-  const cxEl = document.getElementById('cxDisplay');
-  cxEl.className = 'cx-display ' + cfg.cls;
-  document.getElementById('cxIcon').textContent   = cfg.icon;
-  const lvEl = document.getElementById('cxLevel');
-  lvEl.className = 'cx-level ' + cfg.color;
-  lvEl.textContent = cfg.label;
-  document.getElementById('cxReason').textContent = cfg.reason;
-
-  // ── SLA Shield (HIGH only) ──────────────────────────
-  const shield = document.getElementById('slaShield');
-  shield.classList.toggle('visible', effectiveCx === 'HIGH');
-
-  // ── Rule box ────────────────────────────────────────
-  const ruleEl = document.getElementById('ruleBox');
-  if (rule) {
-    const parts = rule.split(':');
-    ruleEl.innerHTML = `<span class="rule-tag">${parts[0] || '—'}</span>${parts.slice(1).join(':') || ''}`;
+function updateLearnBadge() {
+  const b = document.getElementById('learn-badge');
+  if (b) {
+    b.textContent = autoLearnQueue.length;
+    b.style.display = autoLearnQueue.length > 0 ? 'inline-flex' : 'none';
   }
-
-  // ── Cost comparison ─────────────────────────────────
-  const baseCostUsd  = estimateCost('gpt-4o', tokens);
-  const cascaCostUsd = cacheHit ? 0 : cost;
-  const savingPct    = baseCostUsd > 0
-    ? Math.max(0, Math.round((1 - cascaCostUsd / baseCostUsd) * 100))
-    : (pct || 0);
-
-  const savingPctEl = document.getElementById('savingPct');
-  savingPctEl.textContent = savingPct > 0 ? savingPct : (cacheHit ? '100' : '—');
-  if (savingPct >= 80 || cacheHit)      savingPctEl.style.color = 'var(--green)';
-  else if (savingPct >= 40)              savingPctEl.style.color = 'var(--amber)';
-  else                                   savingPctEl.style.color = 'var(--blue)';
-
-  document.getElementById('baseCost').textContent  = '$' + baseCostUsd.toFixed(5);
-  document.getElementById('cascaCost').textContent = cacheHit ? '$0.00000' : '$' + cascaCostUsd.toFixed(5);
-  document.getElementById('routedModel').textContent = model || '—';
-
-  const badge = document.getElementById('savingBadge');
-  if (savingPct > 0) {
-    badge.textContent = `-${savingPct}%`;
-    badge.style.display = 'inline';
+  // Sync accuracy from engine (engine tracks +0.12% per 10 labels)
+  if (typeof CascaClassifier !== 'undefined') {
+    accuracyScore = CascaClassifier.accuracyScore;
   }
-
-  // ── Stat cards ──────────────────────────────────────
-  const shortModel = (model || '—').replace('gpt-','').replace('gemini-','G-').replace('claude-','C-');
-  document.getElementById('sv-model').textContent   = shortModel;
-  document.getElementById('sv-latency').textContent = latency + 'ms';
-  document.getElementById('sv-tokens').textContent  = tokens.toLocaleString();
-
-  const cxValEl = document.getElementById('sv-cx');
-  cxValEl.textContent = effectiveCx;
-  cxValEl.className   = 'stat-val ' + cfg.color;
-
-  // ── Session stats ───────────────────────────────────
-  session.total++;
-  session.totalCost  += cascaCostUsd;
-  session.totalSaved += (baseCostUsd - cascaCostUsd);
-  if (effectiveCx in session.counts) session.counts[effectiveCx]++;
-  session.savings.push(savingPct);
-
-  const avgSave = session.savings.length > 0
-    ? Math.round(session.savings.reduce((a,b) => a+b, 0) / session.savings.length)
-    : 0;
-
-  document.getElementById('ss-total').textContent  = session.total;
-  document.getElementById('ss-saved').textContent  = '$' + session.totalSaved.toFixed(4);
-  document.getElementById('ss-cost').textContent   = '$' + session.totalCost.toFixed(4);
-  document.getElementById('ss-avgpct').textContent = avgSave + '%';
-
-  // Header stats
-  document.getElementById('hd-savings').textContent  = '$' + session.totalSaved.toFixed(4);
-  document.getElementById('hd-requests').textContent = session.total;
-
-  // Flash results tab on mobile
-  flashResultsTab();
-
-  // Progress bars
-  const total = session.total || 1;
-  ['LOW','MED','HIGH','CACHE'].forEach(key => {
-    const pct2 = Math.round((session.counts[key] / total) * 100);
-    const k = key.toLowerCase();
-    document.getElementById('pp-' + k).textContent  = pct2 + '%';
-    document.getElementById('pf-' + k).style.width  = pct2 + '%';
-  });
+  const a = document.getElementById('acc-score');
+  if (a) a.textContent = accuracyScore.toFixed(1) + '%';
+  if (autoLearnQueue.length % 10 === 0 && autoLearnQueue.length > 0) {
+    renderAnnotationQueue();
+  }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  CHAT UI HELPERS
-// ════════════════════════════════════════════════════════════════
-let thinkCounter = 0;
 
-function appendBubble(role, text, cx, model, pct, isError = false) {
-  const container = document.getElementById('chatMessages');
-  const row       = document.createElement('div');
-  row.className   = 'msg-row ' + (role === 'user' ? 'user' : '');
-
-  const avatarText = role === 'user' ? 'YOU' : 'AI';
-  const avClass    = role === 'user' ? 'user-av' : 'ai-av';
-  const bubClass   = role === 'user' ? 'user-bubble' : (isError ? 'ai-bubble' : 'ai-bubble');
-
-  const now  = new Date();
-  const time = now.getHours().toString().padStart(2,'0') + ':' +
-               now.getMinutes().toString().padStart(2,'0') + ':' +
-               now.getSeconds().toString().padStart(2,'0');
-
-  let badgeHtml = '';
-  if (role === 'ai' && cascaEnabled && cx && cx !== 'null') {
-    const cfg = CX_CONFIG[cx] || {};
-    badgeHtml = `<div><span class="routing-badge ${cfg.rb || ''}">${cfg.icon || ''} ${cx}${pct > 0 ? ' · -' + pct + '%' : ''}${model ? ' · ' + model : ''}</span></div>`;
-  }
-
-  row.innerHTML = `
-    <div class="msg-avatar ${avClass}">${avatarText}</div>
-    <div class="msg-content">
-      <div class="msg-bubble ${bubClass}">${escapeHtml(text)}</div>
-      ${badgeHtml}
-      <div class="msg-meta"><span>${time}</span>${role === 'ai' && model ? `<span>via ${model}</span>` : ''}</div>
-    </div>`;
-
-  container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
+const mClassMap={'GPT-4o':'mt-gpt4','GPT-4o-mini':'mt-mini','Gemini 2.0 Flash':'mt-flash','Gemini Flash Vision':'mt-flash','Claude Haiku':'mt-haiku','Claude Haiku Vision':'mt-haiku','Claude Sonnet':'mt-sonnet','Cache hit':'mt-cache','Gemini 1.5 Pro':'mt-flash','GPT-4o-vision':'mt-gpt4','Azure GPT-4o':'mt-gpt4','Command R+':'mt-mini','Llama3-70B-Groq':'mt-mini','Mistral Large':'mt-mini'};
+function runSim(){
+  const uc=document.getElementById('sim-uc').value;
+  const pr=document.getElementById('sim-prompt').value.trim();
+  if(!pr)return;
+  const q=document.getElementById('sim-q').value;
+  const r=route(uc,pr,q);
+  const mLabel={video:'🎬 Video',medical_image:'🏥 Medical',legal_doc:'📄 Legal Doc',image:'🖼 Image',chart:'📊 Chart',doc:'📄 Doc'};
+  const modalBadge=r.modal&&r.modal!=='text'?`<span style="font-size:9px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;font-weight:600">${mLabel[r.modal]||r.modal}</span>`:'';
+  const cx=r.c||r.cx||'MED';
+  document.getElementById('sim-result').innerHTML=`<div style="display:flex;flex-direction:column;gap:9px;text-align:left;padding:0">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span class="tag tag-${cx.toLowerCase()}">${cx}</span>
+      ${modalBadge}
+      <span style="font-size:9px;font-family:var(--mono);color:var(--t3);background:var(--bg2);padding:2px 7px;border-radius:3px">${r.rule||''}</span>
+    </div>
+    <div style="background:var(--bg2);border-radius:var(--r8);padding:9px 13px;display:flex;align-items:center;gap:8px">
+      <div style="flex:1"><div style="font-size:9px;color:var(--t3);font-family:var(--display);letter-spacing:0.06em;margin-bottom:3px">路由至</div><span class="model-tag ${mClassMap[r.m]||''}">${r.m}</span></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--t3)">${r.tok} tokens</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+      <div style="background:var(--bg2);border-radius:var(--r8);padding:7px 9px"><div style="font-size:9px;font-family:var(--display);color:var(--t3);letter-spacing:0.06em;margin-bottom:3px">費用</div><div style="font-family:var(--display);font-size:13px;font-weight:500">$${r.cost.toFixed(5)}</div></div>
+      <div style="background:var(--bg2);border-radius:var(--r8);padding:7px 9px"><div style="font-size:9px;font-family:var(--display);color:var(--t3);letter-spacing:0.06em;margin-bottom:3px">基準</div><div style="font-family:var(--display);font-size:13px;font-weight:500">$${r.base.toFixed(5)}</div></div>
+      <div style="background:rgba(0,212,170,0.07);border:0.5px solid rgba(0,212,170,0.2);border-radius:var(--r8);padding:7px 9px"><div style="font-size:9px;font-family:var(--display);color:var(--teal);letter-spacing:0.06em;margin-bottom:3px">節省</div><div style="font-family:var(--display);font-size:13px;font-weight:500;color:var(--teal)">${r.pct}%</div></div>
+    </div>
+  </div>`;
+  appendStream(r.m,cx,r.tok,r.pct,uc,r.rule);
 }
 
-function appendThinking() {
-  const id        = 'think-' + (++thinkCounter);
-  const container = document.getElementById('chatMessages');
-  const row       = document.createElement('div');
-  row.id          = id;
-  row.className   = 'msg-row';
-  row.innerHTML   = `
-    <div class="msg-avatar ai-av">AI</div>
-    <div class="msg-content">
-      <div class="thinking">
-        <div class="thinking-dot"></div>
-        <div class="thinking-dot"></div>
-        <div class="thinking-dot"></div>
+let streamCount=0;
+function appendStream(m,c,tok,pct,uc,rule){
+  const box=document.getElementById('live-stream');
+  const now=new Date();
+  const t=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+  const cmap={'GPT-4o':'sl-a','GPT-4o-mini':'sl-g','Gemini 2.0 Flash':'sl-b','Claude Haiku':'sl-b','Claude Sonnet':'sl-a','Cache hit':'sl-r'};
+  if(streamCount===0)box.innerHTML='';
+  const l=document.createElement('div');l.className='sl';
+  const ruleShort=rule?rule.split(':')[0]:'';
+  l.innerHTML=`<span class="sl-t">${t}</span><span class="sl-m ${cmap[m]||'sl-r'}">[${m}]</span><span style="flex:1;color:var(--t4)">${uc}·${c}·${tok}t</span><span style="color:var(--t4);font-size:9px;margin-right:6px">${ruleShort}</span><span class="sl-g">-${pct}%</span>`;
+  box.appendChild(l);box.scrollTop=box.scrollHeight;streamCount++;
+}
+function clearStream(){document.getElementById('live-stream').innerHTML='<div class="sl"><span class="sl-t">ready</span><span style="color:var(--t4)">等待請求...</span></div>';streamCount=0;}
+
+let autoInt=null;
+const samples=[
+  ['support','退貨政策是什麼？'],['hr','育嬰假可以請幾個月？'],['finance','本月收入是多少？'],
+  ['legal','NDA 的有效期通常是幾年？'],['marketing','幫我想 5 個廣告標語'],['product','什麼是 MVP？'],
+  ['ops','今天有幾筆出貨單？'],['data','昨天的 DAU 是多少？'],['support','訂單狀態查詢'],['knowledge','什麼是我們公司的請假流程？'],
+  ['support','客戶說收到的商品有刮痕，需要回覆一封道歉信並提供換貨選項，口吻要專業但有溫度'],
+  ['hr','幫我草擬一封請假申請信，需要請三天病假，原因是手術後需要休養'],
+  ['finance','幫我整理今年每季的營收和費用對比，算出各季淨利'],
+  ['legal','比較台灣和美國在個資保護法規上的主要差異'],
+  ['marketing','規劃一個 3 個月的社群媒體內容日曆，包含每週主題和貼文類型'],
+  ['product','幫我把這個功能需求拆解成具體的用戶故事並排列優先順序'],
+  ['ops','幫我整理本週的生產排程，按照優先順序列出所有訂單'],
+  ['data','幫我整理上季度的核心業務指標，包含 MAU、DAU、轉換率和平均訂單金額'],
+  ['support','分析為什麼這個月的客服 CSAT 分數從 92 分掉到 84 分，找出根本原因並提出改善建議'],
+  ['hr','分析我們公司過去三年的離職率趨勢，找出主要離職原因並提出降低離職率的具體建議'],
+  ['finance','幫我建立三個情境的財務模型：悲觀（營收-20%）、基準（持平）、樂觀（+30%）'],
+  ['legal','評估我們的服務條款是否有潛在法律風險，特別是責任限制和爭議解決條款'],
+  ['marketing','設計一個完整的客戶旅程地圖，從認知到購買到留存，標出每個觸點和痛點'],
+  ['product','撰寫一份完整的 PRD，功能是智慧路由系統，包含背景、目標、功能規格和驗收標準'],
+  ['ops','分析我們的存貨周轉率（目前 4.2 次/年，同業 6.8 次），找出根本原因並提出改善計畫'],
+  ['data','建立一個用戶流失預測模型的需求說明，包含特徵選擇、模型類型和評估指標'],
+  ['code','幫我找出這段 SQL 查詢的效能瓶頸並優化'],
+  ['analysis','比較市面上三個 AI 路由方案：LiteLLM、PortKey 和自建方案，從功能、成本、維護難度評分'],
+  ['content','幫我寫一篇 800 字的產品介紹文，主題是 AI 客服助理，目標讀者是 B2B 採購主管'],
+  ['knowledge','我們公司的個資保護政策是否符合台灣個資法要求？請逐條對照'],
+  ['Healthcare','[X-ray attached] Is there anything abnormal in this chest X-ray?'],
+  ['Manufacturing','[Video: 2-min assembly line footage] Identify any safety violations in this clip'],
+  ['Finance','[Screenshot: trading dashboard] What patterns do you see in this options flow?'],
+  ['Technology','[UI screenshot] What UX issues do you see in this mobile checkout flow?'],
+  ['Retail','[Product photo: running shoes] Write an SEO-optimized product description'],
+  ['Legal','[Contract scan: MSA] Extract all indemnification clauses'],
+  ['Media','[Video: 30-sec ad clip] Does this ad contain any brand safety issues?'],
+  ['Healthcare','[Wound photo] Does this post-surgical incision look infected?'],
+  ['Finance','[Chart: 12-month revenue trend] Explain the dip in Q2 and project Q4'],
+];
+let sIdx=0;
+function toggleAuto(){const btn=document.getElementById('auto-btn');if(autoInt){clearInterval(autoInt);autoInt=null;btn.textContent='▶ 自動模擬';}else{autoInt=setInterval(()=>{const[uc,pr]=samples[sIdx%samples.length];sIdx++;const q=['high','med','low'][Math.floor(Math.random()*3)];const r=route(uc,pr,q);appendStream(r.m,r.c,r.tok,r.pct,uc,r.rule);},800);btn.textContent='■ 停止';}}
+
+// ── BYPASS ────────────────────────────
+function toggleBypass(btn){if(btn.textContent==='啟用旁路'){btn.textContent='停用旁路';btn.className='btn btn-success';}else{btn.textContent='啟用旁路';btn.className='btn btn-danger';}}
+let relBypass=false;
+function toggleBypassRel(btn){relBypass=!relBypass;document.getElementById('rel-alert').style.display=relBypass?'flex':'none';btn.textContent=relBypass?'停用旁路':'啟用緊急旁路';btn.className=relBypass?'btn btn-success':'btn btn-danger';}
+function deactivateBypassRel(){relBypass=false;document.getElementById('rel-alert').style.display='none';document.getElementById('bypass-rel-btn').textContent='啟用緊急旁路';document.getElementById('bypass-rel-btn').className='btn btn-danger';}
+
+// ── QUALITY ROLLBACK ──────────────────
+function triggerRollback(){
+  const a=document.getElementById('q-alert');
+  a.className='alert alert-amber';
+  a.innerHTML='<div class="alert-dot"></div><div class="alert-body"><strong>回滾中</strong> — 正在將所有流量切回 GPT-4o，60 秒內完成...</div><button class="btn" onclick="cancelRollback()">取消</button>';
+  setTimeout(()=>{a.className='alert alert-teal';a.innerHTML='<div class="alert-dot"></div><div class="alert-body"><strong>回滾完成</strong> — 所有流量已切換至 GPT-4o。</div><button class="btn btn-success">重新啟用路由</button>';},3000);
+}
+function cancelRollback(){const a=document.getElementById('q-alert');a.className='alert alert-teal';a.innerHTML='<div class="alert-dot"></div><div class="alert-body"><strong>品質正常</strong> — 目前評分 93.4%，高於客戶設定基準 88.0%。</div><button class="btn btn-success">查看報告</button>';}
+
+// ── RULES TABLE ───────────────────────
+const rules=[
+  {l:'客服·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R1/R2'},
+  {l:'客服·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'客服·HIGH',m:'GPT-4o',q:'>95%',r:'R5'},
+  {l:'內容·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R2'},
+  {l:'內容·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'內容·HIGH',m:'Claude Sonnet',q:'>92%',r:'R5'},
+  {l:'知識·LOW',m:'Cache → Gemini Flash',q:'>75%',r:'R9/R1'},
+  {l:'知識·HIGH',m:'GPT-4o',q:'>96%',r:'R6'},
+  {l:'程式碼·MED',m:'GPT-4o-mini',q:'>88%',r:'R7排除'},
+  {l:'程式碼·HIGH',m:'GPT-4o',q:'>97%',r:'R7'},
+  {l:'HR·LOW',m:'Cache → Gemini Flash',q:'>75%',r:'R9/R1 快取優先'},
+  {l:'HR·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'HR·HIGH',m:'GPT-4o',q:'>95%',r:'R5/R6'},
+  {l:'財務·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R-NEW1a 直接算術'},
+  {l:'財務·MED',m:'GPT-4o-mini',q:'>88%',r:'R-NEW1'},
+  {l:'財務·HIGH',m:'GPT-4o',q:'>95%',r:'R-NEW1b 情境建模'},
+  {l:'法務·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R6排除 知識查詢'},
+  {l:'法務·MED',m:'GPT-4o-mini',q:'>90%',r:'R3'},
+  {l:'法務·HIGH',m:'GPT-4o',q:'>97%',r:'R6 領域觸發'},
+  {l:'行銷·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R2'},
+  {l:'行銷·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'行銷·HIGH',m:'Claude Sonnet',q:'>92%',r:'R5'},
+  {l:'產品·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R1'},
+  {l:'產品·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'產品·HIGH',m:'GPT-4o',q:'>97%',r:'R-NEW2 PRD/規格'},
+  {l:'營運·LOW',m:'Cache → Gemini Flash',q:'>75%',r:'R1'},
+  {l:'營運·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'營運·HIGH',m:'GPT-4o',q:'>95%',r:'R5'},
+  {l:'數據·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R1 指標查詢'},
+  {l:'數據·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
+  {l:'數據·HIGH',m:'GPT-4o',q:'>96%',r:'R5 推論/建模'},
+  {l:'分析·HIGH',m:'GPT-4o',q:'>95%',r:'R5'},
+];
+const rt=document.getElementById('rules-table');
+rt.innerHTML='<div style="display:grid;grid-template-columns:1fr 160px 72px 100px;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--b1);font-size:10px;font-family:var(--display);color:var(--t3);letter-spacing:0.06em"><span>領域·難度</span><span>目標模型</span><span>品質門檻</span><span>觸發規則</span></div>';
+rules.forEach(r=>{rt.innerHTML+=`<div class="rule-row"><span style="color:var(--t1)">${r.l}</span><select style="font-size:10px;padding:3px 6px;background:var(--bg2);border-color:var(--b2)">${['Gemini 2.0 Flash','Cache → Gemini Flash','GPT-4o-mini','Claude Haiku','GPT-4o','Claude Sonnet'].map(m=>`<option${m===r.m?' selected':''}>${m}</option>`).join('')}</select><select style="font-size:10px;padding:3px 6px;background:var(--bg2);border-color:var(--b2)">${['>75%','>80%','>88%','>90%','>92%','>95%','>96%','>97%'].map(q=>`<option${q===r.q?' selected':''}>${q}</option>`).join('')}</select><span style="font-size:9px;color:var(--t3);font-family:var(--mono)">${r.r}</span></div>`;});
+
+// ── DASH LOG ──────────────────────────
+const dashLogs=[
+  {t:'14:31:44',uc:'HR',c:'LOW',tok:9,m:'Cache hit',mc:'mt-cache',cost:'$0.000000',s:'100%',lat:'3ms',q:'—',rule:'R9'},
+  {t:'14:31:58',uc:'財務',c:'LOW',tok:28,m:'Gemini 2.0 Flash',mc:'mt-flash',cost:'$0.000003',s:'99%',lat:'198ms',q:'95%',rule:'R-NEW1a'},
+  {t:'14:32:01',uc:'客服',c:'LOW',tok:142,m:'Gemini 2.0 Flash',mc:'mt-flash',cost:'$0.000014',s:'97%',lat:'218ms',q:'94%',rule:'R1'},
+  {t:'14:32:09',uc:'法務',c:'HIGH',tok:421,m:'GPT-4o',mc:'mt-gpt4',cost:'$0.002105',s:'0%',lat:'1102ms',q:'98%',rule:'R6'},
+  {t:'14:32:14',uc:'內容',c:'MED',tok:891,m:'GPT-4o-mini',mc:'mt-mini',cost:'$0.000134',s:'97%',lat:'441ms',q:'92%',rule:'R3'},
+  {t:'14:32:19',uc:'HR',c:'MED',tok:380,m:'GPT-4o-mini',mc:'mt-mini',cost:'$0.000057',s:'99%',lat:'387ms',q:'91%',rule:'R3'},
+  {t:'14:32:25',uc:'產品',c:'HIGH',tok:512,m:'GPT-4o',mc:'mt-gpt4',cost:'$0.002560',s:'0%',lat:'934ms',q:'97%',rule:'R-NEW2'},
+  {t:'14:32:31',uc:'數據',c:'LOW',tok:8,m:'Gemini 2.0 Flash',mc:'mt-flash',cost:'$0.000001',s:'99%',lat:'187ms',q:'95%',rule:'R1'},
+  {t:'14:32:38',uc:'行銷',c:'HIGH',tok:780,m:'Claude Sonnet',mc:'mt-sonnet',cost:'$0.002340',s:'35%',lat:'821ms',q:'96%',rule:'R5'},
+  {t:'14:32:44',uc:'知識',c:'LOW',tok:64,m:'Cache hit',mc:'mt-cache',cost:'$0.000000',s:'100%',lat:'4ms',q:'—',rule:'R9'},
+];
+const dl=document.getElementById('dash-log');
+dashLogs.forEach(r=>{dl.innerHTML+=`<tr><td style="font-family:var(--mono);color:var(--t3)">${r.t}</td><td>${r.uc}</td><td><span class="tag tag-${r.c.toLowerCase()}">${r.c}</span></td><td style="font-family:var(--mono)">${r.tok}</td><td><span class="model-tag ${r.mc}">${r.m}</span></td><td style="font-family:var(--mono)">${r.cost}</td><td style="color:var(--teal);font-family:var(--display);font-weight:500">${r.s}</td><td style="color:var(--teal)">${r.q}</td><td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${r.rule}</td><td style="font-family:var(--mono)">${r.lat}</td></tr>`;});
+
+// ── UPTIME GRID ───────────────────────
+const ug=document.getElementById('uptime-grid');
+for(let i=0;i<90;i++){const d=document.createElement('div');d.className='ud';const v=Math.random();d.style.background=v>0.04?'var(--teal)':v>0.015?'var(--amber)':'var(--red)';ug.appendChild(d);}
+
+// ── CHARTS ────────────────────────────
+function initCharts(){
+  const days=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-13+i);return(d.getMonth()+1)+'/'+(d.getDate());});
+  const base=days.map(()=>Math.round(1400+Math.random()*400));
+  const routed=base.map(v=>Math.round(v*(0.55+Math.random()*0.1)));
+  new Chart(document.getElementById('costChart'),{type:'line',data:{labels:days,datasets:[{data:base,borderColor:'rgba(255,95,109,0.7)',backgroundColor:'rgba(255,95,109,0.05)',tension:0.3,borderWidth:1.5,pointRadius:2,pointBackgroundColor:'rgba(255,95,109,0.7)'},{data:routed,borderColor:'rgba(0,212,170,0.8)',backgroundColor:'rgba(0,212,170,0.05)',tension:0.3,borderWidth:1.5,pointRadius:2,fill:true,pointBackgroundColor:'rgba(0,212,170,0.8)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v,font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480',maxRotation:45},grid:{display:false},border:{display:false}}}}});
+  new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:['Gemini Flash','GPT-4o-mini','Cache','Claude Haiku','GPT-4o'],datasets:[{data:[38,31,14,10,7],backgroundColor:['#3b9eff','#86efac','#2d4460','#c4b5fd','#ff5f6d'],borderWidth:0,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false}}}});
+  new Chart(document.getElementById('costCompareChart'),{type:'bar',data:{labels:['GPT-4o','Claude Sonnet','Gemini 1.5Pro','GPT-4o-mini','Claude Haiku','Gemini Flash','Groq Llama'],datasets:[{data:[5.0,3.0,1.25,0.15,0.25,0.10,0.06],backgroundColor:['rgba(255,95,109,0.7)','rgba(167,139,250,0.7)','rgba(59,158,255,0.7)','rgba(134,239,172,0.7)','rgba(255,179,71,0.7)','rgba(0,212,170,0.8)','rgba(74,100,128,0.7)'],borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v,font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480'},grid:{display:false},border:{display:false}}}}});
+  const months=['Oct','Nov','Dec','Jan','Feb','Mar'];
+  const bm=[41200,43800,52100,48900,51200,44800];
+  const rm=bm.map(v=>Math.round(v*0.59));
+  new Chart(document.getElementById('auditChart'),{type:'bar',data:{labels:months,datasets:[{data:bm,backgroundColor:'rgba(255,95,109,0.25)',borderColor:'rgba(255,95,109,0.7)',borderWidth:1,borderRadius:3},{data:rm,backgroundColor:'rgba(0,212,170,0.2)',borderColor:'rgba(0,212,170,0.7)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'K',font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480'},grid:{display:false},border:{display:false}}}}});
+}
+
+
+// ── AUTO-LEARN & ANNOTATION ──────────
+function renderAnnotationQueue(){
+  const el=document.getElementById('annotation-queue');
+  const qc=document.getElementById('queue-count');
+  if(qc)qc.textContent=autoLearnQueue.length;
+  if(!el)return;
+  if(autoLearnQueue.length===0){el.innerHTML='<div style="text-align:center;color:var(--t3);font-size:12px;padding:20px 0">尚無待標注案例。使用 Live Router 模擬請求以產生標注隊列。</div>';return;}
+  el.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+autoLearnQueue.slice().reverse().map((item,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg2);border-radius:var(--r8);padding:9px 12px">
+      <div style="flex:1">
+        <div style="font-size:11px;font-style:italic;color:var(--t2);margin-bottom:3px">"${(item.prompt||'').substring(0,80)}${item.prompt&&item.prompt.length>80?'…':''}"</div>
+        <div style="font-size:10px;color:var(--t3)">${item.uc||''} · ${item.rule||''} · ${item.ts||''}</div>
       </div>
-    </div>`;
-  container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
-  return id;
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button onclick="confirmLabel(${autoLearnQueue.length-1-i},'LOW')" style="font-size:10px;padding:2px 7px;background:#E1F5EE;color:#085041;border:0.5px solid #5DCAA5;border-radius:4px;cursor:pointer">LOW</button>
+        <button onclick="confirmLabel(${autoLearnQueue.length-1-i},'MED')" style="font-size:10px;padding:2px 7px;background:#FAEEDA;color:#633806;border:0.5px solid #EF9F27;border-radius:4px;cursor:pointer">MED</button>
+        <button onclick="confirmLabel(${autoLearnQueue.length-1-i},'HIGH')" style="font-size:10px;padding:2px 7px;background:#FCEBEB;color:#791F1F;border:0.5px solid #F09595;border-radius:4px;cursor:pointer">HIGH</button>
+      </div>
+    </div>`).join('')+'</div>';
 }
+let labeledHistory=[];
+function confirmLabel(idx, cx) {
+  const item = autoLearnQueue[idx];
+  if (!item) return;
+  item.confirmed = cx;
+  labeledHistory.unshift({ ...item, confirmed: cx, labeledAt: new Date().toLocaleTimeString() });
+  autoLearnQueue.splice(idx, 1);
+  totalLearnCount++;
 
-function removeThinking(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
-
-function setLoading(val) {
-  isLoading = val;
-  const btn = document.getElementById('sendBtn');
-  btn.disabled = val;
-  btn.classList.toggle('active', !val);
-}
-
-function clearChat() {
-  messages = [];
-  const container = document.getElementById('chatMessages');
-  container.innerHTML = '';
-  container.appendChild(document.getElementById('emptyState') || createEmptyState());
-  document.getElementById('emptyState').style.display = 'flex';
-}
-
-function createEmptyState() {
-  const el = document.createElement('div');
-  el.id = 'emptyState';
-  el.className = 'empty-state';
-  el.innerHTML = `
-    <svg class="empty-hex" viewBox="0 0 48 48" fill="none">
-      <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" stroke="rgba(0,230,118,0.3)" stroke-width="1"/>
-      <circle cx="24" cy="24" r="3" fill="rgba(0,230,118,0.4)"/>
-    </svg>
-    <div class="empty-title">AWAITING INPUT</div>
-    <div class="empty-sub">Toggle Casca Engine ON to see intelligent routing in action</div>`;
-  return el;
-}
-
-function useSuggest(btn) {
-  const ta = document.getElementById('chatInput');
-  ta.value = btn.textContent;
-  ta.focus();
-  adjustTextarea(ta);
-}
-
-function escapeHtml(str) {
-  return str
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/\n/g,'<br>');
-}
-
-function adjustTextarea(ta) {
-  ta.style.height = 'auto';
-  ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-}
-
-// ════════════════════════════════════════════════════════════════
-//  CONFIG DRAWER
-// ════════════════════════════════════════════════════════════════
-function toggleConfig() {
-  const drawer = document.getElementById('configDrawer');
-  const isOpen = drawer.classList.toggle('open');
-  if (isOpen) {
-    document.getElementById('cfg-casca').value  = CONFIG.CASCA_API_KEY  !== 'YOUR_CASCA_KEY'  ? CONFIG.CASCA_API_KEY  : '';
-    document.getElementById('cfg-url').value    = CONFIG.CASCA_BASE_URL;
-  }
-}
-
-function saveConfig() {
-  const cas = document.getElementById('cfg-casca').value.trim();
-  const url = document.getElementById('cfg-url').value.trim();
-  if (cas) { CONFIG.CASCA_API_KEY  = cas; localStorage.setItem('casca_api_key', cas); }
-  if (url) { CONFIG.CASCA_BASE_URL = url; localStorage.setItem('casca_base_url', url); }
-  document.getElementById('configDrawer').classList.remove('open');
-  showToast('✓ Configuration saved');
-}
-
-// ════════════════════════════════════════════════════════════════
-//  TOAST
-// ════════════════════════════════════════════════════════════════
-let toastTimer;
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
-}
-
-// ════════════════════════════════════════════════════════════════
-//  KEYBOARD
-// ════════════════════════════════════════════════════════════════
-document.getElementById('chatInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-});
-document.getElementById('chatInput').addEventListener('input', function() {
-  adjustTextarea(this);
-});
-
-// ── Boot: populate config inputs from localStorage ────────
-document.addEventListener('DOMContentLoaded', () => {
-  const stored_url = localStorage.getItem('casca_base_url');
-  if (stored_url) CONFIG.CASCA_BASE_URL = stored_url;
-  setLoading(false);
-});
-
-// ════════════════════════════════════════════════════════════════
-//  MOBILE TABS
-// ════════════════════════════════════════════════════════════════
-function mobTab(tab) {
-  const chatPanel  = document.querySelector('.chat-panel');
-  const intelPanel = document.querySelector('.intel-panel');
-  const tabChat    = document.getElementById('mob-tab-chat');
-  const tabIntel   = document.getElementById('mob-tab-intel');
-
-  const activeStyle   = 'background:rgba(0,230,118,0.08);border-bottom:2px solid var(--green);color:var(--green);';
-  const inactiveStyle = 'background:transparent;border-bottom:2px solid transparent;color:var(--t3);';
-
-  if (tab === 'intel') {
-    intelPanel.classList.add('mob-open');
-    chatPanel.style.flex = '0 0 0';
-    chatPanel.style.overflow = 'hidden';
-    chatPanel.style.minHeight = '0';
-    tabIntel.style.cssText = tabIntel.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'') + activeStyle;
-    tabChat.style.cssText  = tabChat.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'')  + inactiveStyle;
+  // Sync label into CascaClassifier engine's internal queue
+  if (typeof CascaClassifier !== 'undefined') {
+    CascaClassifier.confirmLabel(
+      CascaClassifier.autoLearnQueue.length - 1 - idx, cx
+    );
+    accuracyScore = CascaClassifier.accuracyScore;
   } else {
-    intelPanel.classList.remove('mob-open');
-    chatPanel.style.flex = '';
-    chatPanel.style.overflow = '';
-    chatPanel.style.minHeight = '';
-    tabChat.style.cssText  = tabChat.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'')  + activeStyle;
-    tabIntel.style.cssText = tabIntel.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'') + inactiveStyle;
+    accuracyScore = Math.min(98.5, accuracyScore + 0.012);
   }
+
+  const tl = document.getElementById('total-labeled');
+  if (tl) tl.textContent = 1000 + totalLearnCount;
+
+  const a = document.getElementById('acc-score');
+  if (a) a.textContent = accuracyScore.toFixed(1) + '%';
+
+  const ts = document.getElementById('train-status');
+  if (ts) ts.textContent = `最後更新：${new Date().toLocaleTimeString()}，累計改善 +${(accuracyScore - 94.1).toFixed(2)}%`;
+
+  const lt = document.getElementById('last-train');
+  if (lt) lt.textContent = new Date().toLocaleTimeString();
+
+  renderAnnotationQueue();
+  renderLabeledLog();
+  if (totalLearnCount % 10 === 0) animateTrainBar();
+  updateLearnBadge();
+}
+function renderLabeledLog(){
+  const tbody=document.getElementById('labeled-log');
+  if(!tbody)return;
+  tbody.innerHTML=labeledHistory.slice(0,10).map(item=>`
+    <tr>
+      <td style="font-size:10px;color:var(--t3);font-family:var(--mono)">${item.labeledAt||''}</td>
+      <td style="font-size:11px;font-style:italic;max-width:200px">"${(item.prompt||'').substring(0,40)}…"</td>
+      <td style="font-size:10px;color:var(--t3)">${item.uc||''}</td>
+      <td><span class="tag tag-ambig" style="font-size:9px">AMBIG</span></td>
+      <td><span class="tag tag-${(item.confirmed||'med').toLowerCase()}" style="font-size:9px">${item.confirmed||'MED'}</span></td>
+    </tr>`).join('');
+}
+function animateTrainBar(){
+  const bar=document.getElementById('train-bar');if(!bar)return;
+  bar.style.width='0%';
+  let w=0;const iv=setInterval(()=>{w+=5;bar.style.width=Math.min(w,100)+'%';if(w>=100)clearInterval(iv);},50);
+}
+function triggerRetrain(){
+  const ts=document.getElementById('train-status');
+  if(ts)ts.textContent='重新訓練中…';
+  animateTrainBar();
+  setTimeout(()=>{
+    accuracyScore=Math.min(98.5,accuracyScore+0.2);
+    const a=document.getElementById('acc-score');if(a)a.textContent=accuracyScore.toFixed(1)+'%';
+    const lt=document.getElementById('last-train');if(lt)lt.textContent=new Date().toLocaleTimeString();
+    if(ts)ts.textContent=`訓練完成 ${new Date().toLocaleTimeString()}，準確率 +0.2% 提升`;
+  },2000);
+}
+function addTrainingSample(){
+  const p=document.getElementById('new-sample-prompt').value.trim();
+  if(!p)return;
+  document.getElementById('new-sample-prompt').value='';
+  const badge=document.getElementById('sample-added');
+  if(badge){badge.style.display='inline';setTimeout(()=>badge.style.display='none',2000);}
 }
 
-// After a routing decision on mobile, briefly flash the Results tab
-function flashResultsTab() {
-  if (window.innerWidth <= 660) {
-    const btn = document.getElementById('mob-tab-intel');
-    if (btn) {
-      btn.style.color = 'var(--green)';
-      btn.style.background = 'rgba(0,230,118,0.15)';
-      setTimeout(() => {
-        if (!btn.style.borderBottom?.includes('var(--green)')) {
-          btn.style.color = 'var(--t3)';
-          btn.style.background = 'transparent';
-        }
-      }, 2500);
-    }
-  }
-}
+// ── INIT ──────────────────────────────
+renderAnnotationQueue();
 
+// ══════════════════════════════════════════════════════
+//  CASCA AUTH + API INTEGRATION
+//  Connects to:  Supabase Auth  +  /api/* backend
+// ══════════════════════════════════════════════════════
 
-// ════════════════════════════════════════════════════════════════
-//  SUPABASE AUTH — same account as casca-admin
-// ════════════════════════════════════════════════════════════════
-const SB_URL  = 'https://azxutenowfoamphdjwya.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eHV0ZW5vd2ZvYW1waGRqd3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzU3MDUsImV4cCI6MjA4OTg1MTcwNX0.V_8BFYZ_kwYYuuCyGlllipaptKPNR2iJ6E8_SdMx7Ho';
-
+// ── Supabase client ────────────────────────────────────
 let _sb = null;
 function getSB() {
   if (!_sb && window.supabase) {
-    _sb = window.supabase.createClient(SB_URL, SB_ANON);
+    _sb = window.supabase.createClient(
+      CASCA_CONFIG.supabaseUrl,
+      CASCA_CONFIG.supabaseAnonKey
+    );
   }
   return _sb;
 }
 
+// ── Active API key (set after login / key load) ─────────
+let activeApiKey = localStorage.getItem('casca_active_key') || null;
+
+// ── Auth helpers ────────────────────────────────────────
+function showAuthModal() {
+  document.getElementById('auth-modal').style.display = 'flex';
+}
+function hideAuthModal() {
+  document.getElementById('auth-modal').style.display = 'none';
+}
+
 async function authSignIn() {
-  const email = document.getElementById('auth-email').value.trim();
-  const pw    = document.getElementById('auth-pw').value;
+  const sb    = getSB();
+  const email = document.getElementById('auth-email-in').value.trim();
+  const pw    = document.getElementById('auth-pw-in').value;
   const errEl = document.getElementById('auth-error');
-  const btn   = document.getElementById('auth-btn');
   errEl.style.display = 'none';
-  document.getElementById('auth-success').style.display = 'none';
-  if (!email || !pw) {
-    errEl.textContent   = '請輸入 Email 和密碼';
-    errEl.style.display = 'block';
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = '驗證中…';
-  try {
-    const sb = getSB();
-    const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
-    if (error) throw error;
-    onAuthReady(data.session);
-  } catch (err) {
-    errEl.textContent   = err.message || '登入失敗，請確認帳號密碼';
-    errEl.style.display = 'block';
-  }
-  btn.disabled = false;
-  btn.textContent = '登入';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  hideAuthModal();
+  afterLogin();
+}
+
+async function authSignUp() {
+  const sb    = getSB();
+  const email = document.getElementById('auth-email-in').value.trim();
+  const pw    = document.getElementById('auth-pw-in').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  const { error } = await sb.auth.signUp({ email, password: pw });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  errEl.style.cssText = 'display:block;background:rgba(0,212,170,0.08);border-color:rgba(0,212,170,0.3);color:var(--teal)';
+  errEl.textContent = '✓ 驗證信已寄出，請確認後再登入';
 }
 
 async function authSignOut() {
   const sb = getSB();
-  if (sb) await sb.auth.signOut();
-  // Show overlay, hide app
-  document.getElementById('auth-overlay').style.display = 'flex';
-  document.getElementById('auth-email').value = '';
-  document.getElementById('auth-pw').value    = '';
-  document.getElementById('user-badge').style.display  = 'none';
-  document.getElementById('logout-btn').style.display  = 'none';
-  document.getElementById('user-email').textContent    = '—';
-  document.getElementById('user-avatar').textContent   = '?';
+  await sb.auth.signOut();
+  activeApiKey = null;
+  localStorage.removeItem('casca_active_key');
+  updateAuthUI(null);
 }
 
-async function authForgotPassword() {
-  const emailEl  = document.getElementById('auth-email');
-  const successEl = document.getElementById('auth-success');
-  const errEl    = document.getElementById('auth-error');
-  const email    = emailEl.value.trim();
-  errEl.style.display    = 'none';
-  successEl.style.display = 'none';
-  if (!email) {
-    errEl.textContent   = '請先輸入你的 Email，再點「忘記密碼」';
-    errEl.style.display = 'block';
-    emailEl.focus();
-    return;
-  }
-  const sb = getSB();
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://cascaio.com/reset-password',
+function afterLogin() {
+  getSB().auth.getUser().then(({ data }) => {
+    if (data?.user) {
+      updateAuthUI(data.user);
+      loadKeys();
+      loadMe();
+    }
   });
-  if (error) {
-    errEl.textContent   = '寄送失敗：' + error.message;
-    errEl.style.display = 'block';
-    return;
-  }
-  successEl.textContent   = '✓ 重設密碼連結已寄到 ' + email;
-  successEl.style.display = 'block';
 }
 
-function onAuthReady(session) {
-  if (!session) {
-    document.getElementById('auth-overlay').style.display = 'flex';
-    return;
+function updateAuthUI(user) {
+  const loggedIn  = document.getElementById('auth-logged-in');
+  const loggedOut = document.getElementById('auth-logged-out');
+  const emailEl   = document.getElementById('auth-email');
+  if (user) {
+    loggedIn.style.display  = 'flex';
+    loggedOut.style.display = 'none';
+    emailEl.textContent     = user.email;
+    // Inject SDK key placeholders if we have an active key
+    if (activeApiKey) injectSdkKey(activeApiKey);
+  } else {
+    loggedIn.style.display  = 'none';
+    loggedOut.style.display = 'flex';
   }
-  // Hide login overlay, show app
-  document.getElementById('auth-overlay').style.display = 'none';
-  const email = session.user?.email || '';
-  document.getElementById('user-email').textContent  = email;
-  document.getElementById('user-avatar').textContent = email.slice(0, 2).toUpperCase();
-  document.getElementById('user-badge').style.display  = 'flex';
-  document.getElementById('logout-btn').style.display  = '';
 }
 
-// ── Init: check existing session on load ─────────────────────
-(function initAuth() {
+// ── Auth state listener ──────────────────────────────────
+function initAuth() {
   const sb = getSB();
-  if (!sb) { console.warn('[terminal] Supabase not available'); return; }
+  if (!sb) return;
+  document.getElementById('auth-bar').style.display = 'flex';
   sb.auth.getSession().then(({ data: { session } }) => {
-    onAuthReady(session);
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); }
+    else updateAuthUI(null);
   });
   sb.auth.onAuthStateChange((_event, session) => {
-    if (session) onAuthReady(session);
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); }
+    else updateAuthUI(null);
   });
-})();
+}
 
-// Enter key triggers login
-document.getElementById('auth-email').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('auth-pw').focus();
-});
-document.getElementById('auth-pw').addEventListener('keydown', e => {
-  if (e.key === 'Enter') authSignIn();
-});
+// ── API Keys ─────────────────────────────────────────────
+async function loadKeys() {
+  if (!activeApiKey) return;
+  const loadEl = document.getElementById('keys-loading');
+  if (loadEl) loadEl.textContent = '載入中…';
+
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/keys`, {
+    headers: { Authorization: `Bearer ${activeApiKey}` }
+  }).catch(() => null);
+
+  if (loadEl) loadEl.textContent = '';
+  if (!res || !res.ok) return;
+  const { keys } = await res.json();
+  renderKeys(keys);
+}
+
+function renderKeys(keys) {
+  const tbody = document.getElementById('keys-tbody');
+  if (!tbody) return;
+  if (!keys || keys.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:20px">尚無 API Key，點擊「生成新 Key」建立</td></tr>';
+    return;
+  }
+  tbody.innerHTML = keys.map(k => `
+    <tr>
+      <td style="color:var(--t1);font-weight:500">${k.label || '—'}</td>
+      <td style="font-family:var(--mono);color:var(--teal)">${k.key_prefix}…</td>
+      <td><span class="chip ${k.is_active ? 'chip-live' : 'chip-warn'}">${k.is_active ? '啟用' : '停用'}</span></td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${k.last_used_at ? new Date(k.last_used_at).toLocaleString('zh-TW') : '從未'}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${new Date(k.created_at).toLocaleString('zh-TW')}</td>
+      <td><button class="btn" style="font-size:10px;padding:2px 8px" onclick="setActiveKey('${k.key_prefix}')">設為主要</button></td>
+    </tr>`).join('');
+}
+
+async function generateKey() {
+  const sb = getSB();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showAuthModal(); return; }
+
+  // First call needs a valid key — bootstrap: use session token to get first key
+  // or use an existing active key
+  const label  = document.getElementById('key-label-in')?.value.trim() || null;
+  const bearer = activeApiKey || session.access_token; // first time use supabase JWT
+
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+    body: JSON.stringify({ label })
+  }).catch(() => null);
+
+  if (!res || !res.ok) {
+    alert('生成失敗，請確認後端服務是否正在運行');
+    return;
+  }
+  const data = await res.json();
+  const rawKey = data.key;
+
+  // Show one-time banner
+  const banner = document.getElementById('new-key-banner');
+  document.getElementById('new-key-value').textContent = rawKey;
+  banner.style.display = 'block';
+
+  // Store as active key
+  activeApiKey = rawKey;
+  localStorage.setItem('casca_active_key', rawKey);
+  injectSdkKey(rawKey);
+
+  if (document.getElementById('key-label-in')) document.getElementById('key-label-in').value = '';
+  loadKeys();
+}
+
+function copyNewKey() {
+  const key = document.getElementById('new-key-value').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    const btn = document.querySelector('#new-key-banner button');
+    if (btn) { btn.textContent = '✓ 已複製'; setTimeout(() => btn.textContent = '複製', 2000); }
+  });
+}
+
+function setActiveKey(prefix) {
+  // Prompt user to paste the full key (we only store prefix in DB for display)
+  const key = prompt(`請貼上前綴為「${prefix}」的完整 API Key：`);
+  if (!key || !key.startsWith('csk_')) { alert('無效的 Key 格式'); return; }
+  activeApiKey = key;
+  localStorage.setItem('casca_active_key', key);
+  injectSdkKey(key);
+  alert('✓ 已設定為主要 API Key');
+}
+
+// ── SDK guide key injection ──────────────────────────────
+function injectSdkKey(key) {
+  ['sdk-key-curl','sdk-key-js','sdk-key-py'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = key;
+  });
+}
+
+function showSdkTab(tab, btn) {
+  ['curl','js','python'].forEach(t => {
+    const el = document.getElementById('sdk-'+t);
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('#page-apikeys .btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function copySdk(sectionId) {
+  const pre = document.querySelector(`#${sectionId} pre`);
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    const btn = document.querySelector(`#${sectionId} button`);
+    if (btn) { btn.textContent = '✓ 已複製'; setTimeout(() => btn.textContent = '複製', 2000); }
+  });
+}
+
+// ── Usage Logs ────────────────────────────────────────────
+async function loadLogs() {
+  if (!activeApiKey) {
+    document.getElementById('logs-tbody').innerHTML =
+      '<tr><td colspan="9" style="text-align:center;color:var(--t3);padding:20px">請先登入並設定 API Key</td></tr>';
+    return;
+  }
+  const loadEl = document.getElementById('logs-loading');
+  if (loadEl) loadEl.textContent = '載入中…';
+
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/logs?limit=50`, {
+    headers: { Authorization: `Bearer ${activeApiKey}` }
+  }).catch(() => null);
+
+  if (loadEl) loadEl.textContent = '';
+  if (!res || !res.ok) return;
+  const { logs, total } = await res.json();
+  renderLogs(logs, total);
+}
+
+const mClassMap2 = {
+  'GPT-4o':'mt-gpt4','GPT-4o-mini':'mt-mini','Gemini 2.0 Flash':'mt-flash',
+  'Claude Haiku':'mt-haiku','Claude Sonnet':'mt-sonnet','Cache hit':'mt-cache'
+};
+
+function renderLogs(logs, total) {
+  const tbody = document.getElementById('logs-tbody');
+  if (!logs || logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--t3);padding:20px">尚無請求紀錄</td></tr>';
+    return;
+  }
+  // Metrics
+  const totalCost   = logs.reduce((s, l) => s + (l.cost_usd || 0), 0);
+  const avgSavings  = Math.round(logs.reduce((s, l) => s + (l.savings_pct || 0), 0) / logs.length);
+  const autoCount   = logs.filter(l => l.auto_learn).length;
+  document.getElementById('lm-total').textContent    = total || logs.length;
+  document.getElementById('lm-cost').textContent     = '$' + totalCost.toFixed(4);
+  document.getElementById('lm-savings').textContent  = avgSavings + '%';
+  document.getElementById('lm-autolearn').textContent= autoCount;
+
+  tbody.innerHTML = logs.map(l => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--t3);font-size:10px">${new Date(l.created_at).toLocaleTimeString('zh-TW')}</td>
+      <td><span class="tag tag-${(l.cx||'med').toLowerCase()}">${l.cx}</span></td>
+      <td><span class="model-tag ${mClassMap2[l.model]||'mt-mini'}">${l.model}</span></td>
+      <td style="font-family:var(--mono)">${l.tokens}</td>
+      <td style="font-family:var(--mono)">$${(l.cost_usd||0).toFixed(5)}</td>
+      <td style="color:var(--teal)">${l.savings_pct}%</td>
+      <td style="color:var(--t3)">${l.lang||'—'}</td>
+      <td style="color:${l.auto_learn?'var(--amber)':'var(--t4)'}">${l.auto_learn?'⚠ 是':'—'}</td>
+      <td style="font-family:var(--mono);color:var(--t3)">${l.latency_ms||'—'}ms</td>
+    </tr>`).join('');
+}
+
+// ── API Playground (Live via backend) ──────────────────────
+async function runSimApi() {
+  const uc     = document.getElementById('sim-uc').value;
+  const prompt = document.getElementById('sim-prompt').value.trim();
+  const q      = document.getElementById('sim-q').value;
+  const resultEl = document.getElementById('sim-result');
+
+  if (!prompt) return;
+  if (!activeApiKey) { showAuthModal(); return; }
+
+  resultEl.innerHTML = '<div style="color:var(--t3);font-size:11px;text-align:center;padding:32px 0">呼叫後端 API 中…</div>';
+
+  // v2 OpenAI-compatible endpoint; also accepts /api/route compat alias
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${activeApiKey}` },
+    body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], uc, qualityTier: q })
+  }).catch(err => {
+    resultEl.innerHTML = `<div style="color:var(--red);font-size:11px;padding:20px">API 錯誤: ${err.message}</div>`;
+    return null;
+  });
+
+  if (!res) return;
+  const data = await res.json();
+  if (!res.ok) {
+    resultEl.innerHTML = `<div style="color:var(--red);font-size:11px;padding:20px">${data.error || '未知錯誤'}</div>`;
+    return;
+  }
+
+  // v2 response has metadata in _casca field
+  const casca = data._casca || {};
+  const r = {
+    m:    casca.model    || data.model    || 'Unknown',
+    c:    casca.cx       || data.cx       || 'MED',
+    cx:   casca.cx       || data.cx       || 'MED',
+    tok:  (casca.tokensIn || 0) + (casca.tokensOut || 0) || data.tokens || 0,
+    cost: casca.costUsd  || data.costUsd  || 0,
+    base: casca.costUsd && casca.savingsPct < 100
+          ? (casca.costUsd / Math.max(0.001, 1 - casca.savingsPct / 100)) : casca.costUsd || 0,
+    pct:  casca.savingsPct ?? data.savingsPct ?? 0,
+    rule: casca.rule || data.rule || '',
+    modal: 'text',
+    lang: casca.lang  || data.lang  || 'EN',
+  };
+  const mLabel={video:'🎬 Video',medical_image:'🏥 Medical',legal_doc:'📄 Legal Doc',image:'🖼 Image',chart:'📊 Chart',doc:'📄 Doc'};
+  const modalBadge = r.modal && r.modal !== 'text'
+    ? `<span style="font-size:9px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;font-weight:600">${mLabel[r.modal]||r.modal}</span>` : '';
+  const cx = r.cx || 'MED';
+  const cacheHit = casca.cacheHit || false;
+  const apiTag = cacheHit
+    ? '<span style="font-size:9px;background:rgba(0,212,170,0.12);color:var(--teal);padding:2px 7px;border-radius:3px;font-weight:600">⚡ Cache Hit · 0ms</span>'
+    : '<span style="font-size:9px;background:rgba(0,212,170,0.12);color:var(--teal);padding:2px 7px;border-radius:3px;font-weight:600">✓ via API · '+(casca.latencyMs||0)+'ms</span>';
+  resultEl.innerHTML=`<div style="display:flex;flex-direction:column;gap:9px;text-align:left;padding:0">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span class="tag tag-${cx.toLowerCase()}">${cx}</span>
+      ${modalBadge}${apiTag}
+      <span style="font-size:9px;font-family:var(--mono);color:var(--t3);background:var(--bg2);padding:2px 7px;border-radius:3px">${r.rule||''}</span>
+    </div>
+    <div style="background:var(--bg2);border-radius:var(--r8);padding:9px 13px;display:flex;align-items:center;gap:8px">
+      <div style="flex:1"><div style="font-size:9px;color:var(--t3);font-family:var(--display);letter-spacing:0.06em;margin-bottom:3px">路由至</div><span class="model-tag ${mClassMap[r.m]||''}">${r.m}</span></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--t3)">${r.tok} tokens</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+      <div style="background:var(--bg2);border-radius:var(--r8);padding:7px 9px"><div style="font-size:9px;font-family:var(--display);color:var(--t3);letter-spacing:0.06em;margin-bottom:3px">費用</div><div style="font-family:var(--display);font-size:13px;font-weight:500">$${r.cost.toFixed(5)}</div></div>
+      <div style="background:var(--bg2);border-radius:var(--r8);padding:7px 9px"><div style="font-size:9px;font-family:var(--display);color:var(--t3);letter-spacing:0.06em;margin-bottom:3px">語言</div><div style="font-family:var(--display);font-size:13px;font-weight:500">${r.lang||'EN'}</div></div>
+      <div style="background:rgba(0,212,170,0.07);border:0.5px solid rgba(0,212,170,0.2);border-radius:var(--r8);padding:7px 9px"><div style="font-size:9px;font-family:var(--display);color:var(--teal);letter-spacing:0.06em;margin-bottom:3px">節省</div><div style="font-family:var(--display);font-size:13px;font-weight:500;color:var(--teal)">${r.pct}%</div></div>
+    </div>
+  </div>`;
+  appendStream(r.m, cx, r.tok, r.pct, uc, r.rule);
+}
+
+
+// ── Account info (/api/dashboard/me) ────────────────────────────
+async function loadMe() {
+  if (!activeApiKey) return;
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/me`, {
+    headers: { Authorization: `Bearer ${activeApiKey}` }
+  }).catch(() => null);
+  if (!res || !res.ok) return;
+  const me = await res.json();
+
+  // Update account chip in topnav
+  const nameEl   = document.getElementById('account-name');
+  const avatarEl = document.getElementById('account-avatar');
+  const quotaEl  = document.getElementById('account-quota');
+  if (nameEl)   nameEl.textContent   = me.company_name || me.email?.split('@')[0] || 'User';
+  if (avatarEl) avatarEl.textContent = (me.company_name || me.email || 'U').slice(0,2).toUpperCase();
+  if (quotaEl)  quotaEl.textContent  = `${me.quota_used.toLocaleString()}/${me.quota_limit.toLocaleString()}`;
+
+  // Update overview page company name
+  const overviewCo = document.getElementById('overview-company');
+  if (overviewCo) overviewCo.textContent = me.company_name || me.email?.split('@')[0] || 'User';
+
+  // Store balance for API Keys page display
+  window._meData = me;
+
+  // Update API Keys page if visible
+  const balEl = document.getElementById('me-balance');
+  if (balEl) balEl.textContent = '$' + Number(me.balance_credits || 0).toFixed(4);
+  const planEl = document.getElementById('me-plan');
+  if (planEl) planEl.textContent = me.plan?.toUpperCase() || '—';
+  const quotaBarEl = document.getElementById('me-quota-bar');
+  if (quotaBarEl) {
+    const pct = me.quota_limit > 0 ? (me.quota_used / me.quota_limit * 100).toFixed(1) : 0;
+    quotaBarEl.style.width = Math.min(pct, 100) + '%';
+    quotaBarEl.style.background = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--teal)';
+  }
+  const quotaTextEl = document.getElementById('me-quota-text');
+  if (quotaTextEl) quotaTextEl.textContent = `${me.quota_used.toLocaleString()} / ${me.quota_limit.toLocaleString()} 次`;
+}
+
+// ── Cache Pool ────────────────────────────────────────────────────
+async function loadCache() {
+  if (!activeApiKey) return;
+  const loadEl = document.getElementById('cache-loading');
+  if (loadEl) loadEl.textContent = '載入中…';
+
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/cache?limit=100`, {
+    headers: { Authorization: `Bearer ${activeApiKey}` }
+  }).catch(() => null);
+  if (loadEl) loadEl.textContent = '';
+  if (!res || !res.ok) return;
+  const { entries, total } = await res.json();
+  renderCache(entries, total);
+}
+
+function renderCache(entries, total) {
+  // Update metrics
+  const totalHits  = (entries || []).reduce((s, e) => s + (e.hit_count  || 0), 0);
+  const totalSaved = (entries || []).reduce((s, e) => s + (e.total_saved_usd || 0), 0);
+  const el = (id) => document.getElementById(id);
+  if (el('cache-count')) el('cache-count').textContent = total ?? entries?.length ?? 0;
+  if (el('cache-hits'))  el('cache-hits').textContent  = totalHits.toLocaleString();
+  if (el('cache-saved')) el('cache-saved').textContent = '$' + totalSaved.toFixed(4);
+
+  const tbody = el('cache-tbody');
+  if (!tbody) return;
+
+  if (!entries || entries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--t3);padding:24px">尚無快取條目 — 重複呼叫相同 prompt 3 次後自動建立</td></tr>';
+    return;
+  }
+
+  const mMap = {
+    'gpt-4o':'mt-gpt4','gpt-4o-mini':'mt-mini',
+    'gemini-2.0-flash-exp':'mt-flash','claude-3-5-sonnet-20241022':'mt-sonnet',
+    'claude-3-haiku-20240307':'mt-haiku','cache-hit':'mt-cache'
+  };
+
+  tbody.innerHTML = entries.map(e => {
+    const prompt   = (e.normalized_prompt || '').slice(0, 55) + (e.normalized_prompt?.length > 55 ? '…' : '');
+    const accessed = e.last_accessed_at ? new Date(e.last_accessed_at).toLocaleString('zh-TW', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const expires  = e.expires_at ? new Date(e.expires_at).toLocaleDateString('zh-TW') : '∞';
+    const cx       = (e.cx || 'LOW').toLowerCase();
+    const model    = e.model_used || '—';
+    return `<tr>
+      <td style="font-style:italic;color:var(--t2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.normalized_prompt||'').replace(/"/g,'&quot;')}">"${prompt}"</td>
+      <td><span class="tag tag-${cx}">${(e.cx||'LOW')}</span></td>
+      <td><span class="model-tag ${mMap[model]||'mt-mini'}" style="font-size:9px">${model}</span></td>
+      <td style="font-family:var(--mono);color:var(--teal);font-weight:600;text-align:center">${e.hit_count||0}</td>
+      <td style="font-family:var(--mono);color:var(--teal);text-align:right">$${Number(e.total_saved_usd||0).toFixed(4)}</td>
+      <td style="font-family:var(--mono);text-align:right;color:var(--t3)">$${Number(e.original_cost_usd||0).toFixed(5)}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${accessed}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${expires}</td>
+      <td><button class="btn" style="font-size:10px;padding:2px 8px;color:var(--red);border-color:var(--red2)" onclick="evictCache('${e.id}',this)">清除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function evictCache(id, btn) {
+  if (!activeApiKey) return;
+  btn.disabled = true;
+  btn.textContent = '…';
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/cache/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${activeApiKey}` }
+  }).catch(() => null);
+  if (res && res.ok) {
+    const row = btn.closest('tr');
+    if (row) row.remove();
+    // refresh metrics
+    loadCache();
+  } else {
+    btn.disabled = false;
+    btn.textContent = '清除';
+  }
+}
+
+async function flushAllCache() {
+  if (!activeApiKey) return;
+  if (!confirm('確定要清除所有快取？此操作無法復原。')) return;
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/cache`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${activeApiKey}` }
+  }).catch(() => null);
+  if (res && res.ok) {
+    loadCache();
+  }
+}
+
+// ── page switch hook: auto-load on navigate ──────────────
+const _origSwitchPage = switchPage;
+window.switchPage = function(id, el) {
+  _origSwitchPage(id, el);
+  if (id === 'logs')    loadLogs();
+  if (id === 'apikeys') { loadKeys(); loadMe(); }
+  if (id === 'cache')   loadCache();
+};
+
+// ── Boot ─────────────────────────────────────────────────
+initCharts();
+initAuth();
 
 </script>
 </body>
