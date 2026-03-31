@@ -384,7 +384,6 @@ textarea{resize:none;height:68px;line-height:1.5}
     <div class="tnav-tab" onclick="switchPage('apikeys',this)">🔑 API Keys</div>
     <div class="tnav-tab" onclick="switchPage('logs',this)">📋 使用紀錄</div>
     <div class="tnav-tab" onclick="switchPage('cache',this)">💾 快取池</div>
-    <div class="tnav-tab" onclick="switchPage('billing',this)">💳 Billing</div>
   </div>
   <div class="topnav-right">
     <div class="status-chip"><span class="status-dot"></span>Live</div>
@@ -442,10 +441,6 @@ textarea{resize:none;height:68px;line-height:1.5}
     <div class="sb-item" onclick="switchPage('providers',this)">
       <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="12" height="8" rx="1.5"/><path d="M4.5 7.5L6.5 9.5L10.5 5.5" stroke-linecap="round"/></svg>
       Providers
-    </div>
-    <div class="sb-item" onclick="switchPage('billing',this)">
-      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3" width="12" height="9" rx="1.5"/><path d="M1.5 6.5h12" stroke-linecap="round"/><path d="M4 9.5h3" stroke-linecap="round"/></svg>
-      Billing
     </div>
   </div>
   <div class="sidebar-footer">
@@ -870,8 +865,9 @@ textarea{resize:none;height:68px;line-height:1.5}
 </div>
 
 <!-- Auth modal -->
-<div id="auth-modal" style="display:none;position:fixed;inset:0;background:#00000060;z-index:500;align-items:center;justify-content:center">
-  <div style="background:var(--bg3);border:0.5px solid var(--b2);border-radius:var(--r16);padding:28px;width:360px;max-width:90vw">
+<div id="auth-modal" style="display:none;position:fixed;inset:0;background:#00000060;z-index:500;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg3);border:0.5px solid var(--b2);border-radius:var(--r16);padding:28px;width:360px;max-width:90vw;position:relative">
+    <button onclick="document.getElementById('auth-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--t3);font-size:22px;cursor:pointer;line-height:1;padding:4px;transition:color 0.15s" onmouseover="this.style.color='var(--t1)'" onmouseout="this.style.color='var(--t3)'">&times;</button>
     <div style="font-family:var(--display);font-size:16px;font-weight:600;margin-bottom:18px">登入 Casca</div>
     <div id="auth-error" style="display:none;background:var(--red2);border:0.5px solid rgba(255,95,109,0.3);color:var(--red);font-size:11px;padding:8px 12px;border-radius:6px;margin-bottom:12px"></div>
     <div style="margin-bottom:10px"><label class="field-label">Email</label><input id="auth-email-in" type="email" placeholder="you@company.com" style="width:100%"></div>
@@ -880,7 +876,6 @@ textarea{resize:none;height:68px;line-height:1.5}
       <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="authSignIn()">登入</button>
       <button class="btn" style="flex:1;justify-content:center" onclick="authSignUp()">註冊</button>
     </div>
-    <button onclick="hideAuthModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer">×</button>
   </div>
 </div>
 
@@ -1175,76 +1170,6 @@ print(data['cx'], data['model'], data['costUsd'])</pre>
   </div>
 </div>
 
-<!-- ═══ BILLING ═══ -->
-<div class="page" id="page-billing">
-  <div class="page-header">
-    <div class="ph-top">
-      <div><div class="ph-title">Billing & Subscription</div><div class="ph-sub">管理方案、餘額與交易紀錄</div></div>
-    </div>
-  </div>
-  <div class="page-content">
-
-    <!-- Account Balance -->
-    <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
-      <div class="mc mc-accent-teal">
-        <div class="mc-label">Current Plan</div>
-        <div class="mc-val" id="bill-plan">—</div>
-        <div class="mc-sub" id="bill-plan-sub">loading…</div>
-      </div>
-      <div class="mc">
-        <div class="mc-label">Token Usage (This Cycle)</div>
-        <div class="mc-val" id="bill-usage">—</div>
-        <div class="mc-sub" id="bill-usage-sub">loading…</div>
-      </div>
-      <div class="mc mc-accent-blue">
-        <div class="mc-label">Overage Balance</div>
-        <div class="mc-val" style="color:var(--teal)" id="bill-balance">—</div>
-        <div class="mc-sub">Available for overage charges</div>
-      </div>
-    </div>
-
-    <!-- Available Plans -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header"><div class="card-title">Available Plans</div></div>
-      <div class="card-body">
-        <div id="bill-plans-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
-          <div style="text-align:center;color:var(--t4);padding:20px;grid-column:1/-1">Loading plans…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Top-up -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header"><div class="card-title">Credit Top-up</div></div>
-      <div class="card-body">
-        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
-          <div style="flex:1;min-width:150px">
-            <label class="field-label">Amount (USD)</label>
-            <input type="text" id="topup-amount" value="50" placeholder="50">
-          </div>
-          <button class="btn btn-primary" id="topup-btn" onclick="topupCredits()">💳 Top Up via Stripe</button>
-        </div>
-        <div style="font-size:10px;color:var(--t4);margin-top:8px">Minimum $5 · Maximum $10,000 · Credits never expire</div>
-      </div>
-    </div>
-
-    <!-- Transaction History -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Transaction History</div>
-        <button class="btn" onclick="loadTransactions()" style="font-size:10px">↻ Refresh</button>
-      </div>
-      <div class="card-body" style="padding:0">
-        <table class="data-table">
-          <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Status</th><th>Description</th></tr></thead>
-          <tbody id="txn-tbody"><tr><td colspan="5" style="text-align:center;color:var(--t4);padding:20px">Loading…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
-</div>
-
 </div><!-- /main -->
 </div><!-- /body-wrap -->
 
@@ -1258,8 +1183,6 @@ function switchPage(id,el){
   // sync sidebar
   document.querySelectorAll('.sb-item').forEach(i=>{if(i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+id+"'"))i.classList.add('active')});
   document.querySelectorAll('.tnav-tab').forEach(i=>{if(i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+id+"'"))i.classList.add('active')});
-  // page-specific data loading
-  if (id === 'billing') setTimeout(loadBillingPage, 50);
   // close mobile sidebar after navigation
   if (window.innerWidth <= 768) closeMobSidebar();
 }
@@ -2095,139 +2018,7 @@ window.switchPage = function(id, el) {
   if (id === 'logs')    loadLogs();
   if (id === 'apikeys') { loadKeys(); loadMe(); }
   if (id === 'cache')   loadCache();
-  if (id === 'billing') loadBillingPage();
 };
-
-// ════════════════════════════════════════════════════════════════
-//  BILLING PAGE — subscribe, topup, transactions
-// ════════════════════════════════════════════════════════════════
-
-async function loadBillingPage() {
-  await Promise.all([loadBillingAccount(), loadBillingPlans(), loadTransactions()]);
-}
-
-async function loadBillingAccount() {
-  try {
-    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/me`, {
-      headers: { Authorization: `Bearer ${activeApiKey}` }
-    });
-    if (!res.ok) return;
-    const d = await res.json();
-    const el = id => document.getElementById(id);
-    el('bill-plan').textContent = d.plan_name || d.plan || 'Free';
-    el('bill-plan-sub').textContent = d.included_m_tokens
-      ? `${d.included_m_tokens}M tokens included/mo`
-      : 'No token quota';
-    const used = d.cycle_used_tokens || 0;
-    const included = (d.included_m_tokens || 0) * 1000000;
-    const pct = included > 0 ? Math.round((used / included) * 100) : 0;
-    el('bill-usage').textContent = (used / 1000000).toFixed(2) + 'M';
-    el('bill-usage-sub').textContent = included > 0
-      ? `${pct}% of ${d.included_m_tokens}M included`
-      : 'Unlimited (no plan limit)';
-    el('bill-balance').textContent = '$' + (parseFloat(d.balance_credits) || 0).toFixed(2);
-  } catch (e) { console.error('[billing] account:', e); }
-}
-
-async function loadBillingPlans() {
-  try {
-    // Use public plans list — get from dashboard/me for current plan, and fetch plans from apiBase
-    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/me`, {
-      headers: { Authorization: `Bearer ${activeApiKey}` }
-    });
-    if (!res.ok) return;
-    const me = await res.json();
-    const currentPlanId = me.plan_id;
-
-    // For now, show current plan info — full plan listing requires admin endpoint access
-    const grid = document.getElementById('bill-plans-grid');
-    const planName = me.plan_name || me.plan || 'Free';
-    const fee = me.monthly_fee_usd || 0;
-    const tokens = me.included_m_tokens || 0;
-    const overage = me.overage_rate_per_1m || 0;
-
-    grid.innerHTML = `
-      <div style="background:var(--bg4);border:1px solid var(--teal);border-radius:var(--r12);padding:16px;position:relative">
-        <div style="position:absolute;top:8px;right:8px"><span class="tag tag-low">Current</span></div>
-        <div style="font-family:var(--display);font-size:15px;font-weight:700;margin-bottom:6px">${planName}</div>
-        <div style="font-family:var(--display);font-size:22px;font-weight:500;color:var(--teal);margin-bottom:8px">$${parseFloat(fee).toFixed(0)}<span style="font-size:12px;color:var(--t3)">/mo</span></div>
-        <div style="font-size:11px;color:var(--t3);line-height:1.7">
-          ${tokens}M tokens included<br>
-          Overage: $${parseFloat(overage).toFixed(2)}/1M tokens
-        </div>
-      </div>
-      <div style="background:var(--bg4);border:0.5px solid var(--b2);border-radius:var(--r12);padding:16px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;color:var(--t3)">
-        <div style="font-size:24px">📩</div>
-        <div style="font-size:12px;text-align:center">Need a different plan?<br>Contact your account manager.</div>
-      </div>
-    `;
-  } catch (e) { console.error('[billing] plans:', e); }
-}
-
-async function topupCredits() {
-  const amount = parseFloat(document.getElementById('topup-amount').value);
-  if (isNaN(amount) || amount < 5 || amount > 10000) {
-    alert('Amount must be between $5 and $10,000');
-    return;
-  }
-  const btn = document.getElementById('topup-btn');
-  btn.disabled = true;
-  btn.textContent = 'Processing…';
-  try {
-    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/billing/topup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${activeApiKey}`,
-      },
-      body: JSON.stringify({ amount_usd: amount }),
-    });
-    const data = await res.json();
-    if (data.url) {
-      // Redirect to Stripe Checkout
-      window.location.href = data.url;
-    } else {
-      alert(data.error || 'Top-up failed. Stripe may not be configured.');
-    }
-  } catch (e) {
-    alert('Top-up request failed: ' + e.message);
-  }
-  btn.disabled = false;
-  btn.textContent = '💳 Top Up via Stripe';
-}
-
-async function loadTransactions() {
-  const tbody = document.getElementById('txn-tbody');
-  try {
-    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/billing/transactions?limit=20`, {
-      headers: { Authorization: `Bearer ${activeApiKey}` }
-    });
-    if (!res.ok) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t4);padding:20px">Unable to load transactions</td></tr>';
-      return;
-    }
-    const d = await res.json();
-    const txns = d.transactions || [];
-    if (!txns.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t4);padding:20px">No transactions yet</td></tr>';
-      return;
-    }
-    tbody.innerHTML = txns.map(t => {
-      const typeColor = t.type === 'topup' ? 'var(--teal)' : t.type === 'subscription' ? 'var(--blue)' : 'var(--t2)';
-      const statusTag = t.status === 'completed' ? 'tag-low' : t.status === 'pending' ? 'tag-med' : 'tag-high';
-      return `<tr>
-        <td>${new Date(t.created_at).toLocaleDateString()}</td>
-        <td><span style="color:${typeColor};font-weight:600;text-transform:uppercase;font-size:10px">${t.type}</span></td>
-        <td style="font-weight:600">$${parseFloat(t.amount_usd).toFixed(2)}</td>
-        <td><span class="tag ${statusTag}">${t.status}</span></td>
-        <td style="color:var(--t3)">${t.description || '—'}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) {
-    console.error('[billing] transactions:', e);
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t4);padding:20px">Error loading transactions</td></tr>';
-  }
-}
 
 // ── Boot ─────────────────────────────────────────────────
 initCharts();
