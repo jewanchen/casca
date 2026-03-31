@@ -44,7 +44,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--font);font-size:13px
 .topnav-logo{display:flex;align-items:center;gap:8px;width:200px;flex-shrink:0;border-right:0.5px solid var(--b1);padding-right:20px;margin-right:16px}
 .logo-svg{width:26px;height:26px}
 .logo-text{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:0.04em;background:linear-gradient(135deg,#e8f4fd 0%,var(--teal) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.topnav-tabs{display:flex;align-items:center;gap:2px;flex:1}
+.topnav-tabs{display:none}
 .tnav-tab{padding:6px 14px;font-size:12px;font-weight:500;color:var(--t3);cursor:pointer;border-radius:6px;transition:all 0.15s;white-space:nowrap;font-family:var(--font)}
 .tnav-tab:hover{color:var(--t2);background:var(--b1)}
 .tnav-tab.active{color:var(--t1);background:var(--bg3)}
@@ -258,9 +258,8 @@ textarea{resize:none;height:68px;line-height:1.5}
   .org-chip { padding: 3px 8px; font-size: 11px; }
   #account-name { display: none; }
   #account-quota { display: none; }
+  #auth-email-display { display: none; }
   .topnav-right { gap: 6px; }
-  #auth-login-btn { font-size: 10px !important; padding: 3px 8px !important; }
-  #auth-email { display: none; }
 
   /* Sidebar: slide-over drawer */
   .sidebar {
@@ -392,14 +391,14 @@ textarea{resize:none;height:68px;line-height:1.5}
   </div>
   <div class="topnav-right">
     <div class="status-chip"><span class="status-dot"></span>Live</div>
-    <!-- Auth: logged-out state -->
+    <!-- Auth: login button (shown when logged out) -->
     <button class="btn btn-primary" id="auth-login-btn" style="font-size:11px;padding:4px 12px;display:none" onclick="showAuthModal()">登入</button>
     <!-- Auth: logged-in state -->
-    <div id="auth-logged-in" style="display:none;align-items:center;gap:8px">
-      <span id="auth-email" style="font-size:11px;color:var(--t3);font-family:var(--mono);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <div id="auth-logged-in-bar" style="display:none;align-items:center;gap:8px">
+      <span id="auth-email-display" style="font-size:11px;color:var(--t3);font-family:var(--mono);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <button class="btn" style="font-size:10px;padding:3px 9px" onclick="authSignOut()">登出</button>
     </div>
-    <!-- account chip — populated by loadMe() after login -->
+    <!-- account chip -->
     <div class="org-chip" id="account-chip" onclick="switchPage('apikeys',null)" title="API 用量 / 帳戶">
       <div class="org-avatar" id="account-avatar">?</div>
       <span id="account-name" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未登入</span>
@@ -453,6 +452,29 @@ textarea{resize:none;height:68px;line-height:1.5}
     <div class="sb-item" onclick="switchPage('providers',this)">
       <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="12" height="8" rx="1.5"/><path d="M4.5 7.5L6.5 9.5L10.5 5.5" stroke-linecap="round"/></svg>
       Providers
+    </div>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">ACCOUNT</div>
+    <div class="sb-item" onclick="switchPage('apikeys',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 5.5a2.5 2.5 0 1 0-1.8 2.4L9 9.5h1.5V11H12V9.5h1.5V8H10l-1-1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      API Keys
+    </div>
+    <div class="sb-item" onclick="switchPage('logs',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="1.5" width="11" height="12" rx="1.5"/><path d="M5 5h5M5 7.5h5M5 10h3" stroke-linecap="round"/></svg>
+      使用紀錄
+    </div>
+    <div class="sb-item" onclick="switchPage('cache',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 4.5h9M3 7.5h9M3 10.5h9" stroke-linecap="round"/><circle cx="12" cy="4.5" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/></svg>
+      快取池
+    </div>
+    <div class="sb-item" onclick="switchPage('autolearn',this)" style="position:relative">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7.5 2v4M5.5 4l2 2 2-2" stroke-linecap="round"/><circle cx="7.5" cy="10" r="3"/><path d="M7.5 9v2M6.5 10h2" stroke-linecap="round"/></svg>
+      Auto-Learn
+    </div>
+    <div class="sb-item" onclick="switchPage('billing',this)">
+      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3" width="12" height="9" rx="1.5"/><path d="M1.5 6.5h12" stroke-linecap="round"/><path d="M4 9.5h3" stroke-linecap="round"/></svg>
+      Billing
     </div>
   </div>
   <div class="sidebar-footer">
@@ -1613,18 +1635,17 @@ function afterLogin() {
 }
 
 function updateAuthUI(user) {
-  const loggedIn  = document.getElementById('auth-logged-in');
-  const loginBtn  = document.getElementById('auth-login-btn');
-  const emailEl   = document.getElementById('auth-email');
+  const loggedInBar = document.getElementById('auth-logged-in-bar');
+  const loginBtn    = document.getElementById('auth-login-btn');
+  const emailEl     = document.getElementById('auth-email-display');
   if (user) {
-    loggedIn.style.display  = 'flex';
-    loginBtn.style.display  = 'none';
-    emailEl.textContent     = user.email;
-    // Inject SDK key placeholders if we have an active key
+    loggedInBar.style.display = 'flex';
+    loginBtn.style.display    = 'none';
+    emailEl.textContent       = user.email;
     if (activeApiKey) injectSdkKey(activeApiKey);
   } else {
-    loggedIn.style.display  = 'none';
-    loginBtn.style.display  = 'inline-flex';
+    loggedInBar.style.display = 'none';
+    loginBtn.style.display    = 'inline-flex';
   }
 }
 
