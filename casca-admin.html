@@ -383,9 +383,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
     <div class="ph-sub">Real-time view across all customers — <span id="cockpit-time"></span></div>
   </div>
   <div class="metric-row">
-    <div class="mc"><div class="mc-label">MRR</div><div class="mc-val" style="color:var(--teal)">$14,820</div><div class="mc-sub"><span class="delta d-up">↑ +$1,200</span> vs last month</div></div>
-    <div class="mc"><div class="mc-label">Active Customers</div><div class="mc-val">7</div><div class="mc-sub">1 trial · 2 renewal due</div></div>
-    <div class="mc"><div class="mc-label">Total Requests Today</div><div class="mc-val" id="req-today">48,291</div><div class="mc-sub"><span class="delta d-up">↑ 12%</span> vs yesterday</div></div>
+    <div class="mc"><div class="mc-label">MRR (30d)</div><div class="mc-val" style="color:var(--teal)" id="ck-mrr">—</div><div class="mc-sub" id="ck-mrr-sub">loading…</div></div>
+    <div class="mc"><div class="mc-label">Active Customers</div><div class="mc-val" id="ck-customers">—</div><div class="mc-sub" id="ck-customers-sub">loading…</div></div>
+    <div class="mc"><div class="mc-label">Total Requests (30d)</div><div class="mc-val" id="req-today">—</div><div class="mc-sub" id="ck-cache-sub">loading…</div></div>
     <div class="mc"><div class="mc-label">Classifier Accuracy</div><div class="mc-val" style="color:var(--teal)" id="acc-main">94.1%</div><div class="mc-sub">Pending labels: <span id="pending-lbl">0</span></div></div>
   </div>
 
@@ -460,34 +460,48 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
 
 <!-- ══ BILLING ══ -->
 <div class="page" id="page-billing">
-  <div class="ph"><div class="ph-title">Billing</div><div class="ph-sub">March 2026 — Invoice cycle closes Apr 1</div></div>
+  <div class="ph"><div class="ph-title">Billing & Plans</div><div class="ph-sub">Subscription plans + trial management</div></div>
 
-  <div class="metric-row">
-    <div class="mc"><div class="mc-label">March MRR</div><div class="mc-val" style="color:var(--teal)">$14,820</div><div class="mc-sub">7 customers</div></div>
-    <div class="mc"><div class="mc-label">Collected</div><div class="mc-val">$11,620</div><div class="mc-sub"><span class="delta d-up">78%</span> collection rate</div></div>
-    <div class="mc"><div class="mc-label">Outstanding</div><div class="mc-val" style="color:var(--amber)">$3,200</div><div class="mc-sub">2 invoices pending</div></div>
-    <div class="mc"><div class="mc-label">Overdue</div><div class="mc-val" style="color:var(--red)">$1,500</div><div class="mc-sub">1 invoice · 7 days late</div></div>
+  <div class="metric-row" id="billing-metrics">
+    <div class="mc"><div class="mc-label">Subscription Revenue (30d)</div><div class="mc-val" style="color:var(--teal)" id="bl-subs-rev">—</div></div>
+    <div class="mc"><div class="mc-label">Credit Sales (30d)</div><div class="mc-val" id="bl-credit-rev">—</div></div>
+    <div class="mc"><div class="mc-label">Active Plans</div><div class="mc-val" id="bl-plan-count">—</div></div>
+    <div class="mc"><div class="mc-label">Active Trials</div><div class="mc-val" style="color:var(--amber)" id="bl-trial-count">—</div></div>
   </div>
 
-  <div class="two">
-    <div class="card">
-      <div class="card-head"><div class="card-title">Invoice status</div></div>
-      <div class="card-body card-body-flush">
-        <div style="padding:0 18px" id="invoice-list"></div>
+  <!-- Plans CRUD -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head">
+      <div class="card-title">Subscription Plans</div>
+      <button class="btn btn-primary" onclick="showAddPlanForm()">+ New Plan</button>
+    </div>
+    <div class="card-body card-body-flush">
+      <div id="add-plan-form" style="display:none;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
+          <div><label class="field-label">Name</label><input type="text" id="np-name" placeholder="Pro"></div>
+          <div><label class="field-label">Monthly Fee ($)</label><input type="text" id="np-fee" placeholder="49.00"></div>
+          <div><label class="field-label">Included M Tokens</label><input type="text" id="np-tokens" placeholder="10"></div>
+          <div><label class="field-label">Overage $/1M</label><input type="text" id="np-overage" placeholder="1.00"></div>
+          <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="createPlan()">Save</button><button class="btn" onclick="hideAddPlanForm()">Cancel</button></div>
+        </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title">Revenue trend</div><div class="card-sub">6-month MRR</div></div>
-      <div class="card-body"><div class="chart-wrap" style="height:160px"><canvas id="revChart"></canvas></div></div>
+      <table class="data-table">
+        <thead><tr><th>Plan</th><th>Monthly Fee</th><th>Included Tokens</th><th>Overage Rate</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="plans-tbody"><tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:20px">Loading…</td></tr></tbody>
+      </table>
     </div>
   </div>
 
+  <!-- Trial Management -->
   <div class="card">
-    <div class="card-head"><div class="card-title">Savings verification</div><div class="card-sub">How platform fees are calculated</div></div>
+    <div class="card-head">
+      <div class="card-title">Trial Accounts</div>
+      <button class="btn" onclick="expireAllTrials()" style="color:var(--red);border-color:var(--red)">Expire All Now</button>
+    </div>
     <div class="card-body card-body-flush">
       <table class="data-table">
-        <thead><tr><th>Customer</th><th>Plan</th><th>Baseline spend</th><th>Actual spend</th><th>Gross savings</th><th>Platform fee (20%)</th><th>Customer net</th></tr></thead>
-        <tbody id="savings-tbody"></tbody>
+        <thead><tr><th>Email</th><th>Company</th><th>Plan</th><th>Expires</th><th>Days Left</th><th>Actions</th></tr></thead>
+        <tbody id="trials-tbody"><tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:20px">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -946,6 +960,8 @@ function goPage(id,el){
   if (id === 'apikeys') setTimeout(loadApiKeys, 50);
   if(id==='providers')setTimeout(loadProviders,50);
   if(id==='customers')setTimeout(loadCustomersFromAPI,50);
+  if(id==='cockpit')setTimeout(loadCockpitStats,50);
+  if(id==='billing'){setTimeout(loadPlans,50);setTimeout(loadTrials,100);}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tb-tab,.sb-item').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -2152,6 +2168,179 @@ async function revokeApiKey(keyId, btn) {
     toast('❌ 停用失敗');
   }
 }
+
+// ════════════════════════════════════════════════════════════════
+//  COCKPIT — Live Stats from /api/admin/stats
+// ════════════════════════════════════════════════════════════════
+async function loadCockpitStats() {
+  try {
+    const [statsRes, custRes] = await Promise.all([
+      adminFetch('/api/admin/stats').catch(() => null),
+      adminFetch('/api/admin/customers').catch(() => null),
+    ]);
+    if (statsRes && statsRes.ok) {
+      const s = await statsRes.json();
+      const el = id => document.getElementById(id);
+      el('ck-mrr').textContent = '$' + ((parseFloat(s.revenue?.subscriptions)||0) + (parseFloat(s.revenue?.credits)||0)).toFixed(0);
+      el('ck-mrr-sub').textContent = `Subs $${s.revenue?.subscriptions || 0} · Credits $${s.revenue?.credits || 0}`;
+      el('req-today').textContent = (s.totalRequests || 0).toLocaleString();
+      el('ck-cache-sub').textContent = `Cache hit ${s.cacheHitRate || '0%'} · Success ${s.successRate || '—'}`;
+      if (s.pendingAnnotations != null) el('pending-lbl').textContent = s.pendingAnnotations;
+    }
+    if (custRes && custRes.ok) {
+      const c = await custRes.json();
+      const list = c.customers || [];
+      const active = list.filter(x => x.status === 'active' || x.status === 'trial');
+      const trials = list.filter(x => x.trial_ends_at);
+      const el = id => document.getElementById(id);
+      el('ck-customers').textContent = active.length;
+      el('ck-customers-sub').textContent = `${trials.length} trial · ${active.length - trials.length} active`;
+    }
+  } catch (e) { console.error('[cockpit]', e); }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BILLING — Plans CRUD
+// ════════════════════════════════════════════════════════════════
+let _plans = [];
+
+async function loadPlans() {
+  try {
+    const [plansRes, statsRes] = await Promise.all([
+      adminFetch('/api/admin/plans').catch(() => null),
+      adminFetch('/api/admin/stats').catch(() => null),
+    ]);
+    if (plansRes && plansRes.ok) {
+      const d = await plansRes.json();
+      _plans = d.plans || [];
+      renderPlans();
+    }
+    if (statsRes && statsRes.ok) {
+      const s = await statsRes.json();
+      const el = id => document.getElementById(id);
+      el('bl-subs-rev').textContent = '$' + (s.revenue?.subscriptions || '0');
+      el('bl-credit-rev').textContent = '$' + (s.revenue?.credits || '0');
+      el('bl-plan-count').textContent = _plans.filter(p => p.is_active).length;
+    }
+  } catch (e) { console.error('[plans]', e); }
+}
+
+function renderPlans() {
+  const tbody = document.getElementById('plans-tbody');
+  if (!_plans.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:20px">No plans found</td></tr>'; return; }
+  tbody.innerHTML = _plans.map(p => `
+    <tr>
+      <td style="font-weight:600">${p.name}</td>
+      <td>$${parseFloat(p.monthly_fee_usd||0).toFixed(2)}/mo</td>
+      <td>${p.included_m_tokens||0}M tokens</td>
+      <td>$${parseFloat(p.overage_rate_per_1m||0).toFixed(2)}/1M</td>
+      <td><span class="tag ${p.is_active?'tag-low':'tag-high'}">${p.is_active?'Active':'Inactive'}</span></td>
+      <td><button class="btn btn-sm" onclick="togglePlanActive('${p.id}',${!p.is_active})">${p.is_active?'Deactivate':'Activate'}</button></td>
+    </tr>
+  `).join('');
+}
+
+function showAddPlanForm() { document.getElementById('add-plan-form').style.display = 'block'; }
+function hideAddPlanForm() { document.getElementById('add-plan-form').style.display = 'none'; }
+
+async function createPlan() {
+  const name = document.getElementById('np-name').value.trim();
+  const fee = parseFloat(document.getElementById('np-fee').value);
+  const tokens = parseFloat(document.getElementById('np-tokens').value);
+  const overage = parseFloat(document.getElementById('np-overage').value) || 1.00;
+  if (!name || isNaN(fee) || isNaN(tokens)) { toast('請填寫完整欄位'); return; }
+
+  const res = await adminFetch('/api/admin/plans', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, monthly_fee_usd: fee, included_m_tokens: tokens, overage_rate_per_1m: overage }),
+  }).catch(() => null);
+
+  if (res && res.ok) {
+    toast('✓ Plan created');
+    hideAddPlanForm();
+    document.getElementById('np-name').value = '';
+    document.getElementById('np-fee').value = '';
+    document.getElementById('np-tokens').value = '';
+    document.getElementById('np-overage').value = '';
+    loadPlans();
+  } else { toast('❌ Failed to create plan'); }
+}
+
+async function togglePlanActive(planId, activate) {
+  const res = await adminFetch('/api/admin/plans/' + planId, {
+    method: activate ? 'PATCH' : 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: activate ? JSON.stringify({ is_active: true }) : undefined,
+  }).catch(() => null);
+  if (res && res.ok) { toast(activate ? '✓ Plan activated' : '✓ Plan deactivated'); loadPlans(); }
+  else toast('❌ Failed');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BILLING — Trial Management
+// ════════════════════════════════════════════════════════════════
+async function loadTrials() {
+  try {
+    const res = await adminFetch('/api/admin/trial/list').catch(() => null);
+    if (!res || !res.ok) { document.getElementById('trials-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:20px">Unable to load trials</td></tr>'; return; }
+    const d = await res.json();
+    const active = d.active_trials || [];
+    const expired = d.expired_trials || [];
+    const el = document.getElementById('bl-trial-count');
+    if (el) el.textContent = active.length;
+
+    const tbody = document.getElementById('trials-tbody');
+    if (!active.length && !expired.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:20px">No trial accounts</td></tr>';
+      return;
+    }
+    const rows = active.map(t => `
+      <tr>
+        <td>${t.email||'—'}</td>
+        <td>${t.company_name||'—'}</td>
+        <td>${t.plan||'—'}</td>
+        <td>${t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
+        <td><span style="color:${t.days_remaining<=3?'var(--red)':'var(--teal)'};font-weight:700">${t.days_remaining}d ${t.hours_remaining%24}h</span></td>
+        <td><button class="btn btn-sm" onclick="extendTrial('${t.id}')">+7 Days</button></td>
+      </tr>
+    `).join('');
+    const expiredRows = expired.slice(0, 5).map(t => `
+      <tr style="opacity:0.5">
+        <td>${t.email||'—'}</td>
+        <td>${t.company_name||'—'}</td>
+        <td>${t.plan||'—'}</td>
+        <td>${t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
+        <td><span style="color:var(--red)">Expired</span></td>
+        <td><button class="btn btn-sm" onclick="extendTrial('${t.id}')">Reactivate</button></td>
+      </tr>
+    `).join('');
+    tbody.innerHTML = rows + expiredRows;
+  } catch (e) { console.error('[trials]', e); }
+}
+
+async function extendTrial(clientId) {
+  const res = await adminFetch('/api/admin/trial/extend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId }),
+  }).catch(() => null);
+  if (res && res.ok) { toast('✓ Trial extended by 7 days'); loadTrials(); }
+  else toast('❌ Failed to extend trial');
+}
+
+async function expireAllTrials() {
+  if (!confirm('確定要立即到期所有試用帳號？')) return;
+  const res = await adminFetch('/api/admin/trial/expire-now', { method: 'POST' }).catch(() => null);
+  if (res && res.ok) {
+    const d = await res.json();
+    toast(`✓ ${d.expired_count || 0} trial(s) expired`);
+    loadTrials();
+  } else toast('❌ Failed');
+}
+
+// Auto-load cockpit stats on page ready
+setTimeout(loadCockpitStats, 500);
 
 </script>
 </body>
