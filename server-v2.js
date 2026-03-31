@@ -1465,6 +1465,7 @@ app.get('/api/dashboard/me', requireApiKey, async (req, res) => {
     id:                  client.id,
     email:               client.email,
     company_name:        client.company_name,
+    // ── Nested (structured) ───────────────────────────────
     plan: plan ? {
       id:                  plan.id,
       name:                plan.name,
@@ -1491,6 +1492,14 @@ app.get('/api/dashboard/me', requireApiKey, async (req, res) => {
       hours_remaining:Math.max(0, Math.ceil((new Date(client.trial_ends_at) - Date.now()) / 3_600_000)),
       expired:        new Date(client.trial_ends_at) < new Date(),
     } : { is_trial: false },
+    // ── Flat convenience fields (used by dashboard billing UI) ──
+    plan_id:              plan?.id ?? null,
+    plan_name:            plan?.name ?? 'Free',
+    monthly_fee_usd:      plan?.monthly_fee_usd ?? 0,
+    included_m_tokens:    plan?.included_m_tokens ?? 0,
+    overage_rate_per_1m:  plan?.overage_rate_per_1m ?? 0,
+    cycle_used_tokens:    usedTokens,
+    balance_credits:      client.balance_credits ?? 0,
   });
 });
 
@@ -1666,6 +1675,123 @@ app.get('/api/admin/export', requireAdmin, async (req, res) => {
   res.setHeader('Content-Type','text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="casca_training_${new Date().toISOString().slice(0,10)}.csv"`);
   return res.send(csv);
+});
+
+// ════════════════════════════════════════════════════════════════
+//  ADMIN — CUSTOMERS CRUD
+// ════════════════════════════════════════════════════════════════
+
+app.get('/api/admin/customers', requireAdmin, async (req, res) => {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const { data: clients, error } = await supabase
+      .from('clients')
+      .select(`
+        id, email, company_name, plan_id, status, is_admin,
+        balance_credits, quota_limit, quota_used, cycle_used_tokens,
+        api_key, stripe_customer_id, trial_ends_at, renewal_date,
+        created_at, updated_at,
+        subscription_plans ( name, monthly_fee_usd, included_m_tokens )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const { data: logs } = await supabase
+      .from('api_logs')
+      .select('client_id, cost_usd, is_cache_hit')
+      .gte('created_at', since.toISOString());
+
+    const statsMap = {};
+    for (const log of (logs || [])) {
+      if (!statsMap[log.client_id]) {
+        statsMap[log.client_id] = { requests_count: 0, total_cost_usd: 0, cache_hits: 0 };
+      }
+      statsMap[log.client_id].requests_count++;
+      statsMap[log.client_id].total_cost_usd += parseFloat(log.cost_usd || 0);
+      if (log.is_cache_hit) statsMap[log.client_id].cache_hits++;
+    }
+
+    const customers = (clients || []).map(c => {
+      const s = statsMap[c.id] || { requests_count: 0, total_cost_usd: 0, cache_hits: 0 };
+      const baselineCost = s.total_cost_usd * 1.8;
+      return {
+        id: c.id, email: c.email, company_name: c.company_name,
+        name: c.company_name || c.email?.split('@')[0] || '—',
+        plan: c.subscription_plans?.name || 'Free',
+        status: c.status || 'active', is_admin: c.is_admin,
+        balance_credits: c.balance_credits, quota_limit: c.quota_limit,
+        quota_used: c.quota_used, cycle_used_tokens: c.cycle_used_tokens,
+        api_key_prefix: c.api_key ? c.api_key.slice(0, 12) + '…' : '—',
+        stripe_customer_id: c.stripe_customer_id,
+        trial_ends_at: c.trial_ends_at, renewal_date: c.renewal_date,
+        created_at: c.created_at,
+        requests_count: s.requests_count,
+        total_cost_usd: +s.total_cost_usd.toFixed(4),
+        total_savings_usd: +(Math.max(0, baselineCost - s.total_cost_usd)).toFixed(4),
+        cache_hits: s.cache_hits,
+        platform_fee_usd: c.subscription_plans?.monthly_fee_usd || 0,
+        providers: [],
+      };
+    });
+
+    return res.json({ customers, total: customers.length });
+  } catch (err) {
+    console.error('[admin] customers error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/customers', requireAdmin, async (req, res) => {
+  const { email, password, company_name, plan } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ error: 'email and password are required.' });
+
+  try {
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+      email, password, email_confirm: true,
+    });
+    if (authErr) return res.status(400).json({ error: authErr.message });
+
+    const userId = authData.user.id;
+    const updates = {};
+    if (company_name) updates.company_name = company_name;
+    if (plan) updates.plan = plan;
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString();
+      await supabase.from('clients').update(updates).eq('id', userId);
+    }
+
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id, email, company_name, api_key, status, created_at')
+      .eq('id', userId).single();
+
+    console.log(`[admin] customer created: ${email} → ${userId.slice(0, 8)}`);
+    return res.status(201).json({ ok: true, customer: client });
+  } catch (err) {
+    console.error('[admin] create customer error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/customers/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const allowed = ['company_name', 'status', 'plan_id', 'is_admin', 'balance_credits', 'quota_limit'];
+  const updates = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+  if (Object.keys(updates).length === 0)
+    return res.status(400).json({ error: 'No valid fields to update.' });
+  updates.updated_at = new Date().toISOString();
+
+  const { error } = await supabase.from('clients').update(updates).eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  console.log(`[admin] customer ${id.slice(0, 8)} updated:`, Object.keys(updates).join(', '));
+  return res.json({ ok: true, id, updated: Object.keys(updates) });
 });
 
 app.get('/api/admin/stats', requireAdmin, async (req, res) => {
