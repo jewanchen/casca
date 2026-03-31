@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Casca Intelligence Terminal</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -93,6 +93,7 @@ body::after {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -925,12 +926,12 @@ body::after {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ════════════════════════════════════════════════════════════
-   RESPONSIVE — MOBILE FIRST
+   RESPONSIVE
    ════════════════════════════════════════════════════════════ */
 
 /* ── Tablet ≤900px ───────────────────────────────────── */
 @media (max-width: 900px) {
-  .body { grid-template-columns: 1fr 300px; }
+  .body { grid-template-columns: 1fr 280px; }
   .header-title { display: none; }
   .header-stat  { display: none; }
   .header-divider { display: none; }
@@ -938,80 +939,120 @@ body::after {
 
 /* ── Mobile ≤660px ───────────────────────────────────── */
 @media (max-width: 660px) {
-  html, body { overflow: hidden; }
+  html, body { height: 100%; overflow: hidden; }
 
+  /* Disable scanline on mobile — saves GPU + prevents touch issues */
+  body::before { display: none; }
+
+  /* Compact header */
   .header {
-    padding: 0 12px;
-    height: 56px;
-    gap: 8px;
+    padding: 0 10px;
+    height: 46px;
+    gap: 6px;
   }
-  .logo-name { font-size: 14px; }
-  .logo-sep  { display: none; }
-  .header-stat, .header-divider { display: none; }
-  .mode-badge { display: none; }
-  .toggle-label { font-size: 11px; }
+  .logo-name { font-size: 13px; letter-spacing: 0.06em; }
+  .logo-sep, .header-title, .header-stat, .header-divider, .mode-badge { display: none; }
+  .toggle-label { font-size: 10px; }
+  .master-toggle { padding: 4px 10px 4px 5px; }
+  .toggle-knob { width: 28px; height: 16px; }
+  .toggle-thumb { width: 10px; height: 10px; top: 3px; left: 3px; }
+  .master-toggle.active .toggle-thumb { left: 15px; }
+  .user-badge { display: none !important; }
+  .logout-btn { font-size: 10px; padding: 3px 6px; }
 
-  /* Body: chat on top, intel below — stacked, both visible with tabs */
+  /* Body: single column, chat fills everything */
   .body {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: 1fr;
     overflow: hidden;
+    position: relative;
   }
 
+  /* Chat panel: full height, flex column so input stays at bottom */
   .chat-panel {
     border-right: none;
-    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .chat-header { padding: 6px 12px; }
+  .chat-header-title { font-size: 11px; }
+
+  /* Messages: scrollable, takes remaining space */
+  .chat-messages {
+    flex: 1;
+    min-height: 0;
+    padding: 10px 12px;
+    gap: 10px;
   }
 
-  /* Mobile tab bar to switch between chat and intel */
-  .mob-tabs {
-    display: flex !important;
+  /* Input area: pinned at bottom, safe-area for iPhone */
+  .chat-input-area {
     flex-shrink: 0;
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Intel panel: collapsible drawer on mobile */
-  .intel-panel {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
-    border-left: none;
-    border-top: 1px solid rgba(0,230,118,0.15);
-  }
-  .intel-panel.mob-open {
-    max-height: 55vh;
-    overflow-y: auto;
-  }
-
-  .chat-messages { padding: 12px; gap: 12px; }
-  .page-content  { padding: 0 12px 60px; }
-
-  .msg-bubble { font-size: 14px !important; padding: 11px 14px !important; }
-  .msg-avatar { width: 28px; height: 28px; font-size: 10px; }
+  .msg-bubble { font-size: 14px !important; padding: 9px 12px !important; }
+  .msg-avatar { width: 24px; height: 24px; font-size: 10px; }
+  .msg-content { max-width: calc(100% - 46px); }
 
   .suggested-prompts {
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding-bottom: 2px;
+    gap: 6px;
   }
   .suggested-prompts::-webkit-scrollbar { display: none; }
-  .suggest-btn { flex-shrink: 0; font-size: 12px; padding: 5px 10px; }
+  .suggest-btn { flex-shrink: 0; font-size: 11px; padding: 5px 10px; }
 
-  .chat-textarea { font-size: 15px; }
-  .send-btn      { width: 44px; height: 44px; }
+  /* 16px prevents iOS auto-zoom on focus */
+  .chat-textarea { font-size: 16px; min-height: 44px; }
+  .send-btn { width: 44px; height: 44px; }
 
-  .intel-section { padding: 12px 14px; }
-  .stat-grid     { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-val      { font-size: 15px !important; }
-  .big-num       { font-size: 34px !important; }
+  /* Mobile tab bar: always visible at bottom */
+  .mob-tabs {
+    display: flex !important;
+    flex-shrink: 0;
+  }
+
+  /* Intel panel: slides in from right as full overlay */
+  .intel-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    border-left: none;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #0d0d0d;
+  }
+  .intel-panel.mob-open {
+    transform: translateX(0);
+  }
+
+  .intel-section { padding: 14px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-val { font-size: 14px !important; }
+  .big-num  { font-size: 32px !important; }
+  .config-btn { font-size: 11px; }
+  .config-field input { font-size: 16px; }
+
+  /* Toast above tab bar */
+  .toast { bottom: 60px; }
 }
 
 /* ── Very small ≤380px ───────────────────────────────── */
 @media (max-width: 380px) {
-  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .header { height: 42px; }
+  .logo-name { font-size: 11px; }
+  .toggle-label { font-size: 9px; }
+  .chat-messages { padding: 8px; }
+  .chat-input-area { padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
   .msg-bubble { font-size: 13px !important; }
-  .header { height: 52px; }
+  .big-num { font-size: 28px !important; }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1991,28 +2032,26 @@ document.addEventListener('DOMContentLoaded', () => {
 //  MOBILE TABS
 // ════════════════════════════════════════════════════════════════
 function mobTab(tab) {
-  const chatPanel  = document.querySelector('.chat-panel');
   const intelPanel = document.querySelector('.intel-panel');
   const tabChat    = document.getElementById('mob-tab-chat');
   const tabIntel   = document.getElementById('mob-tab-intel');
 
-  const activeStyle   = 'background:rgba(0,230,118,0.08);border-bottom:2px solid var(--green);color:var(--green);';
-  const inactiveStyle = 'background:transparent;border-bottom:2px solid transparent;color:var(--t3);';
-
   if (tab === 'intel') {
     intelPanel.classList.add('mob-open');
-    chatPanel.style.flex = '0 0 0';
-    chatPanel.style.overflow = 'hidden';
-    chatPanel.style.minHeight = '0';
-    tabIntel.style.cssText = tabIntel.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'') + activeStyle;
-    tabChat.style.cssText  = tabChat.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'')  + inactiveStyle;
+    tabIntel.style.background = 'rgba(0,230,118,0.08)';
+    tabIntel.style.borderBottom = '2px solid var(--green)';
+    tabIntel.style.color = 'var(--green)';
+    tabChat.style.background = 'transparent';
+    tabChat.style.borderBottom = '2px solid transparent';
+    tabChat.style.color = 'var(--t3)';
   } else {
     intelPanel.classList.remove('mob-open');
-    chatPanel.style.flex = '';
-    chatPanel.style.overflow = '';
-    chatPanel.style.minHeight = '';
-    tabChat.style.cssText  = tabChat.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'')  + activeStyle;
-    tabIntel.style.cssText = tabIntel.style.cssText.replace(/(background|border-bottom|color):[^;]+;/g,'') + inactiveStyle;
+    tabChat.style.background = 'rgba(0,230,118,0.08)';
+    tabChat.style.borderBottom = '2px solid var(--green)';
+    tabChat.style.color = 'var(--green)';
+    tabIntel.style.background = 'transparent';
+    tabIntel.style.borderBottom = '2px solid transparent';
+    tabIntel.style.color = 'var(--t3)';
   }
 }
 
