@@ -1511,7 +1511,7 @@ body::after {
           </div>
           <div class="config-field">
             <label>Casca Base URL</label>
-            <input type="text" id="cfg-url" placeholder="https://api.cascaio.com/v1/chat/completions">
+            <input type="text" id="cfg-url" placeholder="/api/v1/chat/completions">
           </div>
           <button class="config-save" onclick="saveConfig()">Save Configuration</button>
         </div>
@@ -1540,7 +1540,7 @@ const CONFIG = {
   // OpenAI key is NEVER stored in the frontend.
   // Engine OFF calls the backend with bypass:true — key stays server-side.
   CASCA_API_KEY:   localStorage.getItem('casca_api_key')  || 'YOUR_CASCA_KEY',
-  CASCA_BASE_URL:  localStorage.getItem('casca_base_url') || 'https://casca-production.up.railway.app/api/v1/chat/completions',
+  CASCA_BASE_URL:  localStorage.getItem('casca_base_url') || '/api/v1/chat/completions',
   DEFAULT_MODEL:   'gpt-4o',
 };
 
