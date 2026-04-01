@@ -1,0 +1,15 @@
+# ══════════════════════════════════════════════════════════
+#  Casca — Cloudflare Pages Redirects
+#  Replaces netlify.toml [[redirects]] for SPA routing
+#
+#  NOTE: /api/* proxy is handled by functions/api/[[path]].js
+#        /health proxy is handled by functions/health.js
+# ══════════════════════════════════════════════════════════
+
+# SPA Routing — clean URLs → actual HTML files
+/admin          /casca-admin.html       200
+/admin/*        /casca-admin.html       200
+/dashboard      /casca-dashboard.html   200
+/terminal       /terminal.html          200
+/annotator      /casca-annotator.html   200
+/reset-password /reset-password.html    200
