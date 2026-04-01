@@ -10,6 +10,4 @@
 /admin          /casca-admin.html       200
 /admin/*        /casca-admin.html       200
 /dashboard      /casca-dashboard.html   200
-/terminal       /terminal.html          200
 /annotator      /casca-annotator.html   200
-/reset-password /reset-password.html    200
