@@ -270,6 +270,153 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
 .cpw-submit:disabled{opacity:0.5;cursor:not-allowed}
 .tb-logout{font-size:10px;font-family:var(--mono);color:#ffffff55;cursor:pointer;padding:3px 8px;border-radius:3px;border:1px solid #ffffff18;transition:all 0.12s;background:transparent}
 .tb-logout:hover{color:#ffffffcc;border-color:#ffffff33;background:#ffffff0a}
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════════════════════════ */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .metric-row { grid-template-columns: repeat(2, 1fr); }
+  .two, .three { grid-template-columns: 1fr; }
+  .tb-nav { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tb-nav::-webkit-scrollbar { display: none; }
+  .tb-tab { flex-shrink: 0; }
+}
+
+/* Mobile hamburger button (hidden on desktop) */
+.mob-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid #ffffff22;
+  border-radius: 4px;
+  color: #ffffffaa;
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.mob-menu-btn:hover { background: #ffffff12; color: #fff; }
+
+/* Sidebar backdrop (hidden on desktop) */
+.sb-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: 48px;
+  z-index: 299;
+  background: rgba(0,0,0,0.5);
+}
+.sb-backdrop.show { display: block; }
+
+/* Mobile */
+@media (max-width: 768px) {
+  html, body { overflow: hidden; height: 100%; }
+
+  /* Topbar compact */
+  .topbar { padding: 0 10px; gap: 6px; }
+  .tb-logo { margin-right: 8px; padding-right: 8px; }
+  .tb-nav { display: none; }
+  .tb-right { gap: 8px; }
+  .tb-uname { display: none; }
+  .tb-signal { display: none; }
+  .mob-menu-btn { display: flex; }
+
+  /* Sidebar: slide-over drawer */
+  .sidebar {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 0;
+    z-index: 300;
+    width: 220px;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  }
+  .sidebar.mob-open { transform: translateX(0); }
+
+  /* Main content */
+  .body-wrap { flex-direction: column; }
+  .main { overflow-y: auto; }
+  .page { padding: 16px 14px; }
+  .ph { margin-bottom: 14px; }
+  .ph-title { font-size: 18px; }
+  .ph-sub { font-size: 11px; }
+  .ph[style*="display:flex"] { flex-direction: column !important; gap: 10px; }
+
+  /* Metric cards: 2 columns */
+  .metric-row { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+  .mc { padding: 10px 12px; }
+  .mc-val { font-size: 18px; }
+  .mc-label { font-size: 9px; }
+
+  /* Grid layouts: single column */
+  .two, .three { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Cards */
+  .card-head { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
+  .card-body { padding: 12px; }
+
+  /* Tables: horizontal scroll */
+  .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+  .data-table th, .data-table td { padding: 8px 10px; font-size: 11px; }
+
+  /* Annotation items */
+  .annot-prompt { padding-right: 10px; font-size: 11px; }
+  .annot-meta { font-size: 9px; }
+  .annot-btns { flex-wrap: wrap; }
+  .annot-btn { padding: 6px 12px; font-size: 10px; flex: 1; text-align: center; }
+  .conf-pill { position: static; margin-bottom: 6px; display: inline-block; }
+
+  /* Buttons */
+  .btn { padding: 6px 10px; font-size: 11px; }
+  .btn-primary { padding: 8px 14px; }
+
+  /* Modals */
+  .modal-box { width: 95vw; padding: 18px; }
+  .modal-title { font-size: 15px; }
+
+  /* Form fields */
+  .field-input, .field-select, .auth-field input { font-size: 16px; /* prevent iOS zoom */ }
+
+  /* Batch rows */
+  .batch-row { gap: 8px; font-size: 11px; }
+
+  /* Key-value rows */
+  .kv-row { flex-direction: column; gap: 2px; }
+  .kv-val { text-align: left; }
+
+  /* Billing rows */
+  .bill-row { flex-wrap: wrap; gap: 6px; }
+
+  /* Chart */
+  .chart-wrap { min-height: 150px; }
+
+  /* Toast */
+  #toast { right: 10px; left: 10px; bottom: 12px; text-align: center; }
+
+  /* Add plan form: stack on mobile */
+  #add-plan-form > div { grid-template-columns: 1fr 1fr !important; }
+
+  /* Provider rows in system page */
+  .kv-row { font-size: 11px; }
+}
+
+/* Very small */
+@media (max-width: 420px) {
+  .metric-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mc { padding: 8px 10px; }
+  .mc-val { font-size: 16px; }
+  .page { padding: 12px 10px; }
+  .ph-title { font-size: 16px; }
+  .annot-btn { padding: 5px 8px; font-size: 9px; }
+  .topbar { height: 44px; }
+  .auth-box { padding: 24px 18px; }
+}
 </style>
 </head>
 <body>
@@ -322,6 +469,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
 
 <!-- ── TOP BAR ── -->
 <div class="topbar">
+  <button class="mob-menu-btn" onclick="toggleAdminSidebar()">☰</button>
   <div class="tb-logo">
     <span class="tb-logotype">Casca</span>
     <span class="tb-badge">Admin</span>
@@ -347,6 +495,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
   </div>
 </div>
 
+<div class="sb-backdrop" id="sb-backdrop" onclick="toggleAdminSidebar()"></div>
 <div class="body-wrap">
 <!-- ── SIDEBAR ── -->
 <div class="sidebar">
@@ -469,7 +618,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
     <div class="mc"><div class="mc-label">Active Trials</div><div class="mc-val" style="color:var(--amber)" id="bl-trial-count">—</div></div>
   </div>
 
-  <!-- Plans CRUD -->
   <div class="card" style="margin-bottom:14px">
     <div class="card-head">
       <div class="card-title">Subscription Plans</div>
@@ -478,10 +626,10 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
     <div class="card-body card-body-flush">
       <div id="add-plan-form" style="display:none;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg2)">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
-          <div><label class="field-label">Name</label><input type="text" id="np-name" placeholder="Pro"></div>
-          <div><label class="field-label">Monthly Fee ($)</label><input type="text" id="np-fee" placeholder="49.00"></div>
-          <div><label class="field-label">Included M Tokens</label><input type="text" id="np-tokens" placeholder="10"></div>
-          <div><label class="field-label">Overage $/1M</label><input type="text" id="np-overage" placeholder="1.00"></div>
+          <div><label class="field-label">Name</label><input class="field-input" type="text" id="np-name" placeholder="Pro"></div>
+          <div><label class="field-label">Monthly Fee ($)</label><input class="field-input" type="text" id="np-fee" placeholder="49.00"></div>
+          <div><label class="field-label">Included M Tokens</label><input class="field-input" type="text" id="np-tokens" placeholder="10"></div>
+          <div><label class="field-label">Overage $/1M</label><input class="field-input" type="text" id="np-overage" placeholder="1.00"></div>
           <div style="display:flex;gap:6px"><button class="btn btn-primary" onclick="createPlan()">Save</button><button class="btn" onclick="hideAddPlanForm()">Cancel</button></div>
         </div>
       </div>
@@ -492,7 +640,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
     </div>
   </div>
 
-  <!-- Trial Management -->
   <div class="card">
     <div class="card-head">
       <div class="card-title">Trial Accounts</div>
@@ -911,18 +1058,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
 
 <div id="toast">✓ Done</div>
 
-<script type="module">
-import { classify, route, detectLanguage, VERSION, STATS } from './casca-classifier.js';
-window.CascaClassifier = {
-  classify, route, detectLanguage, VERSION, STATS,
-  accuracyScore: STATS.accuracy,
-  autoLearnQueue: [],
-  confirmLabel(idx, cx) {
-    this.autoLearnQueue.splice(idx, 1);
-    this.accuracyScore = Math.min(98.5, this.accuracyScore + 0.012);
-  }
-};
-</script>
+<!-- Classifier: UMD format → loads as window.CascaClassifier automatically -->
+<script src="./casca-classifier.js"></script>
 <script>
 // ── STATE ─────────────────────────────
 let annotQueue=[];let sessionLabels={LOW:0,MED:0,HIGH:0,skip:0};let totalDone=0;let accuracyScore=94.1;let liveAdded=0;
@@ -969,6 +1106,17 @@ function goPage(id,el){
   document.querySelectorAll('.sb-item').forEach(s=>{if(s.getAttribute('onclick')&&s.getAttribute('onclick').includes("'"+id+"'"))s.classList.add('active');});
   document.querySelectorAll('.tb-tab').forEach(t=>{if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+id+"'"))t.classList.add('active');});
   if(id==='annotations')renderQueue();
+  if (window.innerWidth <= 768) closeAdminSidebar();
+}
+
+// ── Mobile sidebar toggle ──────────────────────────────
+function toggleAdminSidebar() {
+  document.querySelector('.sidebar').classList.toggle('mob-open');
+  document.getElementById('sb-backdrop').classList.toggle('show');
+}
+function closeAdminSidebar() {
+  document.querySelector('.sidebar')?.classList.remove('mob-open');
+  document.getElementById('sb-backdrop')?.classList.remove('show');
 }
 
 // Auth form Enter key
@@ -1511,8 +1659,8 @@ initAll();
 const ADMIN_CFG = {
   // API calls use relative path — Netlify proxies /api/* → api.cascaio.com
   // This avoids CORS issues entirely
-  apiBase: 'https://casca-production.up.railway.app',   // Railway backend
-  apiBaseDirect: 'https://casca-production.up.railway.app', // same
+  apiBase: '',   // relative path — /api/* proxied by Cloudflare Worker
+  apiBaseDirect: '',
   supabaseUrl: 'https://azxutenowfoamphdjwya.supabase.co',        // ← replace with actual
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eHV0ZW5vd2ZvYW1waGRqd3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzU3MDUsImV4cCI6MjA4OTg1MTcwNX0.V_8BFYZ_kwYYuuCyGlllipaptKPNR2iJ6E8_SdMx7Ho',                        // ← replace with actual
 };
@@ -2181,7 +2329,7 @@ async function loadCockpitStats() {
     if (statsRes && statsRes.ok) {
       const s = await statsRes.json();
       const el = id => document.getElementById(id);
-      el('ck-mrr').textContent = '$' + ((parseFloat(s.revenue?.subscriptions)||0) + (parseFloat(s.revenue?.credits)||0)).toFixed(0);
+      el('ck-mrr').textContent = '$' + ((parseFloat(s.revenue?.subscriptions||0) + parseFloat(s.revenue?.credits||0))).toFixed(0);
       el('ck-mrr-sub').textContent = `Subs $${s.revenue?.subscriptions || 0} · Credits $${s.revenue?.credits || 0}`;
       el('req-today').textContent = (s.totalRequests || 0).toLocaleString();
       el('ck-cache-sub').textContent = `Cache hit ${s.cacheHitRate || '0%'} · Success ${s.successRate || '—'}`;
@@ -2249,20 +2397,13 @@ async function createPlan() {
   const tokens = parseFloat(document.getElementById('np-tokens').value);
   const overage = parseFloat(document.getElementById('np-overage').value) || 1.00;
   if (!name || isNaN(fee) || isNaN(tokens)) { toast('請填寫完整欄位'); return; }
-
   const res = await adminFetch('/api/admin/plans', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, monthly_fee_usd: fee, included_m_tokens: tokens, overage_rate_per_1m: overage }),
   }).catch(() => null);
-
   if (res && res.ok) {
-    toast('✓ Plan created');
-    hideAddPlanForm();
-    document.getElementById('np-name').value = '';
-    document.getElementById('np-fee').value = '';
-    document.getElementById('np-tokens').value = '';
-    document.getElementById('np-overage').value = '';
+    toast('✓ Plan created'); hideAddPlanForm();
+    ['np-name','np-fee','np-tokens','np-overage'].forEach(id => document.getElementById(id).value = '');
     loadPlans();
   } else { toast('❌ Failed to create plan'); }
 }
@@ -2289,7 +2430,6 @@ async function loadTrials() {
     const expired = d.expired_trials || [];
     const el = document.getElementById('bl-trial-count');
     if (el) el.textContent = active.length;
-
     const tbody = document.getElementById('trials-tbody');
     if (!active.length && !expired.length) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink4);padding:20px">No trial accounts</td></tr>';
@@ -2297,9 +2437,7 @@ async function loadTrials() {
     }
     const rows = active.map(t => `
       <tr>
-        <td>${t.email||'—'}</td>
-        <td>${t.company_name||'—'}</td>
-        <td>${t.plan||'—'}</td>
+        <td>${t.email||'—'}</td><td>${t.company_name||'—'}</td><td>${t.plan||'—'}</td>
         <td>${t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
         <td><span style="color:${t.days_remaining<=3?'var(--red)':'var(--teal)'};font-weight:700">${t.days_remaining}d ${t.hours_remaining%24}h</span></td>
         <td><button class="btn btn-sm" onclick="extendTrial('${t.id}')">+7 Days</button></td>
@@ -2307,9 +2445,7 @@ async function loadTrials() {
     `).join('');
     const expiredRows = expired.slice(0, 5).map(t => `
       <tr style="opacity:0.5">
-        <td>${t.email||'—'}</td>
-        <td>${t.company_name||'—'}</td>
-        <td>${t.plan||'—'}</td>
+        <td>${t.email||'—'}</td><td>${t.company_name||'—'}</td><td>${t.plan||'—'}</td>
         <td>${t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
         <td><span style="color:var(--red)">Expired</span></td>
         <td><button class="btn btn-sm" onclick="extendTrial('${t.id}')">Reactivate</button></td>
@@ -2321,8 +2457,7 @@ async function loadTrials() {
 
 async function extendTrial(clientId) {
   const res = await adminFetch('/api/admin/trial/extend', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: clientId }),
   }).catch(() => null);
   if (res && res.ok) { toast('✓ Trial extended by 7 days'); loadTrials(); }
