@@ -1609,10 +1609,9 @@ function onAuthReady(session) {
   document.getElementById('tb-avatar').textContent = email.slice(0, 2).toUpperCase();
   document.getElementById('tb-logout').style.display = '';
   document.getElementById('tb-change-pw').style.display = '';
-  // Boot backend connections (only after successful auth)
+  // Boot backend connections
   loadQueueFromAPI();
   loadCustomersFromAPI();
-  setTimeout(loadCockpitStats, 300);
 }
 
 // ── Init auth on page load ───────────────────────────────
@@ -2387,7 +2386,8 @@ async function expireAllTrials() {
   } else toast('❌ Failed');
 }
 
-// Auto-load cockpit stats moved to onAuthReady() — only after login
+// Auto-load cockpit stats on page ready
+setTimeout(loadCockpitStats, 500);
 
 </script>
 </body>
