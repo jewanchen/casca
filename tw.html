@@ -318,7 +318,14 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
 
 <nav>
   <a href="#" class="nav-logo">
-    <img src="./FullLogo_Transparent_NoBuffer.png" alt="Casca" style="height:40px;object-fit:contain">
+    <svg class="nav-logo-mark" viewBox="0 0 28 28" fill="none">
+      <path d="M14 2L25 8V20L14 26L3 20V8L14 2Z" fill="rgba(0,230,118,.08)" stroke="rgba(0,230,118,.5)" stroke-width="0.8"/>
+      <path d="M14 2L19 8.5L14 15L9 8.5Z" fill="rgba(0,230,118,.2)"/>
+      <circle cx="14" cy="15" r="3" fill="url(#ng)"/>
+      <circle cx="14" cy="2" r="1.5" fill="#00E676"/>
+      <defs><radialGradient id="ng"><stop offset="0%" stop-color="#00E676"/><stop offset="100%" stop-color="#5ba8c4"/></radialGradient></defs>
+    </svg>
+    <span class="nav-logo-name">CASCA</span>
   </a>
   <ul class="nav-links">
     <li><a href="#how">運作原理</a></li>
@@ -687,14 +694,14 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
       7F, 11, BanXin Rd, BanQiao Dist<br>
       New Taipei, Taiwan<br>
       +886 2 2706 7590<br>
-      <a href="/cdn-cgi/l/email-protection#8eedeffdedefcef8effdfae7faf9a0ede1e3" style="color:var(--teal);text-decoration:none"><span class="__cf_email__" data-cfemail="42212331212302342331362b36356c212d2f">[email&#160;protected]</span></a>
+      <a href="mailto:casca@vastitw.com" style="color:var(--teal);text-decoration:none">casca@vastitw.com</a>
     </div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px">
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--t1);text-transform:uppercase;margin-bottom:4px">產品</div>
     <a href="https://cascaio.com/terminal" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">Demo Terminal</a>
     <a href="#pricing" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">方案定價</a>
-    <a href="/cdn-cgi/l/email-protection#61020012020021170012150815164f020e0c" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">聯繫銷售</a>
+    <a href="mailto:casca@vastitw.com" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">聯繫銷售</a>
     <a href="#" style="font-family:var(--mono);font-size:12px;color:var(--t2);text-decoration:none">隱私政策</a>
   </div>
   <div style="width:100%;border-top:1px solid rgba(255,255,255,.06);padding-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -703,7 +710,7 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
   </div>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function calcROI(){
   const spend=parseFloat(document.getElementById('ms')?.value)||5000;
   const hp=parseFloat(document.getElementById('hp')?.value)||20;
@@ -741,4 +748,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   animCounter();
   calcROI();
 });
-function switchModeZh(mo
+function switchModeZh(mode, btn) {
+  document.querySelectorAll('.mtz').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.pnl').forEach(p => p.classList.remove('on'));
+  document.getElementById('pnl-' + mode).classList.add('on');
+}
+</script>
+</body>
+</html>
