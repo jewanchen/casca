@@ -360,7 +360,16 @@ textarea{resize:none;height:68px;line-height:1.5}
 <div class="topnav">
   <button class="mob-menu-btn" id="mob-menu-btn" style="display:none" onclick="toggleMobSidebar()">☰</button>
   <div class="topnav-logo">
-    <img src="./FullLogo_Transparent_NoBuffer.png" alt="Casca" style="height:38px;object-fit:contain">
+    <svg class="logo-svg" viewBox="0 0 26 26" fill="none">
+      <path d="M13 2L23 8V18L13 24L3 18V8L13 2Z" fill="rgba(0,212,170,0.08)" stroke="rgba(0,212,170,0.3)" stroke-width="0.7"/>
+      <path d="M13 2L18 8L13 14L8 8Z" fill="rgba(0,212,170,0.18)"/>
+      <path d="M8 8L3 18L13 14Z" fill="rgba(59,158,255,0.13)"/>
+      <path d="M18 8L23 18L13 14Z" fill="rgba(0,212,170,0.1)"/>
+      <circle cx="13" cy="14" r="2.2" fill="url(#g1)"/>
+      <circle cx="13" cy="2" r="1.3" fill="rgba(0,212,170,0.8)"/>
+      <defs><radialGradient id="g1"><stop offset="0%" stop-color="#00d4aa"/><stop offset="100%" stop-color="#3b9eff"/></radialGradient></defs>
+    </svg>
+    <span class="logo-text">Casca</span>
   </div>
   <div class="topnav-tabs">
     <div class="tnav-tab active" onclick="switchPage('dashboard',this)">Overview</div>
