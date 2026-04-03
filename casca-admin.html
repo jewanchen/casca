@@ -1613,6 +1613,9 @@ function onAuthReady(session) {
   loadQueueFromAPI();
   loadCustomersFromAPI();
   setTimeout(loadCockpitStats, 300);
+  loadProviders();
+  pingBackend();
+  setInterval(pingBackend, 30000);
 }
 
 // ── Init auth on page load ───────────────────────────────
@@ -1971,9 +1974,7 @@ async function hotReload() {
   else toast('❌ Hot reload 失敗');
 }
 
-loadProviders();
-pingBackend();
-setInterval(pingBackend, 30000); // re-check every 30s
+// pingBackend + loadProviders moved to onAuthReady()
 
 
 // ════════════════════════════════════════════
