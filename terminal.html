@@ -1266,7 +1266,7 @@ body::after {
         <circle cx="12" cy="2" r="1.2" fill="rgba(0,230,118,0.9)"/>
         <defs><radialGradient id="ag1"><stop offset="0%" stop-color="#00E676"/><stop offset="100%" stop-color="#00B0FF"/></radialGradient></defs>
       </svg>
-      <span class="auth-logo-name">CASCA</span>
+      <img src="./FullLogo_Transparent_NoBuffer.png" alt="Casca" style="height:38px;object-fit:contain">
       <span class="auth-logo-tag">DEMO</span>
     </div>
     <div class="auth-sub">Intelligence Terminal — 授權人員限定</div>
@@ -1292,14 +1292,7 @@ body::after {
   <header class="header">
     <div class="header-left">
       <div class="logo">
-        <svg class="logo-hex" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" fill="rgba(0,230,118,0.07)" stroke="rgba(0,230,118,0.4)" stroke-width="0.8"/>
-          <path d="M12 2L16.5 7.5L12 13L7.5 7.5Z" fill="rgba(0,230,118,0.18)"/>
-          <circle cx="12" cy="13" r="2.2" fill="url(#ggrad)"/>
-          <circle cx="12" cy="2" r="1.2" fill="rgba(0,230,118,0.9)"/>
-          <defs><radialGradient id="ggrad"><stop offset="0%" stop-color="#00E676"/><stop offset="100%" stop-color="#00B0FF"/></radialGradient></defs>
-        </svg>
-        <span class="logo-name">CASCA</span>
+        <img src="./FullLogo_Transparent_NoBuffer.png" alt="Casca" style="height:38px;object-fit:contain">
       </div>
       <div class="logo-sep"></div>
       <span class="header-title">Intelligence Terminal v2.1</span>
@@ -1511,7 +1504,7 @@ body::after {
           </div>
           <div class="config-field">
             <label>Casca Base URL</label>
-            <input type="text" id="cfg-url" placeholder="/api/v1/chat/completions">
+            <input type="text" id="cfg-url" placeholder="https://api.cascaio.com/v1/chat/completions">
           </div>
           <button class="config-save" onclick="saveConfig()">Save Configuration</button>
         </div>
@@ -1540,7 +1533,7 @@ const CONFIG = {
   // OpenAI key is NEVER stored in the frontend.
   // Engine OFF calls the backend with bypass:true — key stays server-side.
   CASCA_API_KEY:   localStorage.getItem('casca_api_key')  || 'YOUR_CASCA_KEY',
-  CASCA_BASE_URL:  localStorage.getItem('casca_base_url') || '/api/v1/chat/completions',
+  CASCA_BASE_URL:  localStorage.getItem('casca_base_url') || 'https://casca-production.up.railway.app/api/v1/chat/completions',
   DEFAULT_MODEL:   'gpt-4o',
 };
 
