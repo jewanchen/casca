@@ -694,12 +694,12 @@ async function postProcess({
   promptHash, normalizedPrompt,
   classifyResult, provider, responseText,
   tokensIn, tokensOut, costUsd, savingsPct,
-  isCache, latencyMs, statusCode, errorMessage, uc,
+  isCache, latencyMs, statusCode, errorMessage, uc, noLog,
 }) {
   try {
     const totalTokens = tokensIn + tokensOut;
 
-    // ── 0. Prometheus metrics ────────────────────────────────────
+    // ── 0. Prometheus metrics (always, even in zero-log mode) ────
     const _cx    = classifyResult.cx    || 'UNK';
     const _lang  = classifyResult.lang  || 'UNK';
     const _model = provider?.model_name ?? (isCache ? 'cache-hit' : 'none');
@@ -719,11 +719,23 @@ async function postProcess({
       mSavingsUsdTotal.inc({ cx: _cx }, Math.max(0, baseline - costUsd));
     }
     if (classifyResult.autoLearn) mAmbigTotal.inc({ lang: _lang });
-    // ── 1. api_logs ──────────────────────────────────────────────
+
+    // ── Zero-log mode: skip all DB writes (billing still runs) ──
+    if (noLog) {
+      if (!isCache && totalTokens > 0) {
+        await supabase.rpc('account_usage_and_deduct', {
+          p_client_id: clientId, p_tokens: totalTokens,
+          p_overage_rate: overageRate ?? 1.00,
+        });
+      }
+      return;  // Skip api_logs, annotation_queue, frequency_log
+    }
+
+    // ── 1. api_logs (prompt_preview REDACTED for security) ───────
     const { data: logRow } = await supabase.from('api_logs').insert({
       client_id:     clientId,
       prompt_hash:   promptHash,
-      prompt_preview: normalizedPrompt.slice(0, 200),
+      prompt_preview: '[REDACTED]',
       uc,
       cx:            classifyResult.cx,
       original_cx:   classifyResult.originalCx,
@@ -920,7 +932,248 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
 // ── JSON body parser (after webhook route) ─────────────────────
 app.use(express.json({ limit: '4mb' }));
 
-// ── Health ────────────────────────────────────────────────────────
+// ── Rate limiting (in-memory, per API key) ─────────────────────
+const RATE_MAX_CHAT  = 120;   // 120 chat requests/min per key
+const RATE_MAX_ADMIN = 60;    // 60 admin requests/min
+const rateLimitMap = new Map();
+setInterval(() => rateLimitMap.clear(), 60_000); // Reset every minute
+
+function rateLimit(keyPrefix, max) {
+  return (req, _res, next) => {
+    const key = `${keyPrefix}:${req.client?.id || req.ip}`;
+    const count = (rateLimitMap.get(key) || 0) + 1;
+    rateLimitMap.set(key, count);
+    if (count > max) {
+      return _res.status(429).json({ error: 'Rate limit exceeded. Try again in 1 minute.', limit: max, window: '60s' });
+    }
+    _res.setHeader('X-RateLimit-Limit', max);
+    _res.setHeader('X-RateLimit-Remaining', Math.max(0, max - count));
+    next();
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ZAPIER INTEGRATION ENDPOINTS
+//  Simplified API surface for Zapier triggers, actions, and auth test.
+//  All endpoints use standard requireApiKey (Bearer csk_...)
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/zapier/auth-test
+ * Zapier calls this to verify API key is valid during connection setup.
+ * Returns minimal account info for the connection label.
+ */
+app.get('/api/zapier/auth-test', requireApiKey, (req, res) => {
+  const c = req.client;
+  res.json({
+    id:    c.id,
+    email: c.email,
+    company_name: c.company_name || '',
+    plan:  req.plan?.name || 'Free',
+    label: c.company_name || c.email,  // Zapier uses this as connection label
+  });
+});
+
+/**
+ * GET /api/zapier/logs
+ * Polling trigger: returns recent API logs (newest first).
+ * Zapier polls this every 1-15 min to detect new logs.
+ * Must return array of objects with unique `id` field.
+ */
+app.get('/api/zapier/logs', requireApiKey, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || '25', 10), 100);
+  const { data, error } = await supabase
+    .from('api_logs')
+    .select('id, prompt_hash, cx, model_name, tokens_in, tokens_out, cost_usd, savings_pct, is_cache_hit, latency_ms, status_code, created_at')
+    .eq('client_id', req.client.id)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) return res.status(500).json({ error: error.message });
+  // Zapier requires array at top level, each item must have `id`
+  return res.json(data || []);
+});
+
+/**
+ * GET /api/zapier/annotations
+ * Polling trigger: returns pending annotation queue items (newest first).
+ */
+app.get('/api/zapier/annotations', requireApiKey, async (req, res) => {
+  const { data, error } = await supabase
+    .from('annotation_queue')
+    .select('id, prompt, predicted_cx, triggered_rule, lang, uc, status, created_at')
+    .eq('client_id', req.client.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(25);
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data || []);
+});
+
+/**
+ * GET /api/zapier/usage
+ * Polling trigger: returns usage summary. Triggers when quota exceeds threshold.
+ * Zapier deduplicates by `id` — we use a date-based id so it triggers once per day.
+ */
+app.get('/api/zapier/usage', requireApiKey, async (req, res) => {
+  const c = req.client;
+  const plan = req.plan;
+  const included = (plan?.included_m_tokens || 0) * 1_000_000;
+  const used = c.cycle_used_tokens || 0;
+  const pct = included > 0 ? Math.round((used / included) * 100) : 0;
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Only emit a record if usage > 80% (acts as alert trigger)
+  if (pct >= 80) {
+    return res.json([{
+      id: `usage-${c.id}-${today}`,  // unique per day so Zapier triggers once daily
+      email: c.email,
+      plan: plan?.name || 'Free',
+      used_tokens: used,
+      included_tokens: included,
+      usage_pct: pct,
+      balance_credits: c.balance_credits || 0,
+      alert_level: pct >= 100 ? 'OVER_QUOTA' : 'WARNING',
+      date: today,
+    }]);
+  }
+  return res.json([]);  // empty = no trigger
+});
+
+/**
+ * POST /api/zapier/chat
+ * Action: simplified AI chat. Returns plain text content (not full OpenAI object).
+ * Zapier users can map the `content` field directly to other steps.
+ */
+app.post('/api/zapier/chat', requireApiKey, async (req, res) => {
+  const { prompt, system_prompt, use_case, temperature, max_tokens } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'prompt is required.' });
+
+  // Build messages array
+  const messages = [];
+  if (system_prompt) messages.push({ role: 'system', content: system_prompt });
+  messages.push({ role: 'user', content: prompt });
+
+  // Forward to internal chat handler via direct function call
+  const body = {
+    messages,
+    model: 'auto',
+    max_tokens: max_tokens || 2048,
+    temperature: temperature || 0.7,
+  };
+  if (use_case) body.casca_uc = use_case;
+
+  // Build internal request to reuse existing chat logic
+  const internalReq = new Request(`${req.protocol}://${req.get('host')}/api/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+    body: JSON.stringify(body),
+  });
+
+  try {
+    // Call the Casca API internally via fetch to localhost
+    const internalRes = await fetch(`http://localhost:${PORT}/api/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await internalRes.json();
+
+    if (!internalRes.ok) {
+      return res.status(internalRes.status).json({ error: data.error || 'AI request failed.' });
+    }
+
+    // Extract content from OpenAI-format response
+    const content = data?.choices?.[0]?.message?.content || '';
+    const casca = data?._casca || {};
+
+    return res.json({
+      id: data?.id || `casca-${Date.now()}`,
+      content,
+      model: casca.model || data?.model || 'unknown',
+      classification: casca.cx || 'UNK',
+      tokens_used: (data?.usage?.total_tokens) || 0,
+      cost_usd: casca.costUsd || 0,
+      savings_pct: casca.savingsPct || 0,
+      cache_hit: casca.cacheHit || false,
+      latency_ms: casca.latencyMs || 0,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal routing failed: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/zapier/summarize
+ * Action: summarize text (simplified wrapper).
+ */
+app.post('/api/zapier/summarize', requireApiKey, async (req, res) => {
+  const { text, language, bullet_points } = req.body;
+  if (!text) return res.status(400).json({ error: 'text is required.' });
+
+  const lang = language || 'English';
+  const points = bullet_points || 5;
+  const system = `Summarize the following text in ${points} bullet points in ${lang}. Be concise and accurate.`;
+
+  // Reuse /api/zapier/chat internally
+  try {
+    const chatRes = await fetch(`http://localhost:${PORT}/api/zapier/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+      body: JSON.stringify({ prompt: text, system_prompt: system, use_case: 'SUMMARIZE' }),
+    });
+    const data = await chatRes.json();
+    return res.status(chatRes.status).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/zapier/translate
+ * Action: translate text to target language.
+ */
+app.post('/api/zapier/translate', requireApiKey, async (req, res) => {
+  const { text, target_language } = req.body;
+  if (!text || !target_language) return res.status(400).json({ error: 'text and target_language are required.' });
+
+  const system = `Translate the following text to ${target_language}. Output only the translation, no explanation.`;
+  try {
+    const chatRes = await fetch(`http://localhost:${PORT}/api/zapier/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+      body: JSON.stringify({ prompt: text, system_prompt: system, use_case: 'TRANSLATION', temperature: 0.3 }),
+    });
+    const data = await chatRes.json();
+    return res.status(chatRes.status).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/zapier/generate-soql
+ * Action: natural language → SOQL query.
+ */
+app.post('/api/zapier/generate-soql', requireApiKey, async (req, res) => {
+  const { query, objects } = req.body;
+  if (!query) return res.status(400).json({ error: 'query is required.' });
+
+  const system = `You are a Salesforce SOQL expert. Generate only the SOQL query, no explanation. Available objects: ${objects || 'Standard Objects'}`;
+  try {
+    const chatRes = await fetch(`http://localhost:${PORT}/api/zapier/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+      body: JSON.stringify({ prompt: query, system_prompt: system, use_case: 'SOQL_GEN', temperature: 0.1, max_tokens: 500 }),
+    });
+    const data = await chatRes.json();
+    return res.status(chatRes.status).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 // ── Public config endpoint ────────────────────────────────────────
 // Returns Supabase public credentials for frontend tools (annotator, dashboard).
@@ -960,12 +1213,15 @@ app.get('/metrics', (req, res, next) => {
 // ════════════════════════════════════════════════════════════════
 //  CORE ENDPOINT: POST /api/v1/chat/completions
 // ════════════════════════════════════════════════════════════════
-app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
+app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_CHAT), async (req, res) => {
   const t0 = Date.now();
   const { messages, uc, qualityTier, conversationContext } = req.body;
   const client   = req.client;
   const plan     = req.plan;
   const clientId = client.id ?? 'passthrough-anonymous';
+
+  // ── Zero-log mode: X-Casca-Log: false → skip all DB logging ──
+  const noLog = (req.headers['x-casca-log'] || '').toLowerCase() === 'false';
 
   if (!Array.isArray(messages) || !messages.length)
     return res.status(400).json({ error: '`messages` array is required.' });
@@ -1003,6 +1259,9 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
       latencyMs,
       rule:      'BYPASS — Casca Engine OFF',
     };
+    // SDK compatibility: top-level fields for CascaClient.cls
+    payload.casca_cx = payload._casca?.cx ?? null;
+    payload.casca_cache_hit = payload._casca?.cacheHit ?? false;
     return res.json(payload);
   }
   // ── End bypass ───────────────────────────────────────────────
@@ -1042,6 +1301,9 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
       costUsd: 0, savingsPct: 100, latencyMs,
       billing: { tokensCharged: 0, overageDeducted: 0 },
     };
+    // SDK compatibility: top-level fields for CascaClient.cls
+    payload.casca_cx = payload._casca?.cx ?? null;
+    payload.casca_cache_hit = payload._casca?.cacheHit ?? false;
     res.json(payload);
 
     enqueuePostProcess({
@@ -1051,7 +1313,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
         rule: 'L1-CACHE-HIT', lang: 'UNK', modal: 'text', autoLearn: false },
       provider: null, responseText: null, tokensIn: 0, tokensOut: 0,
       costUsd: 0, savingsPct: 100, isCache: true, latencyMs, statusCode: 200,
-      errorMessage: null, uc,
+      errorMessage: null, uc, noLog,
     });
     return;
   }
@@ -1207,7 +1469,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
       promptHash, normalizedPrompt: normalized,
       classifyResult, provider, responseText: null, tokensIn, tokensOut,
       costUsd, savingsPct, isCache: false, latencyMs: Date.now() - t0,
-      statusCode, errorMessage: llmErr, uc,
+      statusCode, errorMessage: llmErr, uc, noLog,
     });
     return;
   }
@@ -1246,6 +1508,10 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
         },
   };
 
+  // SDK compatibility: top-level fields for CascaClient.cls
+  payload.casca_cx = payload._casca?.cx ?? null;
+  payload.casca_cache_hit = payload._casca?.cacheHit ?? false;
+
   res.json(payload);
 
   enqueuePostProcess({
@@ -1253,7 +1519,7 @@ app.post('/api/v1/chat/completions', requireApiKey, async (req, res) => {
     promptHash, normalizedPrompt: normalized,
     classifyResult, provider, responseText, tokensIn, tokensOut,
     costUsd, savingsPct, isCache: false, latencyMs: Date.now() - t0,
-    statusCode, errorMessage: null, uc,
+    statusCode, errorMessage: null, uc, noLog,
   });
 });
 
@@ -1465,7 +1731,15 @@ app.get('/api/dashboard/me', requireApiKey, async (req, res) => {
     id:                  client.id,
     email:               client.email,
     company_name:        client.company_name,
-    // ── Nested (structured) ───────────────────────────────
+    // ── Flat convenience fields (for Dashboard billing page) ──
+    plan_id:             plan?.id ?? null,
+    plan_name:           plan?.name ?? 'Free',
+    monthly_fee_usd:     plan?.monthly_fee_usd ?? 0,
+    included_m_tokens:   plan?.included_m_tokens ?? 0,
+    overage_rate_per_1m: plan?.overage_rate_per_1m ?? 0,
+    cycle_used_tokens:   usedTokens,
+    balance_credits:     client.balance_credits ?? 0,
+    // ── Nested (backward compat) ──
     plan: plan ? {
       id:                  plan.id,
       name:                plan.name,
@@ -1492,14 +1766,6 @@ app.get('/api/dashboard/me', requireApiKey, async (req, res) => {
       hours_remaining:Math.max(0, Math.ceil((new Date(client.trial_ends_at) - Date.now()) / 3_600_000)),
       expired:        new Date(client.trial_ends_at) < new Date(),
     } : { is_trial: false },
-    // ── Flat convenience fields (used by dashboard billing UI) ──
-    plan_id:              plan?.id ?? null,
-    plan_name:            plan?.name ?? 'Free',
-    monthly_fee_usd:      plan?.monthly_fee_usd ?? 0,
-    included_m_tokens:    plan?.included_m_tokens ?? 0,
-    overage_rate_per_1m:  plan?.overage_rate_per_1m ?? 0,
-    cycle_used_tokens:    usedTokens,
-    balance_credits:      client.balance_credits ?? 0,
   });
 });
 
@@ -1685,18 +1951,14 @@ app.get('/api/admin/customers', requireAdmin, async (req, res) => {
   try {
     const since = new Date();
     since.setDate(since.getDate() - 30);
-
     const { data: clients, error } = await supabase
       .from('clients')
-      .select(`
-        id, email, company_name, plan_id, status, is_admin,
+      .select(`id, email, company_name, plan_id, status, is_admin,
         balance_credits, quota_limit, quota_used, cycle_used_tokens,
         api_key, stripe_customer_id, trial_ends_at, renewal_date,
         created_at, updated_at,
-        subscription_plans ( name, monthly_fee_usd, included_m_tokens )
-      `)
+        subscription_plans ( name, monthly_fee_usd, included_m_tokens )`)
       .order('created_at', { ascending: false });
-
     if (error) return res.status(500).json({ error: error.message });
 
     const { data: logs } = await supabase
@@ -1706,9 +1968,7 @@ app.get('/api/admin/customers', requireAdmin, async (req, res) => {
 
     const statsMap = {};
     for (const log of (logs || [])) {
-      if (!statsMap[log.client_id]) {
-        statsMap[log.client_id] = { requests_count: 0, total_cost_usd: 0, cache_hits: 0 };
-      }
+      if (!statsMap[log.client_id]) statsMap[log.client_id] = { requests_count: 0, total_cost_usd: 0, cache_hits: 0 };
       statsMap[log.client_id].requests_count++;
       statsMap[log.client_id].total_cost_usd += parseFloat(log.cost_usd || 0);
       if (log.is_cache_hit) statsMap[log.client_id].cache_hits++;
@@ -1726,8 +1986,7 @@ app.get('/api/admin/customers', requireAdmin, async (req, res) => {
         quota_used: c.quota_used, cycle_used_tokens: c.cycle_used_tokens,
         api_key_prefix: c.api_key ? c.api_key.slice(0, 12) + '…' : '—',
         stripe_customer_id: c.stripe_customer_id,
-        trial_ends_at: c.trial_ends_at, renewal_date: c.renewal_date,
-        created_at: c.created_at,
+        trial_ends_at: c.trial_ends_at, renewal_date: c.renewal_date, created_at: c.created_at,
         requests_count: s.requests_count,
         total_cost_usd: +s.total_cost_usd.toFixed(4),
         total_savings_usd: +(Math.max(0, baselineCost - s.total_cost_usd)).toFixed(4),
@@ -1736,7 +1995,6 @@ app.get('/api/admin/customers', requireAdmin, async (req, res) => {
         providers: [],
       };
     });
-
     return res.json({ customers, total: customers.length });
   } catch (err) {
     console.error('[admin] customers error:', err.message);
@@ -1746,15 +2004,10 @@ app.get('/api/admin/customers', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/customers', requireAdmin, async (req, res) => {
   const { email, password, company_name, plan } = req.body;
-  if (!email || !password)
-    return res.status(400).json({ error: 'email and password are required.' });
-
+  if (!email || !password) return res.status(400).json({ error: 'email and password are required.' });
   try {
-    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-      email, password, email_confirm: true,
-    });
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
     if (authErr) return res.status(400).json({ error: authErr.message });
-
     const userId = authData.user.id;
     const updates = {};
     if (company_name) updates.company_name = company_name;
@@ -1763,13 +2016,9 @@ app.post('/api/admin/customers', requireAdmin, async (req, res) => {
       updates.updated_at = new Date().toISOString();
       await supabase.from('clients').update(updates).eq('id', userId);
     }
-
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id, email, company_name, api_key, status, created_at')
-      .eq('id', userId).single();
-
-    console.log(`[admin] customer created: ${email} → ${userId.slice(0, 8)}`);
+    const { data: client } = await supabase.from('clients')
+      .select('id, email, company_name, api_key, status, created_at').eq('id', userId).single();
+    console.log(`[admin] customer created: ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} → ${userId.slice(0, 8)}`);
     return res.status(201).json({ ok: true, customer: client });
   } catch (err) {
     console.error('[admin] create customer error:', err.message);
@@ -1781,13 +2030,9 @@ app.patch('/api/admin/customers/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const allowed = ['company_name', 'status', 'plan_id', 'is_admin', 'balance_credits', 'quota_limit'];
   const updates = {};
-  for (const key of allowed) {
-    if (req.body[key] !== undefined) updates[key] = req.body[key];
-  }
-  if (Object.keys(updates).length === 0)
-    return res.status(400).json({ error: 'No valid fields to update.' });
+  for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid fields to update.' });
   updates.updated_at = new Date().toISOString();
-
   const { error } = await supabase.from('clients').update(updates).eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
   console.log(`[admin] customer ${id.slice(0, 8)} updated:`, Object.keys(updates).join(', '));
