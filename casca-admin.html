@@ -305,7 +305,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
 <!-- ── AUTH OVERLAY (shown when not logged in) ── -->
 <div class="auth-overlay" id="auth-overlay">
   <div class="auth-box">
-    <div class="auth-logo"><img src="./FullLogo_Transparent.png" alt="Casca" style="height:30px;object-fit:contain"> <span>Admin</span></div>
+    <div class="auth-logo"><img src="./FullLogo_Transparent_NoBuffer.png" alt="Casca" style="height:42px;object-fit:contain"> <span>Admin</span></div>
     <div class="auth-sub">Internal Operations Portal — Supabase Auth</div>
     <div class="auth-error" id="auth-error"></div>
     <div class="auth-field">
@@ -352,7 +352,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13p
 <div class="topbar">
   <button class="tb-hamburger" onclick="toggleSidebar()">☰</button>
   <div class="tb-logo">
-    <img src="./FullLogo_Transparent.png" alt="Casca" style="height:24px;object-fit:contain">
+    <img src="./FullLogo_Transparent_NoBuffer.png" alt="Casca" style="height:38px;object-fit:contain">
     <span class="tb-badge">Admin</span>
   </div>
   <div class="tb-nav">
@@ -1609,9 +1609,10 @@ function onAuthReady(session) {
   document.getElementById('tb-avatar').textContent = email.slice(0, 2).toUpperCase();
   document.getElementById('tb-logout').style.display = '';
   document.getElementById('tb-change-pw').style.display = '';
-  // Boot backend connections
+  // Boot backend connections (only after successful auth)
   loadQueueFromAPI();
   loadCustomersFromAPI();
+  setTimeout(loadCockpitStats, 300);
 }
 
 // ── Init auth on page load ───────────────────────────────
@@ -2386,8 +2387,7 @@ async function expireAllTrials() {
   } else toast('❌ Failed');
 }
 
-// Auto-load cockpit stats on page ready
-setTimeout(loadCockpitStats, 500);
+// loadCockpitStats moved to onAuthReady() — prompt only after login
 
 </script>
 </body>
