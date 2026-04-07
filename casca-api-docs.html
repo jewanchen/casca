@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casca AI Route — API Documentation</title>
+<style>
+:root {
+  --bg: #0a0f1a;
+  --bg2: #111827;
+  --bg3: #1a2236;
+  --teal: #00d4aa;
+  --blue: #3b9eff;
+  --green: #4ade80;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --text: #f0f4fa;
+  --text2: #9ca3b8;
+  --border: rgba(255,255,255,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.7; }
+a { color: var(--teal); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 260px; min-width: 260px; background: var(--bg2); border-right: 1px solid var(--border); padding: 32px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.sidebar-logo { padding: 0 24px 28px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.sidebar-logo-text { font-size: 18px; font-weight: 700; color: var(--teal); letter-spacing: 0.04em; }
+.sidebar-logo-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.sidebar nav { padding: 0 12px; }
+.nav-group { margin-bottom: 20px; }
+.nav-group-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: var(--text2); text-transform: uppercase; padding: 0 12px; margin-bottom: 6px; }
+.nav-item { display: block; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--text2); transition: all 0.15s; }
+.nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); text-decoration: none; }
+.nav-item .method { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-right: 6px; font-family: monospace; }
+.get { background: rgba(59,158,255,0.15); color: var(--blue); }
+.post { background: rgba(0,212,170,0.15); color: var(--teal); }
+
+/* Main */
+.main { flex: 1; padding: 48px 60px; max-width: 900px; }
+
+/* Header */
+.doc-header { margin-bottom: 56px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+.doc-title { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px; }
+.doc-title span { color: var(--teal); }
+.doc-subtitle { font-size: 16px; color: var(--text2); margin-bottom: 20px; }
+.base-url-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+.base-url-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--text2); text-transform: uppercase; }
+.base-url-val { font-family: monospace; font-size: 14px; color: var(--teal); }
+
+/* Auth section */
+.auth-box { background: rgba(0,212,170,0.05); border: 1px solid rgba(0,212,170,0.2); border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+.auth-title { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--teal); text-transform: uppercase; margin-bottom: 10px; }
+.code-inline { font-family: monospace; font-size: 13px; background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 4px; color: var(--teal); }
+
+/* Endpoint */
+.endpoint { margin-bottom: 56px; padding-bottom: 56px; border-bottom: 1px solid var(--border); }
+.endpoint:last-child { border-bottom: none; }
+.endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.method-badge { font-family: monospace; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 5px; }
+.method-get { background: rgba(59,158,255,0.15); color: var(--blue); border: 1px solid rgba(59,158,255,0.3); }
+.method-post { background: rgba(0,212,170,0.12); color: var(--teal); border: 1px solid rgba(0,212,170,0.3); }
+.endpoint-path { font-family: monospace; font-size: 18px; font-weight: 600; color: var(--text); }
+.endpoint-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.endpoint-desc { color: var(--text2); margin-bottom: 20px; font-size: 14px; }
+.section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 20px 0 8px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+th { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+.param-name { font-family: monospace; color: var(--teal); font-size: 13px; }
+.param-type { font-family: monospace; font-size: 11px; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 3px; color: var(--text2); }
+.req-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+.opt-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: rgba(156,163,184,0.1); color: var(--text2); border: 1px solid var(--border); }
+.param-desc { color: var(--text2); font-size: 13px; }
+
+/* Code blocks */
+pre { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin: 8px 0; }
+code { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.6; color: #e2e8f0; }
+.k { color: #79c0ff; } /* keyword */
+.s { color: #a5d6ff; } /* string */
+.n { color: #d2a8ff; } /* number */
+.c { color: #8b949e; } /* comment */
+.p { color: var(--teal); } /* property */
+.v { color: #ffa657; } /* value */
+
+/* Response tabs */
+.response-tabs { display: flex; gap: 0; margin-bottom: -1px; }
+.rtab { font-size: 12px; font-weight: 600; padding: 6px 14px; cursor: pointer; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; color: var(--text2); background: transparent; transition: all 0.15s; }
+.rtab.active { color: var(--text); background: #0d1117; border-color: var(--border); }
+.status-badge { display: inline-block; font-family: monospace; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 3px; margin-left: 6px; }
+.s200 { background: rgba(74,222,128,0.15); color: var(--green); }
+.s400 { background: rgba(251,191,36,0.15); color: var(--amber); }
+.s401 { background: rgba(248,113,113,0.15); color: var(--red); }
+
+/* Info box */
+.info-box { background: rgba(59,158,255,0.06); border: 1px solid rgba(59,158,255,0.2); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--text2); margin: 12px 0; }
+.info-box strong { color: var(--blue); }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-text">Casca AI Route</div>
+    <div class="sidebar-logo-sub">API Reference · v3</div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="nav-group-label">Getting Started</div>
+      <a href="#overview" class="nav-item">Overview</a>
+      <a href="#authentication" class="nav-item">Authentication</a>
+      <a href="#errors" class="nav-item">Error Codes</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Auth</div>
+      <a href="#auth-test" class="nav-item"><span class="method get">GET</span> auth-test</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Actions</div>
+      <a href="#chat" class="nav-item"><span class="method post">POST</span> chat</a>
+      <a href="#summarize" class="nav-item"><span class="method post">POST</span> summarize</a>
+      <a href="#translate" class="nav-item"><span class="method post">POST</span> translate</a>
+      <a href="#soql" class="nav-item"><span class="method post">POST</span> generate-soql</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Triggers (Polling)</div>
+      <a href="#logs" class="nav-item"><span class="method get">GET</span> logs</a>
+      <a href="#annotations" class="nav-item"><span class="method get">GET</span> annotations</a>
+      <a href="#usage" class="nav-item"><span class="method get">GET</span> usage</a>
+    </div>
+  </nav>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <div class="doc-header" id="overview">
+    <div class="doc-title">Casca AI Route <span>API</span></div>
+    <div class="doc-subtitle">Intelligent LLM routing engine — automatically routes prompts to the optimal model, cutting AI costs by up to 97% with quality guarantees.</div>
+    <div class="base-url-box">
+      <span class="base-url-label">Base URL</span>
+      <span class="base-url-val">https://api.cascaio.com</span>
+    </div>
+  </div>
+
+  <!-- Authentication -->
+  <section class="endpoint" id="authentication">
+    <div class="endpoint-title">Authentication</div>
+    <div class="endpoint-desc">All API endpoints require a Casca API key. Pass it as a Bearer token in the <code class="code-inline">Authorization</code> header.</div>
+    <div class="auth-box">
+      <div class="auth-title">🔑 API Key Auth</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:10px">API keys start with <code class="code-inline">csk_</code> and are generated in your dashboard at <a href="https://cascaio.com/dashboard">cascaio.com/dashboard</a>.</p>
+      <pre><code><span class="k">Authorization:</span> <span class="s">Bearer csk_your_api_key_here</span></code></pre>
+    </div>
+  </section>
+
+  <!-- Error Codes -->
+  <section class="endpoint" id="errors">
+    <div class="endpoint-title">Error Codes</div>
+    <table>
+      <tr><th>Status</th><th>Meaning</th></tr>
+      <tr><td><span class="status-badge s200">200</span></td><td class="param-desc">Success</td></tr>
+      <tr><td><span class="status-badge s400">400</span></td><td class="param-desc">Bad Request — missing required field (check error message)</td></tr>
+      <tr><td><span class="status-badge s401">401</span></td><td class="param-desc">Unauthorized — invalid or missing API key</td></tr>
+      <tr><td><span class="status-badge" style="background:rgba(248,113,113,0.15);color:var(--red)">402</span></td><td class="param-desc">Payment Required — token quota exhausted, top up credits</td></tr>
+      <tr><td><span class="status-badge" style="background:rgba(248,113,113,0.15);color:var(--red)">500</span></td><td class="param-desc">Internal routing error — retry or contact support</td></tr>
+    </table>
+  </section>
+
+  <!-- ── AUTH TEST ─────────────────────────── -->
+  <section class="endpoint" id="auth-test">
+    <div class="endpoint-header">
+      <span class="method-badge method-get">GET</span>
+      <span class="endpoint-path">/api/zapier/auth-test</span>
+    </div>
+    <div class="endpoint-title">Verify API Key</div>
+    <div class="endpoint-desc">Validates an API key and returns account information. Zapier calls this endpoint automatically when a user connects their account.</div>
+
+    <div class="section-title">Request</div>
+    <table>
+      <tr><th>Header</th><th>Value</th></tr>
+      <tr><td class="param-name">Authorization</td><td class="param-desc"><span class="req-badge">required</span>&nbsp; <code class="code-inline">Bearer csk_...</code></td></tr>
+    </table>
+
+    <div class="section-title">Response 200</div>
+    <pre><code>{
+  <span class="p">"id"</span>:           <span class="s">"uuid-of-account"</span>,
+  <span class="p">"email"</span>:        <span class="s">"user@company.com"</span>,
+  <span class="p">"company_name"</span>: <span class="s">"ACME Corp"</span>,
+  <span class="p">"plan"</span>:         <span class="s">"Starter"</span>,
+  <span class="p">"label"</span>:        <span class="s">"ACME Corp"</span>  <span class="c">// used by Zapier as connection label</span>
+}</code></pre>
+
+    <div class="section-title">Response 401</div>
+    <pre><code>{ <span class="p">"error"</span>: <span class="s">"Invalid or inactive API key."</span> }</code></pre>
+  </section>
+
+  <!-- ── CHAT ─────────────────────────────── -->
+  <section class="endpoint" id="chat">
+    <div class="endpoint-header">
+      <span class="method-badge method-post">POST</span>
+      <span class="endpoint-path">/api/zapier/chat</span>
+    </div>
+    <div class="endpoint-title">AI Chat</div>
+    <div class="endpoint-desc">Send any prompt to Casca. The engine automatically classifies complexity (LOW / MED / HIGH) and routes to the optimal model — balancing cost and quality.</div>
+
+    <div class="section-title">Request Body (JSON)</div>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td class="param-name">prompt</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="req-badge">required</span>&nbsp; The user message to send to AI.</td>
+      </tr>
+      <tr>
+        <td class="param-name">system_prompt</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; System instructions. Example: <em>"You are a customer service agent. Be concise."</em></td>
+      </tr>
+      <tr>
+        <td class="param-name">use_case</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Hint for routing accuracy. One of: <code class="code-inline">GENERAL</code> <code class="code-inline">CASE_SUMMARY</code> <code class="code-inline">SOQL_GEN</code> <code class="code-inline">TRANSLATION</code> <code class="code-inline">CODE_GEN</code> <code class="code-inline">FIELD_ENRICH</code></td>
+      </tr>
+      <tr>
+        <td class="param-name">temperature</td>
+        <td><span class="param-type">number</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Creativity level 0.0–2.0. Default: <code class="code-inline">0.7</code></td>
+      </tr>
+      <tr>
+        <td class="param-name">max_tokens</td>
+        <td><span class="param-type">integer</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Max response length in tokens. Default: <code class="code-inline">2048</code></td>
+      </tr>
+    </table>
+
+    <div class="section-title">Example Request</div>
+    <pre><code>curl -X POST https://api.cascaio.com/api/zapier/chat \
+  -H <span class="s">"Authorization: Bearer csk_your_key"</span> \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -d '{
+    <span class="p">"prompt"</span>: <span class="s">"Summarize this email: The Q3 results show..."</span>,
+    <span class="p">"use_case"</span>: <span class="s">"CASE_SUMMARY"</span>
+  }'</code></pre>
+
+    <div class="section-title">Response 200</div>
+    <pre><code>{
+  <span class="p">"id"</span>:             <span class="s">"chatcmpl-abc123"</span>,
+  <span class="p">"content"</span>:        <span class="s">"Q3 results highlight a 15% growth in revenue..."</span>,
+  <span class="p">"model"</span>:          <span class="s">"gpt-4o-mini"</span>,
+  <span class="p">"classification"</span>: <span class="s">"LOW"</span>,       <span class="c">// LOW | MED | HIGH | CACHE</span>
+  <span class="p">"tokens_used"</span>:    <span class="n">142</span>,
+  <span class="p">"cost_usd"</span>:       <span class="n">0.0000213</span>,
+  <span class="p">"savings_pct"</span>:    <span class="n">97</span>,           <span class="c">// % saved vs GPT-4o baseline</span>
+  <span class="p">"cache_hit"</span>:      <span class="k">false</span>,
+  <span class="p">"latency_ms"</span>:     <span class="n">1240</span>
+}</code></pre>
+
+    <div class="section-title">Response 400</div>
+    <pre><code>{ <span class="p">"error"</span>: <span class="s">"prompt is required."</span> }</code></pre>
+  </section>
+
+  <!-- ── SUMMARIZE ─────────────────────────── -->
+  <section class="endpoint" id="summarize">
+    <div class="endpoint-header">
+      <span class="method-badge method-post">POST</span>
+      <span class="endpoint-path">/api/zapier/summarize</span>
+    </div>
+    <div class="endpoint-title">Summarize Text</div>
+    <div class="endpoint-desc">Summarize any text into concise bullet points. Internally routes through Casca's optimized LOW-complexity path for maximum cost efficiency.</div>
+
+    <div class="section-title">Request Body (JSON)</div>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td class="param-name">text</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="req-badge">required</span>&nbsp; The text to summarize.</td>
+      </tr>
+      <tr>
+        <td class="param-name">language</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Output language. Default: <code class="code-inline">English</code></td>
+      </tr>
+      <tr>
+        <td class="param-name">bullet_points</td>
+        <td><span class="param-type">integer</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Number of bullet points. Default: <code class="code-inline">5</code></td>
+      </tr>
+    </table>
+
+    <div class="section-title">Response 200</div>
+    <div class="info-box"><strong>Note:</strong> Returns the same schema as <code class="code-inline">/api/zapier/chat</code>. The <code class="code-inline">content</code> field contains the bullet-point summary.</div>
+    <pre><code>{
+  <span class="p">"id"</span>:          <span class="s">"chatcmpl-xyz789"</span>,
+  <span class="p">"content"</span>:     <span class="s">"• Revenue grew 15% YoY\n• New markets in APAC\n• ..."</span>,
+  <span class="p">"model"</span>:       <span class="s">"gemini-flash"</span>,
+  <span class="p">"tokens_used"</span>: <span class="n">198</span>,
+  <span class="p">"cost_usd"</span>:    <span class="n">0.0000049</span>,
+  <span class="p">"savings_pct"</span>: <span class="n">97</span>,
+  <span class="p">"cache_hit"</span>:   <span class="k">false</span>,
+  <span class="p">"latency_ms"</span>:  <span class="n">890</span>
+}</code></pre>
+  </section>
+
+  <!-- ── TRANSLATE ─────────────────────────── -->
+  <section class="endpoint" id="translate">
+    <div class="endpoint-header">
+      <span class="method-badge method-post">POST</span>
+      <span class="endpoint-path">/api/zapier/translate</span>
+    </div>
+    <div class="endpoint-title">Translate Text</div>
+    <div class="endpoint-desc">Translate text to any target language. Returns only the translated content with no explanation.</div>
+
+    <div class="section-title">Request Body (JSON)</div>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td class="param-name">text</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="req-badge">required</span>&nbsp; The text to translate.</td>
+      </tr>
+      <tr>
+        <td class="param-name">target_language</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="req-badge">required</span>&nbsp; Target language. Example: <code class="code-inline">Traditional Chinese</code>, <code class="code-inline">Japanese</code>, <code class="code-inline">French</code></td>
+      </tr>
+    </table>
+
+    <div class="section-title">Response 200</div>
+    <pre><code>{
+  <span class="p">"id"</span>:          <span class="s">"chatcmpl-tr001"</span>,
+  <span class="p">"content"</span>:     <span class="s">"這是一個測試句子。"</span>,
+  <span class="p">"model"</span>:       <span class="s">"gemini-flash"</span>,
+  <span class="p">"tokens_used"</span>: <span class="n">28</span>,
+  <span class="p">"cost_usd"</span>:    <span class="n">0.0000007</span>,
+  <span class="p">"savings_pct"</span>: <span class="n">97</span>,
+  <span class="p">"cache_hit"</span>:   <span class="k">false</span>,
+  <span class="p">"latency_ms"</span>:  <span class="n">620</span>
+}</code></pre>
+  </section>
+
+  <!-- ── SOQL ─────────────────────────────── -->
+  <section class="endpoint" id="soql">
+    <div class="endpoint-header">
+      <span class="method-badge method-post">POST</span>
+      <span class="endpoint-path">/api/zapier/generate-soql</span>
+    </div>
+    <div class="endpoint-title">Generate SOQL Query</div>
+    <div class="endpoint-desc">Convert a natural language question into a Salesforce SOQL query. Returns only the query string with no explanation.</div>
+
+    <div class="section-title">Request Body (JSON)</div>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td class="param-name">query</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="req-badge">required</span>&nbsp; Natural language question. Example: <em>"Find all contacts in the Technology industry created this year"</em></td>
+      </tr>
+      <tr>
+        <td class="param-name">objects</td>
+        <td><span class="param-type">string</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Available Salesforce objects. Default: <code class="code-inline">Standard Objects</code></td>
+      </tr>
+    </table>
+
+    <div class="section-title">Response 200</div>
+    <pre><code>{
+  <span class="p">"id"</span>:          <span class="s">"chatcmpl-sq001"</span>,
+  <span class="p">"content"</span>:     <span class="s">"SELECT Id, Name, Email FROM Contact WHERE Industry = 'Technology' AND CreatedDate = THIS_YEAR"</span>,
+  <span class="p">"model"</span>:       <span class="s">"gpt-4o-mini"</span>,
+  <span class="p">"tokens_used"</span>: <span class="n">87</span>,
+  <span class="p">"cost_usd"</span>:    <span class="n">0.0000131</span>,
+  <span class="p">"savings_pct"</span>: <span class="n">85</span>,
+  <span class="p">"cache_hit"</span>:   <span class="k">false</span>,
+  <span class="p">"latency_ms"</span>:  <span class="n">980</span>
+}</code></pre>
+  </section>
+
+  <!-- ── LOGS ─────────────────────────────── -->
+  <section class="endpoint" id="logs">
+    <div class="endpoint-header">
+      <span class="method-badge method-get">GET</span>
+      <span class="endpoint-path">/api/zapier/logs</span>
+    </div>
+    <div class="endpoint-title">New API Request (Trigger)</div>
+    <div class="endpoint-desc">Polling trigger — returns recent API request logs. Zapier polls this endpoint every 1–15 minutes and fires the Zap when new log entries appear.</div>
+
+    <div class="section-title">Query Parameters</div>
+    <table>
+      <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td class="param-name">limit</td>
+        <td><span class="param-type">integer</span></td>
+        <td class="param-desc"><span class="opt-badge">optional</span>&nbsp; Max records to return (1–100). Default: <code class="code-inline">25</code></td>
+      </tr>
+    </table>
+
+    <div class="section-title">Response 200 — Array</div>
+    <pre><code>[
+  {
+    <span class="p">"id"</span>:           <span class="s">"log-uuid-001"</span>,       <span class="c">// unique ID (required by Zapier)</span>
+    <span class="p">"prompt_hash"</span>:  <span class="s">"a1b2c3d4e5f6..."</span>,
+    <span class="p">"cx"</span>:           <span class="s">"LOW"</span>,                 <span class="c">// LOW | MED | HIGH | CACHE</span>
+    <span class="p">"model_name"</span>:   <span class="s">"gpt-4o-mini"</span>,
+    <span class="p">"tokens_in"</span>:    <span class="n">42</span>,
+    <span class="p">"tokens_out"</span>:   <span class="n">128</span>,
+    <span class="p">"cost_usd"</span>:     <span class="n">0.000025</span>,
+    <span class="p">"savings_pct"</span>:  <span class="n">85</span>,
+    <span class="p">"is_cache_hit"</span>: <span class="k">false</span>,
+    <span class="p">"latency_ms"</span>:   <span class="n">1200</span>,
+    <span class="p">"status_code"</span>:  <span class="n">200</span>,
+    <span class="p">"created_at"</span>:   <span class="s">"2026-04-07T10:00:00Z"</span>
+  }
+]</code></pre>
+  </section>
+
+  <!-- ── ANNOTATIONS ─────────────────────── -->
+  <section class="endpoint" id="annotations">
+    <div class="endpoint-header">
+      <span class="method-badge method-get">GET</span>
+      <span class="endpoint-path">/api/zapier/annotations</span>
+    </div>
+    <div class="endpoint-title">New Annotation (Trigger)</div>
+    <div class="endpoint-desc">Polling trigger — returns pending annotation queue items. Fires when Casca detects an ambiguous classification that needs human review.</div>
+
+    <div class="section-title">Response 200 — Array</div>
+    <pre><code>[
+  {
+    <span class="p">"id"</span>:             <span class="s">"ann-uuid-001"</span>,
+    <span class="p">"prompt"</span>:         <span class="s">"What is the cancellation policy?"</span>,
+    <span class="p">"predicted_cx"</span>:   <span class="s">"MED"</span>,
+    <span class="p">"triggered_rule"</span>: <span class="s">"AMBIG_DETECT"</span>,
+    <span class="p">"lang"</span>:           <span class="s">"EN"</span>,
+    <span class="p">"uc"</span>:             <span class="s">"GENERAL"</span>,
+    <span class="p">"status"</span>:         <span class="s">"pending"</span>,
+    <span class="p">"created_at"</span>:     <span class="s">"2026-04-07T10:05:00Z"</span>
+  }
+]</code></pre>
+  </section>
+
+  <!-- ── USAGE ─────────────────────────────── -->
+  <section class="endpoint" id="usage">
+    <div class="endpoint-header">
+      <span class="method-badge method-get">GET</span>
+      <span class="endpoint-path">/api/zapier/usage</span>
+    </div>
+    <div class="endpoint-title">Usage Quota Alert (Trigger)</div>
+    <div class="endpoint-desc">Polling trigger — fires when token usage exceeds 80% of plan quota. Returns at most one alert per account per day (deduplicated by date-based ID).</div>
+    <div class="info-box"><strong>Note:</strong> Returns an empty array <code class="code-inline">[]</code> when usage is below 80% — Zapier will not fire the Zap in that case.</div>
+
+    <div class="section-title">Response 200 — Array (when usage ≥ 80%)</div>
+    <pre><code>[
+  {
+    <span class="p">"id"</span>:               <span class="s">"usage-uuid-2026-04-07"</span>,   <span class="c">// unique per account per day</span>
+    <span class="p">"email"</span>:            <span class="s">"user@company.com"</span>,
+    <span class="p">"plan"</span>:             <span class="s">"Starter"</span>,
+    <span class="p">"used_tokens"</span>:      <span class="n">8500000</span>,
+    <span class="p">"included_tokens"</span>:  <span class="n">10000000</span>,
+    <span class="p">"usage_pct"</span>:        <span class="n">85</span>,
+    <span class="p">"balance_credits"</span>:  <span class="n">25.50</span>,
+    <span class="p">"alert_level"</span>:      <span class="s">"WARNING"</span>,    <span class="c">// WARNING (80-99%) | OVER_QUOTA (100%+)</span>
+    <span class="p">"date"</span>:             <span class="s">"2026-04-07"</span>
+  }
+]</code></pre>
+
+    <div class="section-title">Response 200 — Empty (usage &lt; 80%)</div>
+    <pre><code>[]</code></pre>
+  </section>
+
+  <div style="padding-top:40px;border-top:1px solid var(--border);color:var(--text2);font-size:13px;">
+    <p>© 2026 Vast Intelligence Limited · <a href="https://cascaio.com">cascaio.com</a> · <a href="mailto:casca@vastitw.com">casca@vastitw.com</a></p>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+</body>
+</html>
