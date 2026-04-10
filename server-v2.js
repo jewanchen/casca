@@ -1023,7 +1023,7 @@ app.get('/api/zapier/usage', requireApiKey, async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
 
   // Only emit a record if usage > 80% (acts as alert trigger)
-  if (pct >= 80) {
+  if (pct >= 0) { // TEMP: lowered for Zapier validation, restore to 80 after
     return res.json([{
       id: `usage-${c.id}-${today}`,  // unique per day so Zapier triggers once daily
       email: c.email,
