@@ -1,0 +1,19 @@
+{
+  "name": "casca-zapier",
+  "version": "1.0.2",
+  "description": "Casca AI Routing Engine — Zapier Integration. Route AI prompts to the best model at the lowest cost.",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --testTimeout 10000"
+  },
+  "dependencies": {
+    "zapier-platform-core": "15.*"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "zapier": {
+    "id": 0,
+    "key": "casca"
+  }
+}
