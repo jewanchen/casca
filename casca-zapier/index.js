@@ -41,7 +41,7 @@ module.exports = {
     [usageAlert.key]:    usageAlert,
   },
 
-  actions: {
+  creates: {
     [aiChat.key]:       aiChat,
     [summarize.key]:    summarize,
     [translate.key]:    translate,

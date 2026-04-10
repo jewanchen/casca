@@ -9,10 +9,9 @@ const perform = async (z, bundle) => {
     url: 'https://api.cascaio.com/api/zapier/logs',
     params: { limit: 25 },
   });
-  return response.data;  // Array of log objects with `id` field
+  return response.data;
 };
 
-// Sample data shown in Zap editor before real data arrives
 const sample = {
   id: 'log-sample-001',
   prompt_hash: 'a1b2c3d4e5f6...',
@@ -34,23 +33,22 @@ module.exports = {
   display: {
     label: 'New API Request',
     description: 'Triggers when a new AI request is processed through Casca.',
-    important: true,
   },
   operation: {
     perform,
     sample,
     outputFields: [
-      { key: 'id', label: 'Log ID', type: 'string' },
-      { key: 'cx', label: 'Classification', type: 'string', helpText: 'LOW, MED, or HIGH' },
-      { key: 'model_name', label: 'Model Used', type: 'string' },
-      { key: 'tokens_in', label: 'Input Tokens', type: 'integer' },
-      { key: 'tokens_out', label: 'Output Tokens', type: 'integer' },
-      { key: 'cost_usd', label: 'Cost (USD)', type: 'number' },
-      { key: 'savings_pct', label: 'Savings %', type: 'integer' },
-      { key: 'is_cache_hit', label: 'Cache Hit', type: 'boolean' },
-      { key: 'latency_ms', label: 'Latency (ms)', type: 'integer' },
-      { key: 'status_code', label: 'HTTP Status', type: 'integer' },
-      { key: 'created_at', label: 'Created At', type: 'datetime' },
+      { key: 'id',           label: 'Log ID',         type: 'string'   },
+      { key: 'cx',           label: 'Classification', type: 'string'   },
+      { key: 'model_name',   label: 'Model Used',     type: 'string'   },
+      { key: 'tokens_in',    label: 'Input Tokens',   type: 'integer'  },
+      { key: 'tokens_out',   label: 'Output Tokens',  type: 'integer'  },
+      { key: 'cost_usd',     label: 'Cost (USD)',     type: 'number'   },
+      { key: 'savings_pct',  label: 'Savings %',      type: 'integer'  },
+      { key: 'is_cache_hit', label: 'Cache Hit',      type: 'boolean'  },
+      { key: 'latency_ms',   label: 'Latency (ms)',   type: 'integer'  },
+      { key: 'status_code',  label: 'HTTP Status',    type: 'integer'  },
+      { key: 'created_at',   label: 'Created At',     type: 'datetime' },
     ],
   },
 };

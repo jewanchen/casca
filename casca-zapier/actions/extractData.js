@@ -46,8 +46,7 @@ module.exports = {
 
   display: {
     label:       'Extract Structured Data',
-    description: 'Pull specific fields from any unstructured text — emails, contracts, support tickets, forms. Returns a structured JSON object you can map to any other Zap step.',
-    important:   true,
+    description: 'Pull specific fields from any unstructured text — emails, contracts, support tickets, forms. Returns a structured JSON object you can map to any other Zap step.'
   },
 
   operation: {

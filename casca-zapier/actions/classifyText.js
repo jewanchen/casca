@@ -40,8 +40,7 @@ module.exports = {
 
   display: {
     label:       'Classify Text',
-    description: 'Classify any text into your own custom categories. Use it to route support tickets, score inbound leads, tag content, or triage emails — no training required.',
-    important:   true,
+    description: 'Classify any text into your own custom categories. Use it to route support tickets, score inbound leads, tag content, or triage emails — no training required.'
   },
 
   operation: {

@@ -37,7 +37,6 @@ module.exports = {
   display: {
     label: 'AI Chat',
     description: 'Send a prompt to Casca AI. Automatically routed to the best model at the lowest cost.',
-    important: true,
   },
   operation: {
     perform,
@@ -83,15 +82,15 @@ module.exports = {
     ],
     sample,
     outputFields: [
-      { key: 'id', label: 'Request ID', type: 'string' },
-      { key: 'content', label: 'AI Response', type: 'string' },
-      { key: 'model', label: 'Model Used', type: 'string' },
-      { key: 'classification', label: 'Classification', type: 'string' },
-      { key: 'tokens_used', label: 'Tokens Used', type: 'integer' },
-      { key: 'cost_usd', label: 'Cost (USD)', type: 'number' },
-      { key: 'savings_pct', label: 'Savings %', type: 'integer' },
-      { key: 'cache_hit', label: 'Cache Hit', type: 'boolean' },
-      { key: 'latency_ms', label: 'Latency (ms)', type: 'integer' },
+      { key: 'id',             label: 'Request ID',     type: 'string'  },
+      { key: 'content',        label: 'AI Response',    type: 'string'  },
+      { key: 'model',          label: 'Model Used',     type: 'string'  },
+      { key: 'classification', label: 'Classification', type: 'string'  },
+      { key: 'tokens_used',    label: 'Tokens Used',    type: 'integer' },
+      { key: 'cost_usd',       label: 'Cost (USD)',     type: 'number'  },
+      { key: 'savings_pct',    label: 'Savings %',      type: 'integer' },
+      { key: 'cache_hit',      label: 'Cache Hit',      type: 'boolean' },
+      { key: 'latency_ms',     label: 'Latency (ms)',   type: 'integer' },
     ],
   },
 };

@@ -1,6 +1,5 @@
 /**
  * Action: Summarize Text
- * Summarize any text into bullet points using AI.
  */
 
 const perform = async (z, bundle) => {
@@ -22,14 +21,13 @@ module.exports = {
   display: {
     label: 'Summarize Text',
     description: 'Summarize any text into concise bullet points using AI.',
-    important: true,
   },
   operation: {
     perform,
     inputFields: [
-      { key: 'text', label: 'Text to Summarize', type: 'text', required: true, helpText: 'Paste the text you want summarized.' },
-      { key: 'language', label: 'Output Language', type: 'string', required: false, default: 'English', helpText: 'Language for the summary. Default: English' },
-      { key: 'bullet_points', label: 'Number of Bullet Points', type: 'string', required: false, default: '5', helpText: 'How many bullet points. Default: 5' },
+      { key: 'text',          label: 'Text to Summarize',      type: 'text',   required: true,  helpText: 'Paste the text you want summarized.' },
+      { key: 'language',      label: 'Output Language',        type: 'string', required: false, default: 'English', helpText: 'Language for the summary. Default: English' },
+      { key: 'bullet_points', label: 'Number of Bullet Points',type: 'string', required: false, default: '5',       helpText: 'How many bullet points. Default: 5' },
     ],
     sample: {
       id: 'casca-sum-001',
@@ -43,10 +41,10 @@ module.exports = {
       latency_ms: 900,
     },
     outputFields: [
-      { key: 'content', label: 'Summary', type: 'string' },
-      { key: 'model', label: 'Model Used', type: 'string' },
-      { key: 'tokens_used', label: 'Tokens Used', type: 'integer' },
-      { key: 'cost_usd', label: 'Cost (USD)', type: 'number' },
+      { key: 'content',     label: 'Summary',    type: 'string'  },
+      { key: 'model',       label: 'Model Used', type: 'string'  },
+      { key: 'tokens_used', label: 'Tokens Used',type: 'integer' },
+      { key: 'cost_usd',    label: 'Cost (USD)', type: 'number'  },
     ],
   },
 };

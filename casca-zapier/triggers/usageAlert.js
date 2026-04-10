@@ -1,7 +1,6 @@
 /**
  * Trigger: Usage Alert
  * Fires when token usage exceeds 80% of plan quota.
- * Alerts once per day per threshold level.
  */
 
 const perform = async (z, bundle) => {
@@ -34,15 +33,15 @@ module.exports = {
     perform,
     sample,
     outputFields: [
-      { key: 'id', label: 'Alert ID', type: 'string' },
-      { key: 'email', label: 'Account Email', type: 'string' },
-      { key: 'plan', label: 'Plan', type: 'string' },
-      { key: 'used_tokens', label: 'Tokens Used', type: 'integer' },
+      { key: 'id',              label: 'Alert ID',        type: 'string'  },
+      { key: 'email',           label: 'Account Email',   type: 'string'  },
+      { key: 'plan',            label: 'Plan',            type: 'string'  },
+      { key: 'used_tokens',     label: 'Tokens Used',     type: 'integer' },
       { key: 'included_tokens', label: 'Tokens Included', type: 'integer' },
-      { key: 'usage_pct', label: 'Usage %', type: 'integer' },
-      { key: 'balance_credits', label: 'Balance (USD)', type: 'number' },
-      { key: 'alert_level', label: 'Alert Level', type: 'string', helpText: 'WARNING (80-99%) or OVER_QUOTA (100%+)' },
-      { key: 'date', label: 'Date', type: 'string' },
+      { key: 'usage_pct',       label: 'Usage %',         type: 'integer' },
+      { key: 'balance_credits', label: 'Balance (USD)',   type: 'number'  },
+      { key: 'alert_level',     label: 'Alert Level',     type: 'string'  },
+      { key: 'date',            label: 'Date',            type: 'string'  },
     ],
   },
 };
