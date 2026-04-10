@@ -1699,6 +1699,37 @@
                  tok, modal, lang, noiseType:null, confidence:82 };
       }
     }
+    // ── P0-ZH-CONTRACT-ADVISORY: 合約相關諮詢 → MED (要注意/包含哪些/如何簽訂)
+    if ((lang === 'ZH' || lang === 'ZH_SC') && tok >= 10 && tok <= 30) {
+      if (/(要注意|有什麼|包含哪些|一般包含|如何簽訂|如何签订|需要什麼|包含什么|有哪些|注意事项|要注意什么).{0,20}(合約|合同|協議|契約|条款|SLA|NDA)|(合約|合同|協議|條款|契約|SLA|NDA).{0,20}(要注意|包含哪些|有什麼|如何|一般包含|需要什麼|包含什么|注意事项)/.test(prompt)) {
+        return { cx:'MED', rule:'ZH-CONTRACT-ADVISORY: 合約諮詢 \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
+      }
+    }
+    // ── P0-ZH-CONTRACT-HIGH: 合約/法律文件起草 → HIGH ──────────────
+    // 起草合約是多維度任務（法律條款+合規+風險），GPT-4o mini 不足
+    if ((lang === 'ZH' || lang === 'ZH_SC') && tok >= 10) {
+      const _zContract = prompt;
+      // Skip definition/advisory queries (什麼是採購合約 / 要注意什麼 → not drafting)
+      const _isContractQuery = /^(什麼是|為什麼|如何|怎麼|要注意|什么是|为什么|怎么|要注意)/i.test(prompt.trim()) || /(要注意|有什麼|包含哪些|一般包含|如何簽訂|如何签订|需要什麼|看什麼)/i.test(prompt.trim());
+      if (!_isContractQuery && (
+        // 動詞 + 合約類文件
+        
+        /(起草|擬定|規劃|制定|設計|起草|擬|簽訂|訂立).{0,15}(合約|契約|協議|條款|印章|授權文件|SLA|NDA|MOU|LOI)/.test(_zContract) ||
+        /(起草|擬定|規劃|制定|設計|起草|擬|簽訂|訂立).{0,15}(合同|契约|协议|条款|印章|授权文件|SLA|NDA|MOU|LOI)/.test(_zContract) ||
+        // 策略/框架/報告等HIGH任務
+        /^(幫我|請|协助我?).{0,15}(制定|規劃|設計|起草|撰寫|擬定|設計).{0,30}(ESG報告|ESG框架|永續報告|策略框架|轉型計畫|年度計畫|發展計畫|行銷策略|營運策略|商業計畫|企業策略)/.test(_zContract) ||
+        /^(帮我|请|协助我?).{0,15}(制定|规划|设计|起草|撰写|拟定|设计).{0,30}(ESG报告|ESG框架|可持续报告|战略框架|转型计划|年度计划|营运策略|商业计划|企业战略)/.test(_zContract) ||
+        // 採購/供應/服務合約（直接命名）
+        /(採購|供應|服務|購貨|代理|分销|客戶|維修|承勞|履行|客户|中轉)合約/.test(_zContract) ||
+        /(采购|供应|服务|购货|代理|分销|客户|维修|承诺|履行|客户|中转)合同/.test(_zContract) ||
+        // 半導體/科技/金融等高專業度產業 + 合約
+        /(半導體|芯片|電子|技術|金融|法律|監管|專利|知調產權).{0,20}(合約|協議|條款|契約)/.test(_zContract) ||
+        /(半导体|芯片|电子|技术|金融|法律|监管|专利|知识产权).{0,20}(合同|协议|条款|契约)/.test(_zContract)
+      )) {
+        return { cx:'HIGH', rule:'ZH-CONTRACT-HIGH: 合約/法律文件起草 → HIGH',
+                 tok, modal, lang, noiseType:null, confidence:90 };
+      }
+    }
     // ── P0-ZH-CREA-LOW: ZH short creative tasks (naming, single IG caption) ──
     if ((lang === 'ZH' || lang === 'ZH_SC') && tok <= 80) {
       const _zc = prompt;
@@ -2290,7 +2321,8 @@ function route(prompt, uc, qualityTier, conversationContext) {
                  !classified.rule.includes('ID-CLOSURE') &&
                  !classified.rule.includes('ID-SHORT') &&
                  !/^(what|how|could|should|would|can|is|are|does|did|was|were|which|who|when|why)\b/i.test(_sd_tl) &&
-                 !/^(mettilo|mett[oi]|elenca|riassumi|fornisci [0-9]+|scrivi (un[a]? )?(breve|corto)|fai (una?|un)|mostrami|dammi la formula|listez|résumez|donnez|élaborez un court|fassen sie|listen sie|zeigen sie mir eine|nennen sie [0-9]+|stellen sie .{0,20}tabelle|übersetzen sie|schreiben sie ein kurz|schlagen sie eine kurze|لخّص|اذكر [0-9]+|قم بإدراج|اكتب (قائمة|نصاً)|ضع .{0,15}(جدول|ترتيب زمني)|ترجم هذا|resume (los?|las?|un[a]?)|haz una? (lista|tabla)|dame (la f[oó]rmula|una lista)|escribe (una prueba|un guion|un correo|un email)|pon (esto|los?|las?) en (orden|tabla|lista)|traduce (esa|esta)|muestra un ejemplo|haz una lista del?|pon .{3,25} en (una? )?tabla|एक (विस्तृत )?(सूची|तालिका|स्क्रिप्ट|सारांश|फ़ॉर्मूला|अनुवाद)|मुख्य .{2,15} (तालिका|सूची)|[0-9]+ सेकंड का)/i.test(_sd_tl)) {
+                 !/^(mettilo|mett[oi]|elenca|riassumi|fornisci [0-9]+|scrivi (un[a]? )?(breve|corto)|fai (una?|un)|mostrami|dammi la formula|listez|résumez|donnez|élaborez un court|fassen sie|listen sie|zeigen sie mir eine|nennen sie [0-9]+|stellen sie .{0,20}tabelle|übersetzen sie|schreiben sie ein kurz|schlagen sie eine kurze|لخّص|اذكر [0-9]+|قم بإدراج|اكتب (قائمة|نصاً)|ضع .{0,15}(جدول|ترتيب زمني)|ترجم هذا|resume (los?|las?|un[a]?)|haz una? (lista|tabla)|dame (la f[oó]rmula|una lista)|escribe (una prueba|un guion|un correo|un email)|pon (esto|los?|las?) en (orden|tabla|lista)|traduce (esa|esta)|muestra un ejemplo|haz una lista del?|pon .{3,25} en (una? )?tabla|एक (विस्तृत )?(सूची|तालिका|स्क्रिप्ट|सारांश|फ़ॉर्मूला|अनुवाद)|मुख्य .{2,15} (तालिका|सूची)|[0-9]+ सेकंड का)/i.test(_sd_tl) &&
+                 !/^(謝謝|好的謝謝|好謝謝|感謝|感謝您|明白了|收到了|了解了|沒問題|知道了|谢谢|好的谢谢|好谢谢|感谢|感谢您|明白了|收到了|了解了|没问题|知道了)[^一-鿿]{0,3}$/.test(prompt.trim())) {
           const modeRes = {
             PROFESSIONAL: _lt_sd, EMPATHY:'MED', SIMPLE:'LOW',
             TROUBLESHOOT:'LOW', CREATIVE:'MED', LEARNING:'LOW', LIFESTYLE:'LOW',
@@ -2512,14 +2544,34 @@ function route(prompt, uc, qualityTier, conversationContext) {
         /^(単体|ユニット)テスト.{0,10}(書いて|作って|書いてください|作ってください)[。！!]?$/.test(prompt.trim()) ||
         /^.{2,20}(症状|ポイント|リスク|要因|特徴|手順|ステップ)(を|は)?(リストアップ|列挙|まとめ)(して|してください|に)[。！!]?$/.test(prompt.trim())
       );
+      // ZH closure/acknowledgement: 謝謝/好的/明白/收到 → never bump tier
+      const _isZHClosure = (classified.lang === 'ZH' || classified.lang === 'ZH_SC') &&
+        /^(謝謝|好的謝謝|好謝謝|感謝|感謝您|明白了|收到了|了解了|好的收到|沒問題|可以|好的可以|好，謝謝|好的，謝謝|好掌握了|完成了|知道了)[^一-鿿]{0,3}$/.test(prompt.trim()) ||
+        (classified.lang === 'ZH' || classified.lang === 'ZH_SC') &&
+        /^(谢谢|好的谢谢|好谢谢|感谢|感谢您|明白了|收到了|了解了|好的收到|没问题|可以|好的可以|好，谢谢|好的，谢谢|完成了|知道了)[^一-鿿]{0,3}$/.test(prompt.trim());
       if (!_isFormulaReq && !_isClosureFrag && !_isShortFormatRule && !_isJAShortFmt && !_isFRShortFmt && !_isITShortFmt && !_isDEShortFmt && !_isKOShortFmt && !_isHIShortFmt && !_isARShortFmt && !_isZHSCShortFmt && !_isESShortFmt &&
           !_isTHShortFmt && !_isVIShortFmt && !_isIDShortFmt &&
-          cx === 'LOW' && classified.tok <= 15 && classified.tok > 5 &&
+          cx === 'LOW' && !_isZHClosure && classified.tok <= 15 && classified.tok > 2 &&
           (tierRank[lastTier] || 1) >= 2 &&
           (_mode23 === 'PROFESSIONAL' || _mode23 === 'CRITICAL_BURST' || _mode23 === 'MULTI_AGENT' || _mode23 === 'CODE_TASK')) {
         cx = 'MED';
         contextApplied = true;
       }
+      // ── ZH CONNECTOR INHERIT: 接下去/繼續/接著 → 直接繼承 lastTier ──────
+      // 這類詞語義明確表示「繼續上一個任務」，不應降級
+      const _zhConnectors =
+        /^(接下去|接下來|繼續|繼續說|繼續分析|繼續做|接著|接著說|接著呢|接著分析|往下|然後呢|就這樣繼續|這樣繼續|繼|接|往下)[^一-鿿぀-ゟ゠-ヿ]{0,4}$/.test(prompt.trim()) ||
+        /^(继续|接着|然后呢|接下去|继续说|继续分析|继续做|接着说|接着呢|就这样继续)[^一-鿿]{0,4}$/.test(prompt.trim());
+
+      if (_zhConnectors && conversationContext && (tierRank[lastTier] || 1) >= 2) {
+        // 繼承 lastTier，不允許降超過一級
+        const inheritedCx = lastTier === 'HIGH' ? 'HIGH' : lastTier === 'MED' ? 'MED' : cx;
+        if ((tierRank[inheritedCx] || 1) > (tierRank[cx] || 1)) {
+          cx = inheritedCx;
+          contextApplied = true;
+        }
+      }
+      
       // CRITICAL_BURST: tier jumped 2 levels up (LOW→HIGH) → honour it fully
       // (no floor capping — emergency overrides history)
     }
