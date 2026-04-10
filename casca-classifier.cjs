@@ -785,6 +785,19 @@
     if (/心絞痛|心肌梗塞|中風|脑卒中|脑溢血|腦溢血|急性心臟|急性心脏|CPR|AED|腎衰竭|肾衰竭|急性腎|急性肾|肝衰竭|休克|昏迷|停止呼吸|呼吸困難|呼吸困难|急救藥|急救措施|急救药|胸口悶|胸口闷|左手臂酸|心臟問題|心悸|心律不整|心律不齐|胸痛|胸悶|胸闷|溶栓|脑梗|脑血管/i.test(tl)) {
       return { cx:'HIGH', rule:'R-ZH-MEDICAL-ACUTE: 急性醫療症狀 \u2192 HIGH', confidence:95 };
     }
+    // ── R-UC-EXTRACT: DATA_EXTRACT use_case → MED floor (structured output needed) ──
+    // Short prompts like "extract name" would normally fall to LOW, but structured JSON output
+    // requires reliable json_object mode → floor at MED, long inputs → HIGH.
+    if (uc === 'DATA_EXTRACT') {
+      if (tok > 200) return { cx: 'HIGH', rule: 'R-UC-EXTRACT: DATA_EXTRACT + long text → HIGH', confidence: 92 };
+      return { cx: 'MED', rule: 'R-UC-EXTRACT: DATA_EXTRACT → MED floor', confidence: 88 };
+    }
+
+    // ── R-UC-CLASSIFY: CLASSIFY use_case → LOW (deterministic, temp=0, max_tokens=64) ──
+    if (uc === 'CLASSIFY') {
+      return { cx: 'LOW', rule: 'R-UC-CLASSIFY: CLASSIFY → LOW (deterministic)', confidence: 90 };
+    }
+
     if (
       ['legal', 'law'].includes(uc) ||
       /法律|合規|合规|compliance|訴訟|诉讼|liability|法規|法规|gdpr|個資法|个人信息保护法|勞基法|劳动法|著作權|著作权|版权|商標|商标|專利|专利|侵权|侵權|合同审查|契約審查|dpia|cease and desist|\bndas?\b|malpractice|hipaa|osha|dodd.frank|合规|监管|法务|尽职调查|知识产权/i.test(tl)
