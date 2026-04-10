@@ -1175,6 +1175,102 @@ app.post('/api/zapier/generate-soql', requireApiKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/zapier/extract
+ * Action: extract structured data from unstructured text.
+ * Input:  { text, schema_description, example_output? }
+ * Output: { content (JSON string), extracted (parsed object), model, ... }
+ *
+ * Uses json_object response_format for models that support it.
+ * Classifier will route to HIGH complexity (strong model) automatically.
+ */
+app.post('/api/zapier/extract', requireApiKey, async (req, res) => {
+  const { text, schema_description, example_output } = req.body;
+  if (!text)              return res.status(400).json({ error: 'text is required.' });
+  if (!schema_description) return res.status(400).json({ error: 'schema_description is required.' });
+
+  let system = `You are a precise data extraction engine. Extract structured data from the provided text and return ONLY valid JSON — no markdown, no explanation, no extra text.\n\nExtract the following fields:\n${schema_description}`;
+  if (example_output) {
+    system += `\n\nExample output format:\n${example_output}`;
+  }
+  system += '\n\nIf a field cannot be found in the text, set its value to null.';
+
+  try {
+    const chatRes = await fetch(`http://localhost:${PORT}/api/zapier/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+      body: JSON.stringify({
+        prompt:        text,
+        system_prompt: system,
+        use_case:      'DATA_EXTRACT',
+        temperature:   0.1,
+        max_tokens:    2048,
+      }),
+    });
+    const data = await chatRes.json();
+    if (!chatRes.ok) return res.status(chatRes.status).json(data);
+
+    // Attempt to parse the JSON content for convenience
+    let extracted = null;
+    try { extracted = JSON.parse(data.content); } catch (_) { /* non-fatal */ }
+
+    return res.json({ ...data, extracted });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/zapier/classify
+ * Action: classify text into one of the user-defined categories.
+ * Input:  { text, categories, multi_label? }
+ * Output: { content (label string), category, confidence_hint, model, ... }
+ *
+ * categories: comma-separated string  e.g. "refund, technical, billing, general"
+ * multi_label: boolean — if true, allow multiple labels separated by commas
+ */
+app.post('/api/zapier/classify', requireApiKey, async (req, res) => {
+  const { text, categories, multi_label } = req.body;
+  if (!text)       return res.status(400).json({ error: 'text is required.' });
+  if (!categories) return res.status(400).json({ error: 'categories is required.' });
+
+  const labelList = categories.split(',').map(c => c.trim()).filter(Boolean);
+  const multiMode = multi_label === true || multi_label === 'true';
+
+  const system = multiMode
+    ? `You are a text classifier. Classify the text into one or more of these categories: ${labelList.join(', ')}.\nReturn ONLY the matching category labels separated by commas. No explanation, no punctuation, no extra text.`
+    : `You are a text classifier. Classify the text into exactly ONE of these categories: ${labelList.join(', ')}.\nReturn ONLY the single category label. No explanation, no punctuation, no extra text.`;
+
+  try {
+    const chatRes = await fetch(`http://localhost:${PORT}/api/zapier/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+      body: JSON.stringify({
+        prompt:        text,
+        system_prompt: system,
+        use_case:      'CLASSIFY',
+        temperature:   0.0,
+        max_tokens:    64,
+      }),
+    });
+    const data = await chatRes.json();
+    if (!chatRes.ok) return res.status(chatRes.status).json(data);
+
+    // Normalise: trim + validate against known labels
+    const raw = (data.content || '').trim();
+    const matched = multiMode
+      ? raw.split(',').map(l => l.trim()).filter(l => labelList.includes(l))
+      : (labelList.includes(raw) ? raw : raw);
+
+    return res.json({
+      ...data,
+      category: multiMode ? matched.join(', ') : matched,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Public config endpoint ────────────────────────────────────────
 // Returns Supabase public credentials for frontend tools (annotator, dashboard).
 // Only exposes ANON key (safe for browser) — never SERVICE key.
