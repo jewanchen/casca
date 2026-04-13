@@ -300,15 +300,19 @@ export async function predictMiniLM(prompt) {
  * @param {object} params.l2Result       — L2 result { label, confidence } or null
  * @param {string} params.servingLabel   — final label actually used for routing
  * @param {string} params.clientId       — client UUID (optional)
+ * @param {boolean} params.judgeEnabled  — per-client flag (default: true)
  * @param {object} params.supabase       — Supabase client
  * @param {object} params.providerRegistry — provider map (for LLM Judge)
  */
 export async function runTrainingPipeline({
   promptText, classifyResult, l2Result, servingLabel,
-  clientId, supabase, providerRegistry,
+  clientId, judgeEnabled = true, supabase, providerRegistry,
 }) {
   const enabled = (process.env.PATH_B_ENABLED || '').toLowerCase() === 'true';
   if (!enabled) return;
+
+  // Per-client control: skip LLM Judge if disabled for this client
+  if (!judgeEnabled) return;
 
   // Sample rate control (default: 100%)
   const sampleRate = parseFloat(process.env.PATH_B_SAMPLE_RATE || '1.0');

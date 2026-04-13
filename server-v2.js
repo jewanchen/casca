@@ -564,7 +564,7 @@ async function requireApiKey(req, res, next) {
     .select(`
       id, email, company_name, plan_id, balance_credits,
       quota_limit, quota_used, cycle_used_tokens, billing_cycle_start,
-      stripe_customer_id, stripe_sub_id, trial_ends_at,
+      stripe_customer_id, stripe_sub_id, trial_ends_at, path_b_judge_enabled,
       subscription_plans (
         id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
       )
@@ -1863,6 +1863,7 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
       l2Result,
       servingLabel: classifyResult.cx === 'AMBIG' ? 'MED' : classifyResult.cx,
       clientId,
+      judgeEnabled: client.path_b_judge_enabled !== false,
       supabase,
       providerRegistry,
     }).catch(err => console.error('[path-b] pipeline error:', err.message));
@@ -2634,6 +2635,232 @@ app.delete('/api/admin/keys/:id', requireAdmin, async (req, res) => {
   return res.json({ ok: true, id });
 });
 
+
+// ════════════════════════════════════════════════════════════════
+//  ADMIN — PATH B: Training Pipeline Management
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/pathb/mismatches
+ * L1 vs LLM Judge 差異清單 (l1_correct = false)
+ * Query: ?limit=50&offset=0&lang=ZH&rule=R6
+ */
+app.get('/api/admin/pathb/mismatches', requireAdmin, async (req, res) => {
+  const limit  = Math.min(parseInt(req.query.limit || '50', 10), 200);
+  const offset = parseInt(req.query.offset || '0', 10);
+
+  let query = supabase
+    .from('training_samples')
+    .select('id, prompt_masked, l1_label, l1_rule, l1_static_conf, l1_dynamic_conf, l2_label, l2_invoked, judge_label, l1_correct, serving_label, serving_correct, lang, source, client_id, created_at', { count: 'exact' })
+    .eq('l1_correct', false)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  // Optional filters
+  if (req.query.lang) query = query.eq('lang', req.query.lang);
+  if (req.query.rule) query = query.ilike('l1_rule', `%${req.query.rule}%`);
+  if (req.query.client_id) query = query.eq('client_id', req.query.client_id);
+
+  const { data, count, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+
+  return res.json({ mismatches: data, total: count });
+});
+
+/**
+ * GET /api/admin/pathb/stats
+ * Path B 總覽統計
+ */
+app.get('/api/admin/pathb/stats', requireAdmin, async (req, res) => {
+  try {
+    const [totalRes, correctRes, mismatchRes, todayRes] = await Promise.all([
+      supabase.from('training_samples').select('id', { count: 'exact', head: true }),
+      supabase.from('training_samples').select('id', { count: 'exact', head: true }).eq('l1_correct', true),
+      supabase.from('training_samples').select('id', { count: 'exact', head: true }).eq('l1_correct', false),
+      supabase.from('training_samples').select('id', { count: 'exact', head: true })
+        .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString()),
+    ]);
+
+    const total     = totalRes.count || 0;
+    const correct   = correctRes.count || 0;
+    const mismatch  = mismatchRes.count || 0;
+    const today     = todayRes.count || 0;
+    const accuracy  = total > 0 ? ((correct / total) * 100).toFixed(1) : '—';
+
+    return res.json({ total, correct, mismatch, today, l1_accuracy: accuracy });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/pathb/minilm
+ * MiniLM 狀態 — 代理到 MiniLM service + 版本歷史
+ */
+app.get('/api/admin/pathb/minilm', requireAdmin, async (req, res) => {
+  try {
+    // Fetch version history from DB
+    const { data: versions } = await supabase
+      .from('minilm_versions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    // Try to get live status from MiniLM service
+    let liveStatus = null;
+    const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      const r = await fetch(`${minilmUrl}/model/status`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (r.ok) liveStatus = await r.json();
+    } catch (_) { /* service unreachable */ }
+
+    return res.json({
+      service_status: liveStatus ? 'online' : 'offline',
+      active_version: liveStatus?.active_version || versions?.find(v => v.is_active)?.version || '—',
+      is_training: liveStatus?.is_training || false,
+      versions: versions || [],
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/pathb/minilm/train
+ * 觸發 MiniLM incremental fine-tune
+ */
+app.post('/api/admin/pathb/minilm/train', requireAdmin, async (req, res) => {
+  const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+  try {
+    const r = await fetch(`${minilmUrl}/train/trigger`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json(data);
+    return res.json(data);
+  } catch (err) {
+    return res.status(502).json({ error: 'MiniLM service unreachable: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/admin/pathb/minilm/cold-start
+ * 觸發 MiniLM cold start fine-tune
+ */
+app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) => {
+  const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+  try {
+    const r = await fetch(`${minilmUrl}/train/cold-start`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json(data);
+    return res.json(data);
+  } catch (err) {
+    return res.status(502).json({ error: 'MiniLM service unreachable: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/admin/pathb/upload
+ * 批量上傳 JSONL — 轉發到 MiniLM service /train/import
+ */
+app.post('/api/admin/pathb/upload', requireAdmin, express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
+  const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+  try {
+    // Build multipart form data
+    const boundary = '----CascaUpload' + Date.now();
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="upload.jsonl"\r\nContent-Type: application/octet-stream\r\n\r\n`),
+      req.body,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+
+    const r = await fetch(`${minilmUrl}/train/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body,
+    });
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json(data);
+    return res.json(data);
+  } catch (err) {
+    return res.status(502).json({ error: 'MiniLM service unreachable: ' + err.message });
+  }
+});
+
+/**
+ * GET /api/admin/pathb/clients
+ * 客戶學習控制清單 — 每個客戶的樣本數 + LLM Judge 開/關
+ */
+app.get('/api/admin/pathb/clients', requireAdmin, async (req, res) => {
+  try {
+    // Get all clients with their path_b flag
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, email, company_name, path_b_judge_enabled, created_at')
+      .order('created_at', { ascending: false });
+
+    // Count samples per client
+    const { data: sampleCounts } = await supabase
+      .from('training_samples')
+      .select('client_id')
+      .not('client_id', 'is', null);
+
+    // Count recent samples (7 days)
+    const since7d = new Date();
+    since7d.setDate(since7d.getDate() - 7);
+    const { data: recentCounts } = await supabase
+      .from('training_samples')
+      .select('client_id, created_at')
+      .not('client_id', 'is', null)
+      .gte('created_at', since7d.toISOString());
+
+    // Aggregate counts
+    const totalMap = {};
+    const recentMap = {};
+    for (const row of (sampleCounts || [])) {
+      totalMap[row.client_id] = (totalMap[row.client_id] || 0) + 1;
+    }
+    for (const row of (recentCounts || [])) {
+      recentMap[row.client_id] = (recentMap[row.client_id] || 0) + 1;
+    }
+
+    const result = (clients || []).map(c => ({
+      id: c.id,
+      email: c.email,
+      company_name: c.company_name,
+      path_b_judge_enabled: c.path_b_judge_enabled,
+      total_samples: totalMap[c.id] || 0,
+      recent_7d_samples: recentMap[c.id] || 0,
+    }));
+
+    return res.json({ clients: result });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * PATCH /api/admin/pathb/clients/:id
+ * 切換客戶的 LLM Judge 開/關
+ * Body: { path_b_judge_enabled: true|false }
+ */
+app.patch('/api/admin/pathb/clients/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { path_b_judge_enabled } = req.body;
+  if (typeof path_b_judge_enabled !== 'boolean')
+    return res.status(400).json({ error: 'path_b_judge_enabled must be boolean.' });
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ path_b_judge_enabled, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  console.log(`[path-b] client ${id.slice(0,8)} judge ${path_b_judge_enabled ? 'ENABLED' : 'DISABLED'}`);
+  return res.json({ ok: true, id, path_b_judge_enabled });
+});
 
 function scheduleTrialExpiry() {
   const runExpiry = async () => {
