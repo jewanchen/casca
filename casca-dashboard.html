@@ -859,16 +859,79 @@ textarea{resize:none;height:68px;line-height:1.5}
 
 <!-- Auth modal -->
 <div id="auth-modal" style="display:none;position:fixed;inset:0;background:#00000060;z-index:500;align-items:center;justify-content:center">
-  <div style="background:var(--bg3);border:0.5px solid var(--b2);border-radius:var(--r16);padding:28px;width:360px;max-width:90vw">
-    <div style="font-family:var(--display);font-size:16px;font-weight:600;margin-bottom:18px">登入 Casca</div>
+  <div style="background:var(--bg3);border:0.5px solid var(--b2);border-radius:var(--r16);padding:28px;width:380px;max-width:90vw;position:relative">
+    <!-- Tab switcher -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:0.5px solid var(--b2)">
+      <button id="tab-signin" onclick="switchAuthTab('signin')" style="flex:1;background:none;border:none;padding:8px 0;font-size:13px;font-weight:600;color:var(--teal);border-bottom:2px solid var(--teal);cursor:pointer;transition:all 0.15s">登入</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;background:none;border:none;padding:8px 0;font-size:13px;font-weight:600;color:var(--t3);border-bottom:2px solid transparent;cursor:pointer;transition:all 0.15s">建立帳號</button>
+    </div>
     <div id="auth-error" style="display:none;background:var(--red2);border:0.5px solid rgba(255,95,109,0.3);color:var(--red);font-size:11px;padding:8px 12px;border-radius:6px;margin-bottom:12px"></div>
+    <!-- Shared fields -->
     <div style="margin-bottom:10px"><label class="field-label">Email</label><input id="auth-email-in" type="email" placeholder="you@company.com" style="width:100%"></div>
-    <div style="margin-bottom:16px"><label class="field-label">Password</label><input id="auth-pw-in" type="password" placeholder="••••••••" style="width:100%"></div>
-    <div style="display:flex;gap:8px">
+    <div id="auth-company-wrap" style="display:none;margin-bottom:10px"><label class="field-label">公司名稱（選填）</label><input id="auth-company-in" type="text" placeholder="Acme Corp" style="width:100%"></div>
+    <div style="margin-bottom:16px"><label class="field-label">密碼</label><input id="auth-pw-in" type="password" placeholder="••••••••（至少 8 字元）" style="width:100%"></div>
+    <!-- Action buttons -->
+    <div id="auth-signin-btns" style="display:flex;gap:8px">
       <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="authSignIn()">登入</button>
-      <button class="btn" style="flex:1;justify-content:center" onclick="authSignUp()">註冊</button>
+    </div>
+    <div id="auth-signup-btns" style="display:none;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="authSignUp()">建立帳號</button>
     </div>
     <button onclick="hideAuthModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer">×</button>
+  </div>
+</div>
+
+<!-- ═══ TRIAL ACTIVATION MODAL ═══ -->
+<div id="trial-modal" style="display:none;position:fixed;inset:0;background:#00000070;z-index:600;align-items:center;justify-content:center">
+  <div style="background:var(--bg3);border:0.5px solid rgba(0,212,170,0.3);border-radius:var(--r16);padding:32px;width:420px;max-width:90vw;position:relative">
+    <div id="trial-modal-content">
+      <!-- Step 1: Apply -->
+      <div id="trial-step-apply">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:32px;margin-bottom:10px">🚀</div>
+          <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:6px">啟動 30 天免費試用</div>
+          <div style="font-size:12px;color:var(--t3)">取得 API Key，立即開始整合測試</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--r8);padding:14px 16px;margin-bottom:20px">
+          <div style="font-size:11px;color:var(--t3);margin-bottom:8px;font-family:var(--display);letter-spacing:0.05em">試用內容包含</div>
+          <div style="font-size:12px;color:var(--t2);line-height:1.8">
+            ✓ &nbsp;30 天完整功能存取<br>
+            ✓ &nbsp;自動路由（LOW / MED / HIGH）<br>
+            ✓ &nbsp;支援 OpenAI / Anthropic / Google<br>
+            ✓ &nbsp;即時 Dashboard 監控<br>
+            ✓ &nbsp;試用到期自動停用，無需手動取消
+          </div>
+        </div>
+        <div id="trial-apply-error" style="display:none;background:var(--red2);border:0.5px solid rgba(255,95,109,0.3);color:var(--red);font-size:11px;padding:8px 12px;border-radius:6px;margin-bottom:12px"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="applyTrial()">
+          啟動試用並取得 API Key →
+        </button>
+      </div>
+      <!-- Step 2: Key reveal (shown after success) -->
+      <div id="trial-step-key" style="display:none">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:32px;margin-bottom:10px">✅</div>
+          <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:6px">試用已啟動！</div>
+          <div id="trial-days-msg" style="font-size:12px;color:var(--teal)"></div>
+        </div>
+        <div style="background:rgba(255,60,60,0.06);border:0.5px solid rgba(255,60,60,0.25);border-radius:var(--r8);padding:10px 14px;margin-bottom:12px">
+          <div style="font-size:10px;color:var(--red);font-weight:600;margin-bottom:2px">⚠ 請立即複製此 API Key — 之後無法再次查看</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--r8);padding:12px 14px;margin-bottom:14px">
+          <div style="font-size:9px;color:var(--t3);margin-bottom:6px;font-family:var(--display);letter-spacing:0.05em">YOUR API KEY</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <code id="trial-key-value" style="flex:1;font-family:var(--mono);font-size:11px;color:var(--teal);word-break:break-all;line-height:1.6"></code>
+            <button class="btn btn-primary" onclick="copyTrialKey()" style="flex-shrink:0;font-size:11px;padding:5px 10px">複製</button>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 14px;margin-bottom:18px;font-size:11px;color:var(--t3);line-height:1.7">
+          試用到期：<span id="trial-end-date" style="color:var(--t2);font-family:var(--mono)"></span><br>
+          剩餘天數：<span id="trial-days-left" style="color:var(--teal);font-weight:600"></span> 天
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeTrialModal()">開始使用 Dashboard</button>
+      </div>
+    </div>
+    <button onclick="closeTrialModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer">×</button>
   </div>
 </div>
 
@@ -878,6 +941,16 @@ textarea{resize:none;height:68px;line-height:1.5}
     <div class="ph-top">
       <div><div class="ph-title">API Keys</div><div class="ph-sub">管理你的 API 金鑰，每個 Key 只顯示一次</div></div>
       <div class="ph-actions"><button class="btn btn-primary" onclick="generateKey()">+ 生成新 Key</button></div>
+    </div>
+  </div>
+  <!-- Trial status banner — shown when no keys exist -->
+  <div id="trial-cta-banner" style="display:none;background:linear-gradient(135deg,rgba(0,212,170,0.07),rgba(0,176,255,0.05));border:0.5px solid rgba(0,212,170,0.25);border-radius:var(--r12);padding:20px 24px;margin:0 0 16px;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-family:var(--display);font-size:14px;font-weight:700;margin-bottom:4px">🚀 啟動你的 30 天免費試用</div>
+        <div style="font-size:12px;color:var(--t3)">取得 API Key，立即整合 Casca 路由引擎。試用到期自動停用，無需手動取消。</div>
+      </div>
+      <button class="btn btn-primary" onclick="showTrialModal()" style="flex-shrink:0;white-space:nowrap">申請試用 →</button>
     </div>
   </div>
   <div class="page-content">
@@ -1646,15 +1719,127 @@ async function authSignIn() {
 }
 
 async function authSignUp() {
-  const sb    = getSB();
-  const email = document.getElementById('auth-email-in').value.trim();
-  const pw    = document.getElementById('auth-pw-in').value;
-  const errEl = document.getElementById('auth-error');
+  const email   = document.getElementById('auth-email-in').value.trim();
+  const pw      = document.getElementById('auth-pw-in').value;
+  const company = document.getElementById('auth-company-in').value.trim();
+  const errEl   = document.getElementById('auth-error');
   errEl.style.display = 'none';
-  const { error } = await sb.auth.signUp({ email, password: pw });
-  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
-  errEl.style.cssText = 'display:block;background:rgba(0,212,170,0.08);border-color:rgba(0,212,170,0.3);color:var(--teal)';
-  errEl.textContent = '✓ 驗證信已寄出，請確認後再登入';
+  if (!email || !pw) { errEl.textContent = '請填寫 Email 與密碼'; errEl.style.display = 'block'; return; }
+  if (pw.length < 8) { errEl.textContent = '密碼至少需要 8 個字元'; errEl.style.display = 'block'; return; }
+
+  try {
+    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw, company_name: company || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || '註冊失敗，請稍後再試'; errEl.style.display = 'block'; return; }
+    errEl.style.cssText = 'display:block;background:rgba(0,212,170,0.08);border-color:rgba(0,212,170,0.3);color:var(--teal)';
+    errEl.textContent = '✓ 驗證信已寄出！請至信箱確認後再登入。';
+  } catch(e) {
+    errEl.textContent = '網路錯誤，請稍後再試'; errEl.style.display = 'block';
+  }
+}
+
+function switchAuthTab(tab) {
+  const isSignup = tab === 'signup';
+  document.getElementById('tab-signin').style.cssText = `flex:1;background:none;border:none;padding:8px 0;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;color:${isSignup?'var(--t3)':'var(--teal)'};border-bottom:2px solid ${isSignup?'transparent':'var(--teal)'}`;
+  document.getElementById('tab-signup').style.cssText = `flex:1;background:none;border:none;padding:8px 0;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;color:${isSignup?'var(--teal)':'var(--t3)'};border-bottom:2px solid ${isSignup?'var(--teal)':'transparent'}`;
+  document.getElementById('auth-company-wrap').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('auth-signin-btns').style.display  = isSignup ? 'none'  : 'flex';
+  document.getElementById('auth-signup-btns').style.display  = isSignup ? 'flex'  : 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function showTrialModal() {
+  document.getElementById('trial-step-apply').style.display = 'block';
+  document.getElementById('trial-step-key').style.display   = 'none';
+  document.getElementById('trial-apply-error').style.display = 'none';
+  document.getElementById('trial-modal').style.display = 'flex';
+}
+
+function closeTrialModal() {
+  document.getElementById('trial-modal').style.display = 'none';
+  // Refresh keys and account info
+  loadKeys();
+  loadMe();
+}
+
+async function applyTrial() {
+  const sb = getSB();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { alert('請先登入'); return; }
+  const errEl = document.getElementById('trial-apply-error');
+  errEl.style.display = 'none';
+
+  const btn = document.querySelector('#trial-step-apply .btn');
+  const origText = btn.textContent;
+  btn.textContent = '處理中…'; btn.disabled = true;
+
+  try {
+    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/trial/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || '申請失敗，請稍後再試';
+      errEl.style.display = 'block';
+      btn.textContent = origText; btn.disabled = false;
+      return;
+    }
+    // Show key reveal
+    document.getElementById('trial-key-value').textContent = data.key;
+    document.getElementById('trial-days-msg').textContent  = `試用期 ${data.days_remaining} 天，到期自動停用`;
+    document.getElementById('trial-end-date').textContent  = new Date(data.trial_ends_at).toLocaleDateString('zh-TW');
+    document.getElementById('trial-days-left').textContent = data.days_remaining;
+    document.getElementById('trial-step-apply').style.display = 'none';
+    document.getElementById('trial-step-key').style.display   = 'block';
+    // Save key as active key
+    activeApiKey = data.key;
+    localStorage.setItem('casca_active_key', data.key);
+    injectSdkKey(data.key);
+  } catch(e) {
+    errEl.textContent = '網路錯誤：' + e.message;
+    errEl.style.display = 'block';
+    btn.textContent = origText; btn.disabled = false;
+  }
+}
+
+function copyTrialKey() {
+  const key = document.getElementById('trial-key-value').textContent;
+  navigator.clipboard.writeText(key).then(() => {
+    const btn = document.querySelector('#trial-step-key .btn');
+    btn.textContent = '已複製 ✓';
+    setTimeout(() => btn.textContent = '複製', 2000);
+  });
+}
+
+async function checkTrialStatus() {
+  // Called after login — if user has no API key, prompt trial
+  const sb = getSB();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+
+  // If we already have an active key in localStorage, skip
+  if (activeApiKey) return;
+
+  try {
+    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/trial/status`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) return;
+    const status = await res.json();
+
+    if (!status.has_keys) {
+      // No API key yet — show trial activation modal after short delay
+      setTimeout(() => showTrialModal(), 800);
+    }
+  } catch(e) { /* silent */ }
 }
 
 async function authSignOut() {
@@ -1671,6 +1856,7 @@ function afterLogin() {
       updateAuthUI(data.user);
       loadKeys();
       loadMe();
+      checkTrialStatus();
     }
   });
 }
@@ -1701,7 +1887,7 @@ function initAuth() {
     else updateAuthUI(null);
   });
   sb.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) { updateAuthUI(session.user); loadKeys(); }
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); checkTrialStatus(); }
     else updateAuthUI(null);
   });
 }
@@ -1717,7 +1903,12 @@ async function loadKeys() {
   }).catch(() => null);
 
   if (loadEl) loadEl.textContent = '';
-  if (!res || !res.ok) return;
+  if (!res || !res.ok) {
+    // Show trial CTA if not logged in / no keys
+    const banner = document.getElementById('trial-cta-banner');
+    if (banner) banner.style.display = 'flex';
+    return;
+  }
   const { keys } = await res.json();
   renderKeys(keys);
 }
