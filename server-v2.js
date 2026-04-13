@@ -30,6 +30,12 @@ import { createRequire }  from 'module';
 
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
 
+// ── Path B: Training Pipeline + Dynamic Confidence ──────────────
+import {
+  piiMask, llmJudge, runTrainingPipeline,
+  getDynamicConfidence, predictMiniLM, loadRuleAccuracyCache,
+} from './casca-path-b.js';
+
 // ── Load CommonJS classifier (UMD) from ESM server ──────────────
 // IMPORTANT: file MUST be .cjs so Node.js treats it as CommonJS
 // despite package.json having "type": "module".
@@ -591,6 +597,26 @@ async function requireApiKey(req, res, next) {
 function requireAdmin(req, res, next) {
   if (!process.env.ADMIN_SECRET || req.headers['x-admin-secret'] !== process.env.ADMIN_SECRET)
     return res.status(403).json({ error: 'Admin access required.' });
+  next();
+}
+
+/**
+ * Middleware: verify Supabase JWT (Bearer token from sb.auth.getSession)
+ * Used for self-service endpoints where user has no csk_ key yet.
+ */
+async function requireSupabaseJWT(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!token) return res.status(401).json({ error: 'Authorization header required.' });
+
+  // csk_ keys are not JWT — reject them here (use requireApiKey instead)
+  if (token.startsWith('csk_')) {
+    return res.status(401).json({ error: 'Use csk_ key with /api/v1 endpoints.' });
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return res.status(401).json({ error: 'Invalid or expired session.' });
+  req.supabaseUser = data.user;
   next();
 }
 
@@ -1283,6 +1309,186 @@ app.get('/api/public/config', (_req, res) => {
   res.json({ supabase_url: url, supabase_anon_key: anon });
 });
 
+// ════════════════════════════════════════════════════════════════
+//  SELF-SERVICE REGISTRATION & TRIAL
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/auth/register
+ * Public endpoint — no auth required.
+ * Creates Supabase auth user + clients record + 30-day trial + API key.
+ * Body: { email, password, company_name? }
+ * Returns: { ok, key, trial_ends_at, message }
+ */
+app.post('/api/auth/register', async (req, res) => {
+  const { email, password, company_name } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ error: 'email and password are required.' });
+  if (password.length < 8)
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+  try {
+    // Create Supabase auth user (email_confirm: false → sends verification email)
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: false,  // user must verify email before logging in
+    });
+    if (authErr) {
+      if (authErr.message.includes('already registered') || authErr.message.includes('already exists')) {
+        return res.status(409).json({ error: 'This email is already registered. Please log in.' });
+      }
+      return res.status(400).json({ error: authErr.message });
+    }
+
+    const userId = authData.user.id;
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 30);
+    const trialEndIso = trialEnd.toISOString();
+
+    // Upsert clients record with trial
+    await supabase.from('clients').upsert({
+      id:             userId,
+      email,
+      company_name:   company_name || null,
+      trial_ends_at:  trialEndIso,
+      status:         'active',
+      updated_at:     new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+    console.log(`[register] new user ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} → ${userId.slice(0, 8)}, trial until ${trialEndIso}`);
+
+    return res.status(201).json({
+      ok:            true,
+      user_id:       userId,
+      trial_ends_at: trialEndIso,
+      message:       'Account created. Please check your email to verify your account, then log in to activate your trial and get your API key.',
+    });
+  } catch (err) {
+    console.error('[register] error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/trial/apply
+ * Requires: Supabase JWT (Bearer token from session).
+ * Called after email verification + first login.
+ * If user has no active trial: sets trial_ends_at = now + 30 days and generates API key.
+ * Returns: { ok, key (shown once only), trial_ends_at, days_remaining }
+ */
+app.post('/api/trial/apply', requireSupabaseJWT, async (req, res) => {
+  const user = req.supabaseUser;
+
+  try {
+    // Check if client record exists
+    const { data: existing } = await supabase
+      .from('clients')
+      .select('id, email, trial_ends_at, status')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    // Block if already has an active (non-expired) trial or paid plan
+    if (existing?.trial_ends_at) {
+      const trialEnd = new Date(existing.trial_ends_at);
+      if (trialEnd > new Date()) {
+        return res.status(409).json({
+          error: 'You already have an active trial.',
+          trial_ends_at: existing.trial_ends_at,
+        });
+      }
+    }
+
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 30);
+    const trialEndIso = trialEnd.toISOString();
+
+    // Upsert clients record
+    const { data: client } = await supabase.from('clients').upsert({
+      id:            user.id,
+      email:         user.email,
+      trial_ends_at: trialEndIso,
+      status:        'active',
+      updated_at:    new Date().toISOString(),
+    }, { onConflict: 'id' }).select('id').single();
+
+    // Generate API key
+    const rawKey  = 'csk_' + crypto.randomBytes(20).toString('hex');
+    const hash    = hashKey(rawKey);
+    const prefix  = rawKey.slice(0, 12);
+
+    const { error: keyErr } = await supabase.from('api_keys').insert({
+      client_id:  user.id,
+      key_hash:   hash,
+      key_prefix: prefix,
+      label:      'Trial Key',
+      is_active:  true,
+    });
+
+    if (keyErr) {
+      console.error('[trial/apply] key insert error:', keyErr.message);
+      return res.status(500).json({ error: 'Failed to generate API key.' });
+    }
+
+    const daysRemaining = Math.ceil((trialEnd - new Date()) / 86_400_000);
+    console.log(`[trial/apply] ${user.email.replace(/(.{2}).+(@.+)/, '$1***$2')} → trial until ${trialEndIso}`);
+
+    return res.status(201).json({
+      ok:             true,
+      key:            rawKey,   // shown once only — client must save it
+      prefix,
+      trial_ends_at:  trialEndIso,
+      days_remaining: daysRemaining,
+      message:        'Trial activated. Save your API key now — it will not be shown again.',
+    });
+  } catch (err) {
+    console.error('[trial/apply] error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/trial/status
+ * Requires: Supabase JWT.
+ * Returns current trial status for the logged-in user.
+ */
+app.get('/api/trial/status', requireSupabaseJWT, async (req, res) => {
+  const user = req.supabaseUser;
+  const { data: client } = await supabase
+    .from('clients')
+    .select('id, email, company_name, trial_ends_at, status')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  // Check existing API keys
+  const { data: keys } = await supabase
+    .from('api_keys')
+    .select('id, key_prefix, label, is_active, created_at')
+    .eq('client_id', user.id)
+    .eq('is_active', true);
+
+  if (!client) {
+    return res.json({ has_account: false, has_trial: false, has_keys: false });
+  }
+
+  const now = new Date();
+  const trialActive = client.trial_ends_at && new Date(client.trial_ends_at) > now;
+  const daysRemaining = client.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(client.trial_ends_at) - now) / 86_400_000))
+    : 0;
+
+  return res.json({
+    has_account:    true,
+    has_trial:      !!client.trial_ends_at,
+    trial_active:   trialActive,
+    trial_ends_at:  client.trial_ends_at,
+    days_remaining: daysRemaining,
+    has_keys:       (keys?.length ?? 0) > 0,
+    key_count:      keys?.length ?? 0,
+    keys:           (keys || []).map(k => ({ id: k.id, prefix: k.key_prefix, label: k.label, created_at: k.created_at })),
+  });
+});
+
 app.get('/health', (_req, res) => res.json({
   status: 'ok', providers: providerRegistry.size,
   stripe:  !!stripe, ts: new Date().toISOString(),
@@ -1445,6 +1651,37 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
       console.log(`[casca] intent override: ${classifyResult.cx}→${overrideCx} (${classifyResult.rule})`);
       classifyResult = { ...classifyResult, cx: overrideCx, originalCx: classifyResult.cx,
                          rule: classifyResult.rule + ' [intent-override→HIGH]' };
+    }
+  }
+
+  // ── Step 3.7: Path B — Dynamic Confidence + L2 MiniLM fallback ──
+  //  If Path B is enabled:
+  //    1. Compute dynamic_confidence = static_conf × rule_accuracy_rate
+  //    2. If dynamic_confidence < threshold → invoke L2 MiniLM
+  //    3. Use L2 result if available, otherwise keep L1
+  let l2Result = null;
+  const pathBEnabled = (process.env.PATH_B_ENABLED || '').toLowerCase() === 'true';
+  const confThreshold = parseInt(process.env.PATH_B_CONFIDENCE_THRESHOLD || '80', 10);
+
+  if (pathBEnabled && classifyResult.confidence) {
+    const dynConf = await getDynamicConfidence(
+      classifyResult.rule, classifyResult.confidence, supabase
+    );
+    classifyResult = { ...classifyResult, dynamicConfidence: dynConf };
+
+    if (dynConf < confThreshold) {
+      // L1 not confident enough → ask L2 MiniLM
+      l2Result = await predictMiniLM(promptText);
+      if (l2Result && l2Result.label) {
+        const prevCx = classifyResult.cx;
+        classifyResult = {
+          ...classifyResult,
+          cx: l2Result.label,
+          originalCx: prevCx,
+          rule: classifyResult.rule + ` [L2-override: ${prevCx}→${l2Result.label} conf=${(l2Result.confidence*100).toFixed(1)}%]`,
+        };
+        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Result.confidence*100).toFixed(1)}%)`);
+      }
     }
   }
 
@@ -1617,6 +1854,19 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
     costUsd, savingsPct, isCache: false, latencyMs: Date.now() - t0,
     statusCode, errorMessage: null, uc, noLog,
   });
+
+  // ── Path B: async training pipeline (never blocks response) ────
+  if (pathBEnabled && !noLog) {
+    runTrainingPipeline({
+      promptText,
+      classifyResult,
+      l2Result,
+      servingLabel: classifyResult.cx === 'AMBIG' ? 'MED' : classifyResult.cx,
+      clientId,
+      supabase,
+      providerRegistry,
+    }).catch(err => console.error('[path-b] pipeline error:', err.message));
+  }
 });
 
 // ── /api/route — backward-compatible alias ────────────────────────
@@ -2415,6 +2665,11 @@ async function start() {
   await loadProviders();
   await initRedis();
   mActiveProviders.set(providerRegistry.size);
+  // ── Path B: load rule accuracy cache for dynamic confidence ───
+  if ((process.env.PATH_B_ENABLED || '').toLowerCase() === 'true') {
+    await loadRuleAccuracyCache(supabase);
+    console.log('[casca] Path B training pipeline ENABLED');
+  }
   if (!stripe) console.warn('[casca] STRIPE_SECRET_KEY not set — billing endpoints disabled.');
   scheduleTrialExpiry();
   app.listen(PORT, () => {

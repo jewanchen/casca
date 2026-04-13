@@ -970,8 +970,8 @@ footer {
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-cta">
-    <button class="btn-ghost" onclick="window.location.href='https://app.cascaio.com/login'">Log In</button>
-    <button class="btn-primary" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'})">Get Started →</button>
+    <button class="btn-ghost" onclick="window.location.href='casca-dashboard.html'">Log In</button>
+    <button class="btn-primary" onclick="window.location.href='casca-dashboard.html#signup'">免費試用 →</button>
   </div>
 </nav>
 
@@ -1004,11 +1004,11 @@ footer {
   </div>
 
   <div class="hero-actions">
-    <button class="btn-hero btn-hero-primary" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">
-      See How It Works ↓
+    <button class="btn-hero btn-hero-primary" onclick="window.location.href='casca-dashboard.html#signup'">
+      申請免費試用 →
     </button>
-    <button class="btn-hero btn-hero-ghost" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">
-      View Pricing
+    <button class="btn-hero btn-hero-ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">
+      See How It Works ↓
     </button>
   </div>
 
@@ -1222,7 +1222,7 @@ footer {
           <div style="font-size:28px;font-weight:800;letter-spacing:-0.02em">$10K–$30K</div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px">covers deployment + integration</div>
         </div>
-        <a href="mailto:casca@vastitw.com" class="p-cta p-cta-ghost" style="flex-shrink:0;width:160px">Contact Sales →</a>
+        <a href="/cdn-cgi/l/email-protection#b7d4d6c4d4d6f7c1d6c4c3dec3c099d4d8da" class="p-cta p-cta-ghost" style="flex-shrink:0;width:160px">Contact Sales →</a>
       </div>
 
       <!-- Math proof -->
@@ -1322,7 +1322,7 @@ footer {
           <div style="font-size:28px;font-weight:800;letter-spacing:-0.02em">$15K–$30K</div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:3px">migration + deployment + compliance</div>
         </div>
-        <a href="mailto:casca@vastitw.com" class="p-cta p-cta-ghost" style="flex-shrink:0;width:160px">Contact Sales →</a>
+        <a href="/cdn-cgi/l/email-protection#65060416060425130416110c11124b060a08" class="p-cta p-cta-ghost" style="flex-shrink:0;width:160px">Contact Sales →</a>
       </div>
 
       <div class="pricing-guarantee reveal reveal-d2" style="margin-top:20px">
@@ -1349,13 +1349,13 @@ footer {
 <section class="cta-section" id="cta">
   <div class="cta-inner reveal">
     <h2>Stop Burning Money.<br><span class="green">Start Today.</span></h2>
-    <p>Enter your work email. We'll send a free bill analysis report within 24 hours showing exactly how much you can save.</p>
-    <div class="cta-form">
-      <input type="email" class="cta-input" id="cta-email" placeholder="you@company.com">
-      <button class="cta-submit" onclick="submitCTA()">Get Free Analysis →</button>
+    <p>建立免費帳號，立即啟動 30 天試用，取得 API Key 開始整合。無需信用卡，試用到期自動停用。</p>
+    <div class="cta-form" style="justify-content:center;gap:12px;flex-wrap:wrap">
+      <button class="cta-submit" style="min-width:200px" onclick="window.location.href='casca-dashboard.html#signup'">建立帳號 &amp; 申請試用 →</button>
+      <button class="cta-submit" style="min-width:160px;background:transparent;border:1.5px solid rgba(0,230,118,0.5);color:var(--green)" onclick="window.location.href='casca-dashboard.html'">已有帳號？登入</button>
     </div>
     <div class="cta-small">
-      <span>✓</span> No credit card &nbsp;·&nbsp; <span>✓</span> 60-day zero risk &nbsp;·&nbsp; <span>✓</span> &lt; 30% savings = full refund
+      <span>✓</span> 30 天免費試用 &nbsp;·&nbsp; <span>✓</span> 無需信用卡 &nbsp;·&nbsp; <span>✓</span> 到期自動停用
     </div>
   </div>
 </section>
@@ -1379,7 +1379,7 @@ footer {
   <span class="foot-copy">© 2025 Vast Intelligence Limited. All rights reserved.</span>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ═══ PRICING MODE SWITCH ═══ */
 function switchMode(mode, btn) {
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
@@ -1471,10 +1471,4 @@ window.addEventListener('scroll',()=>{
 
 /* ═══ SCROLL REVEAL ═══ */
 const observer=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');observer.unobserve(e.target);}});
-},{threshold:0.06});
-document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
-
-</script>
-</body>
-</html>
+  entries.forEach(e=>{if(e.isIntersec
