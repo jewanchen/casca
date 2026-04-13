@@ -1883,11 +1883,11 @@ function initAuth() {
   if (!sb) return;
   document.getElementById('auth-bar').style.display = 'flex';
   sb.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) { updateAuthUI(session.user); loadKeys(); }
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); loadMe(); checkTrialStatus(); }
     else updateAuthUI(null);
   });
   sb.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) { updateAuthUI(session.user); loadKeys(); checkTrialStatus(); }
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); loadMe(); checkTrialStatus(); }
     else updateAuthUI(null);
   });
 }
@@ -2410,6 +2410,33 @@ async function loadTransactions() {
 // ── Boot ─────────────────────────────────────────────────
 initCharts();
 initAuth();
+
+// ── Handle #signup / #login hash from index.html CTA ────
+(function() {
+  const hash = window.location.hash;
+  if (hash === '#signup' || hash === '#register') {
+    // Wait for page + auth to settle, then open the signup tab
+    setTimeout(() => {
+      // Only show if not already logged in
+      const sb = getSB();
+      if (!sb) { showAuthModal(); switchAuthTab('signup'); return; }
+      sb.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.user) {
+          showAuthModal();
+          switchAuthTab('signup');
+        }
+      });
+    }, 400);
+  } else if (hash === '#login') {
+    setTimeout(() => {
+      const sb = getSB();
+      if (!sb) { showAuthModal(); return; }
+      sb.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.user) showAuthModal();
+      });
+    }, 400);
+  }
+})();
 
 </script>
 </body>
