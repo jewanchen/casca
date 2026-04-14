@@ -1328,11 +1328,15 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
   try {
-    // Create Supabase auth user (email_confirm: false → sends verification email)
-    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+    // Use public signUp() so Supabase automatically sends confirmation email.
+    // admin.createUser() does NOT send email even with email_confirm: false.
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
-      email_confirm: false,  // user must verify email before logging in
+      options: {
+        emailRedirectTo: (process.env.FRONTEND_URL || 'https://cascaio.com') + '/dashboard',
+        data: { company_name: company_name || null },
+      },
     });
     if (authErr) {
       if (authErr.message.includes('already registered') || authErr.message.includes('already exists')) {
@@ -1341,7 +1345,11 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: authErr.message });
     }
 
-    const userId = authData.user.id;
+    const userId = authData.user?.id;
+    if (!userId) {
+      return res.status(500).json({ error: 'Sign-up failed: no user returned.' });
+    }
+
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 30);
     const trialEndIso = trialEnd.toISOString();
@@ -1356,7 +1364,7 @@ app.post('/api/auth/register', async (req, res) => {
       updated_at:     new Date().toISOString(),
     }, { onConflict: 'id' });
 
-    console.log(`[register] new user ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} → ${userId.slice(0, 8)}, trial until ${trialEndIso}`);
+    console.log(`[register] new user ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} → ${userId.slice(0, 8)}, trial until ${trialEndIso}, verification email sent`);
 
     return res.status(201).json({
       ok:            true,
