@@ -465,23 +465,23 @@ textarea{resize:none;height:68px;line-height:1.5}
     <div class="metrics">
       <div class="mc mc-accent-teal">
         <div class="mc-label">本月節省費用</div>
-        <div class="mc-val" style="color:var(--teal)">$18,240</div>
-        <div class="mc-sub"><span class="mc-up">↑ 較上月 +12%</span></div>
+        <div class="mc-val" style="color:var(--teal)" id="ov-savings">—</div>
+        <div class="mc-sub" id="ov-savings-sub">尚未產生資料</div>
       </div>
       <div class="mc">
-        <div class="mc-label">品質評分</div>
-        <div class="mc-val" style="color:var(--teal)" id="dash-qs">93.4%</div>
-        <div class="mc-sub"><span class="mc-up">高於 88% 基準</span></div>
+        <div class="mc-label">平均節省率</div>
+        <div class="mc-val" style="color:var(--teal)" id="ov-savings-pct">—</div>
+        <div class="mc-sub" id="ov-savings-pct-sub">尚未產生資料</div>
       </div>
       <div class="mc mc-accent-blue">
-        <div class="mc-label">系統可用率</div>
-        <div class="mc-val" style="color:var(--blue)">99.94%</div>
-        <div class="mc-sub">SLA 目標 99.9%</div>
+        <div class="mc-label">快取命中率</div>
+        <div class="mc-val" style="color:var(--blue)" id="ov-cache-rate">—</div>
+        <div class="mc-sub" id="ov-cache-rate-sub">尚未產生資料</div>
       </div>
       <div class="mc">
         <div class="mc-label">路由請求數</div>
-        <div class="mc-val">1.24M</div>
-        <div class="mc-sub">過去 30 天</div>
+        <div class="mc-val" id="ov-requests">—</div>
+        <div class="mc-sub" id="ov-requests-sub">過去 30 天</div>
       </div>
     </div>
     <div class="two-col">
@@ -1549,20 +1549,11 @@ rt.innerHTML='<div style="display:grid;grid-template-columns:1fr 160px 72px 100p
 rules.forEach(r=>{rt.innerHTML+=`<div class="rule-row"><span style="color:var(--t1)">${r.l}</span><select style="font-size:10px;padding:3px 6px;background:var(--bg2);border-color:var(--b2)">${['Gemini 2.0 Flash','Cache → Gemini Flash','GPT-4o-mini','Claude Haiku','GPT-4o','Claude Sonnet'].map(m=>`<option${m===r.m?' selected':''}>${m}</option>`).join('')}</select><select style="font-size:10px;padding:3px 6px;background:var(--bg2);border-color:var(--b2)">${['>75%','>80%','>88%','>90%','>92%','>95%','>96%','>97%'].map(q=>`<option${q===r.q?' selected':''}>${q}</option>`).join('')}</select><span style="font-size:9px;color:var(--t3);font-family:var(--mono)">${r.r}</span></div>`;});
 
 // ── DASH LOG ──────────────────────────
-const dashLogs=[
-  {t:'14:31:44',uc:'HR',c:'LOW',tok:9,m:'Cache hit',mc:'mt-cache',cost:'$0.000000',s:'100%',lat:'3ms',q:'—',rule:'R9'},
-  {t:'14:31:58',uc:'財務',c:'LOW',tok:28,m:'Gemini 2.0 Flash',mc:'mt-flash',cost:'$0.000003',s:'99%',lat:'198ms',q:'95%',rule:'R-NEW1a'},
-  {t:'14:32:01',uc:'客服',c:'LOW',tok:142,m:'Gemini 2.0 Flash',mc:'mt-flash',cost:'$0.000014',s:'97%',lat:'218ms',q:'94%',rule:'R1'},
-  {t:'14:32:09',uc:'法務',c:'HIGH',tok:421,m:'GPT-4o',mc:'mt-gpt4',cost:'$0.002105',s:'0%',lat:'1102ms',q:'98%',rule:'R6'},
-  {t:'14:32:14',uc:'內容',c:'MED',tok:891,m:'GPT-4o-mini',mc:'mt-mini',cost:'$0.000134',s:'97%',lat:'441ms',q:'92%',rule:'R3'},
-  {t:'14:32:19',uc:'HR',c:'MED',tok:380,m:'GPT-4o-mini',mc:'mt-mini',cost:'$0.000057',s:'99%',lat:'387ms',q:'91%',rule:'R3'},
-  {t:'14:32:25',uc:'產品',c:'HIGH',tok:512,m:'GPT-4o',mc:'mt-gpt4',cost:'$0.002560',s:'0%',lat:'934ms',q:'97%',rule:'R-NEW2'},
-  {t:'14:32:31',uc:'數據',c:'LOW',tok:8,m:'Gemini 2.0 Flash',mc:'mt-flash',cost:'$0.000001',s:'99%',lat:'187ms',q:'95%',rule:'R1'},
-  {t:'14:32:38',uc:'行銷',c:'HIGH',tok:780,m:'Claude Sonnet',mc:'mt-sonnet',cost:'$0.002340',s:'35%',lat:'821ms',q:'96%',rule:'R5'},
-  {t:'14:32:44',uc:'知識',c:'LOW',tok:64,m:'Cache hit',mc:'mt-cache',cost:'$0.000000',s:'100%',lat:'4ms',q:'—',rule:'R9'},
-];
-const dl=document.getElementById('dash-log');
-dashLogs.forEach(r=>{dl.innerHTML+=`<tr><td style="font-family:var(--mono);color:var(--t3)">${r.t}</td><td>${r.uc}</td><td><span class="tag tag-${r.c.toLowerCase()}">${r.c}</span></td><td style="font-family:var(--mono)">${r.tok}</td><td><span class="model-tag ${r.mc}">${r.m}</span></td><td style="font-family:var(--mono)">${r.cost}</td><td style="color:var(--teal);font-family:var(--display);font-weight:500">${r.s}</td><td style="color:var(--teal)">${r.q}</td><td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${r.rule}</td><td style="font-family:var(--mono)">${r.lat}</td></tr>`;});
+// Overview 最新請求紀錄表格 — 初始空白，由 loadOverview() 從 API 填入
+{
+  const dl = document.getElementById('dash-log');
+  if (dl) dl.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--t3);padding:24px">尚無請求紀錄 — 開始使用 API Key 後數據會自動出現</td></tr>';
+}
 
 // ── UPTIME GRID ───────────────────────
 const ug=document.getElementById('uptime-grid');
@@ -1888,11 +1879,11 @@ function initAuth() {
   if (!sb) return;
   document.getElementById('auth-bar').style.display = 'flex';
   sb.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) { updateAuthUI(session.user); loadKeys(); loadMe(); checkTrialStatus(); }
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); loadMe(); loadOverview(); checkTrialStatus(); }
     else updateAuthUI(null);
   });
   sb.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) { updateAuthUI(session.user); loadKeys(); loadMe(); checkTrialStatus(); }
+    if (session?.user) { updateAuthUI(session.user); loadKeys(); loadMe(); loadOverview(); checkTrialStatus(); }
     else updateAuthUI(null);
   });
 }
@@ -2152,6 +2143,64 @@ async function runSimApi() {
 
 
 // ── Account info (/api/dashboard/me) ────────────────────────────
+// ── Overview page real data ──────────────────────────────
+async function loadOverview() {
+  // Use API key if available, otherwise fall back to Supabase JWT
+  let bearer = activeApiKey;
+  if (!bearer) {
+    const sb = getSB();
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    bearer = session.access_token;
+  }
+  const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/logs?limit=200`, {
+    headers: { Authorization: `Bearer ${bearer}` }
+  }).catch(() => null);
+  if (!res || !res.ok) return;
+  const { logs, total, cacheHits, totalCost } = await res.json();
+
+  // Compute metrics from logs
+  const count       = logs?.length || 0;
+  const totalTokens = (logs || []).reduce((s, l) => s + (l.tokens_in || 0) + (l.tokens_out || 0), 0);
+  const baseline    = (totalTokens / 1_000_000) * 5.0;    // GPT-4o baseline
+  const savedUsd    = Math.max(0, baseline - (totalCost || 0));
+  const savingsPct  = baseline > 0 ? Math.round((savedUsd / baseline) * 100) : 0;
+  const cacheRate   = count > 0 ? Math.round((cacheHits / count) * 100) : 0;
+
+  // Update Overview metric cards
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('ov-savings',      count > 0 ? '$' + savedUsd.toFixed(2)   : '—');
+  set('ov-savings-sub',  count > 0 ? '基於 GPT-4o 基準價'         : '尚未產生資料');
+  set('ov-savings-pct',  count > 0 ? savingsPct + '%'             : '—');
+  set('ov-savings-pct-sub', count > 0 ? `已節省 ${count} 筆請求` : '尚未產生資料');
+  set('ov-cache-rate',   count > 0 ? cacheRate + '%'              : '—');
+  set('ov-cache-rate-sub', count > 0 ? `${cacheHits} / ${count} 命中快取` : '尚未產生資料');
+  set('ov-requests',     count > 0 ? (total || count).toLocaleString() : '—');
+  set('ov-requests-sub', count > 0 ? '過去 30 天'                  : '過去 30 天');
+
+  // Render recent log rows in overview table
+  const dl = document.getElementById('dash-log');
+  if (dl) {
+    if (!count) {
+      dl.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--t3);padding:24px">尚無請求紀錄 — 開始使用 API Key 後數據會自動出現</td></tr>';
+    } else {
+      dl.innerHTML = logs.slice(0, 10).map(l => `<tr>
+        <td style="font-family:var(--mono);color:var(--t3);font-size:10px">${new Date(l.created_at).toLocaleTimeString('zh-TW')}</td>
+        <td>${l.uc || '—'}</td>
+        <td><span class="tag tag-${(l.cx||'med').toLowerCase()}">${l.cx || '—'}</span></td>
+        <td style="font-family:var(--mono)">${(l.tokens_in||0)+(l.tokens_out||0)}</td>
+        <td><span class="model-tag">${l.model_name || '—'}</span></td>
+        <td style="font-family:var(--mono)">$${(l.cost_usd||0).toFixed(5)}</td>
+        <td style="color:var(--teal);font-family:var(--display);font-weight:500">${l.savings_pct || 0}%</td>
+        <td style="color:var(--teal)">${l.is_cache_hit ? '快取' : '—'}</td>
+        <td style="font-family:var(--mono);font-size:10px;color:var(--t3)">${l.rule || '—'}</td>
+        <td style="font-family:var(--mono)">${l.latency_ms || '—'}ms</td>
+      </tr>`).join('');
+    }
+  }
+}
+
 async function loadMe() {
   // Use API key if available, otherwise fall back to Supabase JWT
   let bearer = activeApiKey;
