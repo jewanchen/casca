@@ -1701,6 +1701,11 @@ let activeApiKey = localStorage.getItem('casca_active_key') || null;
 // ── Auth helpers ────────────────────────────────────────
 function showAuthModal() {
   document.getElementById('auth-modal').style.display = 'flex';
+  // Always default to signin tab when opening
+  switchAuthTab('signin');
+  // Clear any stale error
+  const errEl = document.getElementById('auth-error');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
 }
 function hideAuthModal() {
   document.getElementById('auth-modal').style.display = 'none';
@@ -1894,12 +1899,20 @@ function initAuth() {
 
 // ── API Keys ─────────────────────────────────────────────
 async function loadKeys() {
-  if (!activeApiKey) return;
+  // Use API key if available, otherwise fall back to Supabase JWT
+  let bearer = activeApiKey;
+  if (!bearer) {
+    const sb = getSB();
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    bearer = session.access_token;
+  }
   const loadEl = document.getElementById('keys-loading');
   if (loadEl) loadEl.textContent = '載入中…';
 
   const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/keys`, {
-    headers: { Authorization: `Bearer ${activeApiKey}` }
+    headers: { Authorization: `Bearer ${bearer}` }
   }).catch(() => null);
 
   if (loadEl) loadEl.textContent = '';
@@ -2140,9 +2153,17 @@ async function runSimApi() {
 
 // ── Account info (/api/dashboard/me) ────────────────────────────
 async function loadMe() {
-  if (!activeApiKey) return;
+  // Use API key if available, otherwise fall back to Supabase JWT
+  let bearer = activeApiKey;
+  if (!bearer) {
+    const sb = getSB();
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    bearer = session.access_token;
+  }
   const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/me`, {
-    headers: { Authorization: `Bearer ${activeApiKey}` }
+    headers: { Authorization: `Bearer ${bearer}` }
   }).catch(() => null);
   if (!res || !res.ok) return;
   const me = await res.json();

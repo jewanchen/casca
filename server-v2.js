@@ -620,6 +620,50 @@ async function requireSupabaseJWT(req, res, next) {
   next();
 }
 
+/**
+ * Middleware: accept EITHER csk_ API key OR Supabase JWT.
+ * Used for dashboard endpoints where a newly verified user may not yet have an API key.
+ * Populates req.client and req.plan on success.
+ */
+async function requireApiKeyOrJWT(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!token) return res.status(401).json({ error: 'Authorization header required.' });
+
+  // csk_ key → use existing API key auth flow
+  if (token.startsWith('csk_') || token.startsWith('sk-') || token.startsWith('AIza')) {
+    return requireApiKey(req, res, next);
+  }
+
+  // Otherwise assume Supabase JWT
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return res.status(401).json({ error: 'Invalid or expired session.' });
+
+  // Load client + plan using the JWT user id
+  const { data: client, error: clientErr } = await supabase
+    .from('clients')
+    .select(`
+      id, email, company_name, plan_id, balance_credits,
+      quota_limit, quota_used, cycle_used_tokens, billing_cycle_start,
+      stripe_customer_id, stripe_sub_id, trial_ends_at, path_b_judge_enabled,
+      subscription_plans (
+        id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
+      )
+    `)
+    .eq('id', data.user.id)
+    .maybeSingle();
+
+  if (clientErr || !client) {
+    return res.status(404).json({ error: 'Client record not found.' });
+  }
+
+  req.supabaseUser = data.user;
+  req.client = client;
+  req.plan = client.subscription_plans ?? null;
+  req.isPassthrough = false;
+  next();
+}
+
 // ════════════════════════════════════════════════════════════════
 //  BILLING GATE  (pre-LLM call check)
 //
@@ -2030,7 +2074,7 @@ app.get('/api/billing/transactions', requireApiKey, async (req, res) => {
 // ════════════════════════════════════════════════════════════════
 function hashKey(raw) { return sha256(raw); }
 
-app.get('/api/dashboard/keys', requireApiKey, async (req, res) => {
+app.get('/api/dashboard/keys', requireApiKeyOrJWT, async (req, res) => {
   const { data, error } = await supabase
     .from('api_keys')
     .select('id, key_prefix, label, is_active, last_used_at, created_at, client_id, clients(email)')
@@ -2080,7 +2124,7 @@ app.patch('/api/dashboard/keys/:id', requireApiKey, async (req, res) => {
 // ════════════════════════════════════════════════════════════════
 
 /** GET /api/dashboard/me — account info with plan and billing state */
-app.get('/api/dashboard/me', requireApiKey, async (req, res) => {
+app.get('/api/dashboard/me', requireApiKeyOrJWT, async (req, res) => {
   const client = req.client;
   const plan   = req.plan;
 
