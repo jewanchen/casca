@@ -486,24 +486,23 @@ textarea{resize:none;height:68px;line-height:1.5}
     </div>
     <div class="two-col">
       <div class="card">
-        <div class="card-header"><span class="card-title">每日費用對比</span><div style="display:flex;gap:10px;font-size:10px;font-family:var(--display);color:var(--t3)"><span style="color:var(--red)">— 基準</span><span style="color:var(--teal)">— 路由後</span></div></div>
+        <div class="card-header"><span class="card-title">每日費用對比 (est.)</span><div style="display:flex;gap:10px;font-size:10px;font-family:var(--display);color:var(--t3)"><span style="color:var(--red)">— GPT-4o</span><span style="color:var(--amber)">— GPT-4o-mini</span><span style="color:var(--teal)">— Gemini Flash</span></div></div>
         <div class="card-body"><div class="chart-wrap" style="height:154px"><canvas id="costChart"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">模型分配</span></div>
+        <div class="card-header"><span class="card-title">複雜度分配</span></div>
         <div class="card-body" style="display:flex;gap:16px;align-items:center">
           <div class="chart-wrap" style="height:154px;width:150px;flex-shrink:0"><canvas id="pieChart"></canvas></div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#3b9eff;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Gemini Flash</span><span style="font-family:var(--display);font-weight:600">38%</span></div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#86efac;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">GPT-4o-mini</span><span style="font-family:var(--display);font-weight:600">31%</span></div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#4a6480;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Cache hits</span><span style="font-family:var(--display);font-weight:600">14%</span></div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#c4b5fd;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Claude Haiku</span><span style="font-family:var(--display);font-weight:600">10%</span></div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#ff5f6d;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">GPT-4o</span><span style="font-family:var(--display);font-weight:600">7%</span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px" id="cx-legend">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:var(--red);flex-shrink:0"></span><span style="flex:1;color:var(--t3)">HIGH</span><span style="font-family:var(--display);font-weight:600" id="cx-high-pct">—</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:var(--amber);flex-shrink:0"></span><span style="flex:1;color:var(--t3)">MED</span><span style="font-family:var(--display);font-weight:600" id="cx-med-pct">—</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:var(--teal);flex-shrink:0"></span><span style="flex:1;color:var(--t3)">LOW</span><span style="font-family:var(--display);font-weight:600" id="cx-low-pct">—</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:#4a6480;flex-shrink:0"></span><span style="flex:1;color:var(--t3)">Cache hits</span><span style="font-family:var(--display);font-weight:600" id="cx-cache-pct">—</span></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="two-col">
+    <div class="two-col" id="overview-mockup-row" style="display:none">
       <div class="card">
         <div class="card-header"><span class="card-title">各用途節省</span></div>
         <div class="card-body">
@@ -1564,8 +1563,17 @@ function initCharts(){
   const days=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-13+i);return(d.getMonth()+1)+'/'+(d.getDate());});
   const base=days.map(()=>Math.round(1400+Math.random()*400));
   const routed=base.map(v=>Math.round(v*(0.55+Math.random()*0.1)));
-  new Chart(document.getElementById('costChart'),{type:'line',data:{labels:days,datasets:[{data:base,borderColor:'rgba(255,95,109,0.7)',backgroundColor:'rgba(255,95,109,0.05)',tension:0.3,borderWidth:1.5,pointRadius:2,pointBackgroundColor:'rgba(255,95,109,0.7)'},{data:routed,borderColor:'rgba(0,212,170,0.8)',backgroundColor:'rgba(0,212,170,0.05)',tension:0.3,borderWidth:1.5,pointRadius:2,fill:true,pointBackgroundColor:'rgba(0,212,170,0.8)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v,font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480',maxRotation:45},grid:{display:false},border:{display:false}}}}});
-  new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:['Gemini Flash','GPT-4o-mini','Cache','Claude Haiku','GPT-4o'],datasets:[{data:[38,31,14,10,7],backgroundColor:['#3b9eff','#86efac','#2d4460','#c4b5fd','#ff5f6d'],borderWidth:0,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false}}}});
+  // costChart — 3-line estimate placeholder (GPT-4o / GPT-4o-mini / Gemini Flash)
+  // Real data filled by loadOverview() based on user's token usage per day
+  const emptyEst = days.map(() => 0);
+  window._costChart = new Chart(document.getElementById('costChart'),{type:'line',data:{labels:days,datasets:[
+    {label:'GPT-4o (est.)',       data:emptyEst, borderColor:'rgba(255,95,109,0.8)',  backgroundColor:'rgba(255,95,109,0.05)',  tension:0.3, borderWidth:1.5, pointRadius:2, pointBackgroundColor:'rgba(255,95,109,0.8)'},
+    {label:'GPT-4o-mini (est.)',  data:emptyEst, borderColor:'rgba(255,179,71,0.8)',  backgroundColor:'rgba(255,179,71,0.05)',  tension:0.3, borderWidth:1.5, pointRadius:2, pointBackgroundColor:'rgba(255,179,71,0.8)'},
+    {label:'Gemini Flash (est.)', data:emptyEst, borderColor:'rgba(0,212,170,0.85)', backgroundColor:'rgba(0,212,170,0.05)', tension:0.3, borderWidth:1.5, pointRadius:2, fill:true, pointBackgroundColor:'rgba(0,212,170,0.85)'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v.toFixed(4),font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480',maxRotation:45},grid:{display:false},border:{display:false}}}}});
+
+  // pieChart — 複雜度分配 (HIGH / MED / LOW / Cache). 初始灰色，由 loadOverview() 覆寫
+  window._pieChart = new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:['HIGH','MED','LOW','Cache'],datasets:[{data:[0,0,0,0],backgroundColor:['#e2ddd7','#e2ddd7','#e2ddd7','#e2ddd7'],borderWidth:0,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:true}}}});
   new Chart(document.getElementById('costCompareChart'),{type:'bar',data:{labels:['GPT-4o','Claude Sonnet','Gemini 1.5Pro','GPT-4o-mini','Claude Haiku','Gemini Flash','Groq Llama'],datasets:[{data:[5.0,3.0,1.25,0.15,0.25,0.10,0.06],backgroundColor:['rgba(255,95,109,0.7)','rgba(167,139,250,0.7)','rgba(59,158,255,0.7)','rgba(134,239,172,0.7)','rgba(255,179,71,0.7)','rgba(0,212,170,0.8)','rgba(74,100,128,0.7)'],borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v,font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480'},grid:{display:false},border:{display:false}}}}});
   const months=['Oct','Nov','Dec','Jan','Feb','Mar'];
   const bm=[41200,43800,52100,48900,51200,44800];
@@ -2178,6 +2186,61 @@ async function loadOverview() {
   set('ov-cache-rate-sub', count > 0 ? `${cacheHits} / ${count} 命中快取` : '尚未產生資料');
   set('ov-requests',     count > 0 ? (total || count).toLocaleString() : '—');
   set('ov-requests-sub', count > 0 ? '過去 30 天'                  : '過去 30 天');
+
+  // ── pieChart: 複雜度分配 (HIGH / MED / LOW / Cache) ──
+  const cx = { HIGH: 0, MED: 0, LOW: 0, CACHE: 0 };
+  for (const l of (logs || [])) {
+    if (l.is_cache_hit) cx.CACHE++;
+    else if (cx[l.cx] != null) cx[l.cx]++;
+  }
+  const cxPie = window._pieChart;
+  if (cxPie) {
+    if (count > 0) {
+      cxPie.data.datasets[0].data = [cx.HIGH, cx.MED, cx.LOW, cx.CACHE];
+      cxPie.data.datasets[0].backgroundColor = ['#ff5f6d', '#ffb347', '#00d4aa', '#4a6480'];
+    } else {
+      cxPie.data.datasets[0].data = [1, 1, 1, 1]; // equal grey wedges
+      cxPie.data.datasets[0].backgroundColor = ['#e2ddd7', '#e2ddd7', '#e2ddd7', '#e2ddd7'];
+    }
+    cxPie.update();
+  }
+  const pct = (n) => count > 0 ? Math.round((n / count) * 100) + '%' : '—';
+  set('cx-high-pct',  pct(cx.HIGH));
+  set('cx-med-pct',   pct(cx.MED));
+  set('cx-low-pct',   pct(cx.LOW));
+  set('cx-cache-pct', pct(cx.CACHE));
+
+  // ── costChart: 3-line estimate (GPT-4o / GPT-4o-mini / Gemini Flash) ──
+  // Price per 1M tokens
+  const PRICE = { GPT4O: 5.0, GPT4O_MINI: 0.15, GEMINI_FLASH: 0.10 };
+  const daysChart = window._costChart;
+  if (daysChart) {
+    // Group logs by day, sum tokens
+    const dayMap = {};
+    for (const l of (logs || [])) {
+      if (l.is_cache_hit) continue; // cache hits don't use tokens
+      const d = new Date(l.created_at);
+      const key = d.toISOString().slice(0, 10);
+      const tok = (l.tokens_in || 0) + (l.tokens_out || 0);
+      dayMap[key] = (dayMap[key] || 0) + tok;
+    }
+    // Build 14-day window matching chart labels
+    const now = new Date();
+    const tokSeries = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      tokSeries.push(dayMap[key] || 0);
+    }
+    daysChart.data.datasets[0].data = tokSeries.map(t => +((t / 1_000_000) * PRICE.GPT4O).toFixed(6));
+    daysChart.data.datasets[1].data = tokSeries.map(t => +((t / 1_000_000) * PRICE.GPT4O_MINI).toFixed(6));
+    daysChart.data.datasets[2].data = tokSeries.map(t => +((t / 1_000_000) * PRICE.GEMINI_FLASH).toFixed(6));
+    daysChart.update();
+  }
+
+  // ── Hide mockup row after login ──
+  const mockupRow = document.getElementById('overview-mockup-row');
+  if (mockupRow) mockupRow.style.display = 'none';
 
   // Render recent log rows in overview table
   const dl = document.getElementById('dash-log');
