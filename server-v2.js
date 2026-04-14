@@ -1396,22 +1396,32 @@ app.post('/api/trial/apply', requireSupabaseJWT, async (req, res) => {
       .eq('id', user.id)
       .maybeSingle();
 
-    // Block if already has an active (non-expired) trial or paid plan
-    if (existing?.trial_ends_at) {
-      const trialEnd = new Date(existing.trial_ends_at);
-      if (trialEnd > new Date()) {
-        return res.status(409).json({
-          error: 'You already have an active trial.',
-          trial_ends_at: existing.trial_ends_at,
-        });
-      }
+    // Check if user already has an active API key (only real blocker)
+    const { data: existingKeys } = await supabase
+      .from('api_keys')
+      .select('id')
+      .eq('client_id', user.id)
+      .eq('is_active', true)
+      .limit(1);
+
+    if (existingKeys && existingKeys.length > 0) {
+      return res.status(409).json({
+        error: 'You already have an API key. Check your dashboard.',
+      });
     }
 
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 30);
-    const trialEndIso = trialEnd.toISOString();
+    // Reuse existing trial if present, otherwise create new 30-day trial
+    let trialEndIso;
+    const now = new Date();
+    if (existing?.trial_ends_at && new Date(existing.trial_ends_at) > now) {
+      trialEndIso = existing.trial_ends_at;
+    } else {
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 30);
+      trialEndIso = trialEnd.toISOString();
+    }
 
-    // Upsert clients record
+    // Upsert clients record (ensure row exists + update trial)
     const { data: client } = await supabase.from('clients').upsert({
       id:            user.id,
       email:         user.email,
@@ -1438,7 +1448,7 @@ app.post('/api/trial/apply', requireSupabaseJWT, async (req, res) => {
       return res.status(500).json({ error: 'Failed to generate API key.' });
     }
 
-    const daysRemaining = Math.ceil((trialEnd - new Date()) / 86_400_000);
+    const daysRemaining = Math.ceil((new Date(trialEndIso) - new Date()) / 86_400_000);
     console.log(`[trial/apply] ${user.email.replace(/(.{2}).+(@.+)/, '$1***$2')} → trial until ${trialEndIso}`);
 
     return res.status(201).json({
