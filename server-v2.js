@@ -3015,12 +3015,95 @@ app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) =>
 
 /**
  * POST /api/admin/pathb/upload
- * 批量上傳 JSONL — 轉發到 MiniLM service /train/import
+ * 批量上傳 JSONL
+ *
+ * Query: ?train=true → 上傳並立即觸發 MiniLM 訓練 (legacy behaviour)
+ *        ?train=false (default) → 只寫入 training_samples 表，等之後手動觸發訓練
+ *
+ * 推薦預設行為：累積資料到 milestone (~1000筆) 再做一次完整 retrain。
  */
 app.post('/api/admin/pathb/upload', requireAdmin, express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
+  const trainNow = req.query.train === 'true';
   const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+
+  // ── Mode 1: train=false → 直接寫入 Supabase training_samples (不訓練) ──
+  if (!trainNow) {
+    try {
+      const text = req.body.toString('utf-8');
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const rows = [];
+      const errors = [];
+      for (let i = 0; i < lines.length; i++) {
+        try {
+          const r = JSON.parse(lines[i]);
+          if (!r.prompt || !['HIGH','MED','LOW'].includes(r.label)) {
+            errors.push({ line: i+1, reason: 'missing prompt or invalid label' });
+            continue;
+          }
+          rows.push({
+            prompt_masked:   r.prompt,
+            l1_label:        r.label,
+            l1_rule:         r.notes ? `batch_import: ${r.notes.slice(0,80)}` : 'batch_import',
+            l1_static_conf:  r.confidence ?? null,
+            judge_label:     r.label,                  // batch import 假設大師判斷 = ground truth
+            judge_model:     'human_expert',
+            l1_correct:      true,
+            serving_label:   r.label,
+            serving_correct: true,
+            lang:            r.lang || null,
+            domain:          r.domain || null,
+            source:          'batch',
+            used_for_training: false,                  // 等待下次訓練
+          });
+        } catch (e) {
+          errors.push({ line: i+1, reason: 'JSON parse error: ' + e.message });
+        }
+      }
+
+      if (rows.length === 0) {
+        return res.status(400).json({ error: 'No valid rows', errors });
+      }
+
+      // Bulk insert (Supabase 一次最多 1000 筆)
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += 500) {
+        const chunk = rows.slice(i, i + 500);
+        const { error } = await supabase.from('training_samples').insert(chunk);
+        if (error) {
+          return res.status(500).json({
+            error: 'DB insert failed: ' + error.message,
+            inserted_so_far: inserted,
+          });
+        }
+        inserted += chunk.length;
+      }
+
+      // Get total untrained count for "ready to train" indicator
+      const { count: untrainedTotal } = await supabase
+        .from('training_samples')
+        .select('id', { count: 'exact', head: true })
+        .eq('used_for_training', false);
+
+      console.log(`[pathb] uploaded ${inserted} samples (no train). Total untrained: ${untrainedTotal}`);
+
+      return res.json({
+        ok: true,
+        mode: 'upload_only',
+        samples_added: inserted,
+        parse_errors: errors.length,
+        errors: errors.slice(0, 10),
+        untrained_total: untrainedTotal,
+        message: untrainedTotal >= 1000
+          ? `已累積 ${untrainedTotal} 筆未訓練樣本，建議觸發訓練`
+          : `已累積 ${untrainedTotal} 筆。建議達到 1000+ 筆再訓練。`,
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'Upload failed: ' + err.message });
+    }
+  }
+
+  // ── Mode 2: train=true → 轉發到 MiniLM service 立即訓練 (legacy) ──
   try {
-    // Build multipart form data
     const boundary = '----CascaUpload' + Date.now();
     const body = Buffer.concat([
       Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="upload.jsonl"\r\nContent-Type: application/octet-stream\r\n\r\n`),
@@ -3035,9 +3118,58 @@ app.post('/api/admin/pathb/upload', requireAdmin, express.raw({ type: '*/*', lim
     });
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json(data);
-    return res.json(data);
+    return res.json({ ...data, mode: 'upload_and_train' });
   } catch (err) {
     return res.status(502).json({ error: 'MiniLM service unreachable: ' + err.message });
+  }
+});
+
+/**
+ * GET /api/admin/pathb/training-readiness
+ * 回傳「未訓練資料」統計，給 admin 判斷是否該觸發訓練
+ */
+app.get('/api/admin/pathb/training-readiness', requireAdmin, async (req, res) => {
+  try {
+    const { count: untrained } = await supabase
+      .from('training_samples')
+      .select('id', { count: 'exact', head: true })
+      .eq('used_for_training', false);
+
+    const { count: total } = await supabase
+      .from('training_samples')
+      .select('id', { count: 'exact', head: true });
+
+    const { data: byLang } = await supabase
+      .from('training_samples')
+      .select('lang')
+      .eq('used_for_training', false);
+
+    const langCounts = {};
+    for (const r of (byLang || [])) {
+      const l = r.lang || 'unknown';
+      langCounts[l] = (langCounts[l] || 0) + 1;
+    }
+
+    // Milestone thresholds
+    const milestones = [
+      { name: 'M1: Pilot validation', threshold: 1000 },
+      { name: 'M2: Production',       threshold: 2500 },
+      { name: 'M3: GA v1.0',          threshold: 4000 },
+    ];
+    const next = milestones.find(m => total < m.threshold) || { name: 'Continuous improvement', threshold: total };
+
+    return res.json({
+      untrained_count: untrained || 0,
+      total_count:     total || 0,
+      languages:       langCounts,
+      next_milestone:  next,
+      ready_to_train:  (untrained || 0) >= 200,
+      recommendation:  total >= next.threshold
+        ? `已達 ${next.name}，建議全 retrain`
+        : `距離 ${next.name} 還需 ${next.threshold - (total || 0)} 筆`,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
