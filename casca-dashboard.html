@@ -411,18 +411,9 @@ textarea{resize:none;height:68px;line-height:1.5}
   </div>
   <div class="sb-section">
     <div class="sb-section-label">CONFIGURE</div>
-    <div class="sb-item" onclick="switchPage('rules',this)">
-      <svg class="sb-icon" viewBox="0 0 15 15" fill="currentColor"><circle cx="7.5" cy="7.5" r="2.5"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>
-      路由規則
-    </div>
-    <div class="sb-item" onclick="switchPage('autolearn',this)">
-      <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7.5 2a5.5 5.5 0 100 11 5.5 5.5 0 000-11z"/><path d="M5.5 6.5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2v1.5" stroke-linecap="round"/><circle cx="7.5" cy="11.5" r="0.6" fill="currentColor" stroke="none"/></svg>
-      Auto-Learn
-      <span id="learn-badge" style="display:none;margin-left:auto;background:#E24B4A;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;font-family:var(--display)">0</span>
-    </div>
     <div class="sb-item" onclick="switchPage('providers',this)">
       <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="12" height="8" rx="1.5"/><path d="M4.5 7.5L6.5 9.5L10.5 5.5" stroke-linecap="round"/></svg>
-      Providers
+      Available Providers
     </div>
     <div class="sb-item" onclick="switchPage('billing',this)">
       <svg class="sb-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3" width="12" height="9" rx="1.5"/><path d="M1.5 6.5h12" stroke-linecap="round"/><path d="M4 9.5h3" stroke-linecap="round"/></svg>
@@ -594,42 +585,51 @@ textarea{resize:none;height:68px;line-height:1.5}
 <div class="page" id="page-quality">
   <div class="page-header">
     <div class="ph-top">
-      <div><div class="ph-title">品質保證</div><div class="ph-sub">自訂基準 · 即時監控 · SLA 退款</div></div>
-      <div class="ph-actions"><button class="btn btn-danger" onclick="triggerRollback()">緊急回滾至 GPT-4o</button><button class="btn">測試警報</button></div>
+      <div><div class="ph-title">品質保證</div><div class="ph-sub">送到 HIGH 的對話清單 — 證明路由器優先考慮品質</div></div>
+      <div class="ph-actions"><button class="btn" onclick="loadQualityPage()">↻ 重新整理</button></div>
     </div>
   </div>
   <div class="page-content">
-    <div id="q-alert" class="alert alert-teal"><div class="alert-dot"></div><div class="alert-body"><strong>品質正常</strong> — 目前評分 93.4%，高於客戶設定基準 88.0%。過去 24 小時無退化事件。</div><button class="btn btn-success" style="flex-shrink:0;font-size:11px">查看報告</button></div>
-    <div class="three-col">
-      <div class="mc"><div class="mc-label">目前品質評分</div><div class="mc-val" style="color:var(--teal)">93.4%</div><div class="mc-sub">採樣 5% 請求</div></div>
-      <div class="mc"><div class="mc-label">客戶設定基準</div><div class="mc-val" style="color:var(--blue)">88.0%</div><div class="mc-sub">低於此值觸發警報</div></div>
-      <div class="mc"><div class="mc-label">SLA 退款門檻</div><div class="mc-val" style="color:var(--amber)">連續 3 天</div><div class="mc-sub">低於基準即全退</div></div>
+    <div class="metrics">
+      <div class="mc mc-accent-teal"><div class="mc-label">HIGH 路由次數</div><div class="mc-val" style="color:var(--red)" id="q-high-count">—</div><div class="mc-sub">過去 30 天</div></div>
+      <div class="mc"><div class="mc-label">HIGH 占比</div><div class="mc-val" id="q-high-pct">—</div><div class="mc-sub">占總請求的比例</div></div>
+      <div class="mc mc-accent-blue"><div class="mc-label">HIGH 使用模型</div><div class="mc-val" style="font-size:16px" id="q-high-model">—</div><div class="mc-sub">品質優先</div></div>
     </div>
-    <div class="two-col">
-      <div class="card">
-        <div class="card-header"><span class="card-title">黃金標準基準</span><button class="btn" style="font-size:11px">上傳 CSV</button></div>
-        <div class="card-body">
-          <div style="border:1px dashed var(--b2);border-radius:var(--r8);padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" onclick="alert('上傳介面 (Demo)')">
-            <div style="font-size:22px;margin-bottom:6px;opacity:0.4">↑</div>
-            <div style="font-size:11px;color:var(--t3)">上傳黃金標準範例 (CSV)<br>格式: input, expected_output</div>
-          </div>
-          <div class="stat-row"><span class="stat-label">已上傳範例</span><span class="stat-val">42 筆</span></div>
-          <div class="stat-row"><span class="stat-label">評估維度</span><span class="stat-val">準確性 · 語氣 · 格式</span></div>
-          <div class="stat-row"><span class="stat-label">Judge 模型</span><span class="stat-val">GPT-4o (採樣)</span></div>
-          <div class="stat-row"><span class="stat-label">採樣頻率</span><span class="stat-val">每 500 請求取 5%</span></div>
-        </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-header">
+        <span class="card-title">送到 HIGH 的對話</span>
+        <span style="font-size:10px;color:var(--t3)">這些對話因為複雜度高，Casca 選擇最高品質的模型而非最便宜的</span>
       </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">品質 SLA 合約條款</span><button class="btn" onclick="alert('PDF下載 (Demo)')">↓ PDF</button></div>
-        <div class="card-body">
-          <div class="sla-box">
-            <div class="sla-title">品質保障條款 — 可執行退款</div>
-            <div class="sla-item">路由導致品質評分連續 3 天低於客戶設定基準，當月費用全額退還</div>
-            <div class="sla-item">品質退化 30 分鐘內發送 Email + Slack + Webhook 警報</div>
-            <div class="sla-item">客戶可隨時一鍵回滾，60 秒生效，無需通知我方</div>
-            <div class="sla-item">每週自動生成品質報告，客戶可下載存檔</div>
-          </div>
-          <div style="margin-top:12px;font-size:11px;color:var(--t3);line-height:1.6">回滾將在 60 秒內把所有流量切回 GPT-4o 基準模型。品質恢復後可重新啟用路由。</div>
+      <div class="card-body card-body-flush" style="max-height:480px;overflow-y:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>時間</th>
+            <th style="width:18%">觸發規則</th>
+            <th>模型</th>
+            <th>語言</th>
+            <th>Tokens</th>
+            <th>費用</th>
+            <th>延遲</th>
+          </tr></thead>
+          <tbody id="q-high-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--t3);padding:20px">載入中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">為何需要 HIGH？</span></div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--t2);line-height:1.7">
+          Casca 分類引擎會偵測下列情境，自動把請求路由到最高品質的模型：
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-high" style="min-width:48px;text-align:center">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6"><b>法律/合規</b> — NDA 起草、GDPR 框架、合規政策設計</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-high" style="min-width:48px;text-align:center">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6"><b>醫療急症</b> — 急性症狀判斷、處方建議</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-high" style="min-width:48px;text-align:center">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6"><b>策略規劃</b> — Go-to-market、數位轉型路線圖、商業計畫</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-high" style="min-width:48px;text-align:center">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6"><b>技術架構</b> — 微服務設計、Kubernetes 部署、可觀測性體系</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-high" style="min-width:48px;text-align:center">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6"><b>Debug / 安全性分析</b> — 漏洞掃描、程式碼審查、安全稽核</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0"><span class="tag tag-high" style="min-width:48px;text-align:center">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6"><b>多步驟分析</b> — 財報解讀、投資備忘錄、複雜對比</span></div>
         </div>
       </div>
     </div>
@@ -694,153 +694,78 @@ textarea{resize:none;height:68px;line-height:1.5}
 <div class="page" id="page-reliability">
   <div class="page-header">
     <div class="ph-top">
-      <div><div class="ph-title">可用性 SLA</div><div class="ph-sub">雙區域部署 · 99.9% SLA · 硬體旁路</div></div>
-      <div class="ph-actions"><button class="btn btn-danger" id="bypass-rel-btn" onclick="toggleBypassRel(this)">啟用緊急旁路</button></div>
+      <div><div class="ph-title">可用性 SLA</div><div class="ph-sub">Server 即時健康狀態</div></div>
+      <div class="ph-actions"><button class="btn" onclick="loadReliability()">↻ 重新整理</button></div>
     </div>
   </div>
   <div class="page-content">
-    <div id="rel-alert" style="display:none" class="alert alert-red"><div class="alert-dot"></div><div class="alert-body"><strong>旁路模式啟用</strong> — 所有請求正直連 AI Provider，繞過 Casca 閘道器。路由優化與費用節省暫停。</div><button class="btn btn-success" onclick="deactivateBypassRel()" style="flex-shrink:0;font-size:11px">停用旁路</button></div>
     <div class="metrics">
-      <div class="mc mc-accent-blue"><div class="mc-label">本月可用率</div><div class="mc-val" style="color:var(--blue)">99.94%</div><div class="mc-sub">SLA 目標 99.9%</div></div>
-      <div class="mc"><div class="mc-label">本月停機時間</div><div class="mc-val" style="color:var(--teal)">26 分鐘</div><div class="mc-sub">SLA 上限 43 分鐘</div></div>
-      <div class="mc"><div class="mc-label">P99 延遲</div><div class="mc-val">387ms</div><div class="mc-sub">目標 &lt;500ms</div></div>
-      <div class="mc"><div class="mc-label">P1 事故數</div><div class="mc-val" style="color:var(--teal)">0</div><div class="mc-sub">本月</div></div>
-    </div>
-    <div class="two-col">
-      <div class="card">
-        <div class="card-header"><span class="card-title">過去 90 天可用率</span></div>
-        <div class="card-body">
-          <div class="uptime-grid" id="uptime-grid" style="margin-bottom:10px"></div>
-          <div style="display:flex;gap:14px;font-size:10px;color:var(--t3)">
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--teal)"></span>正常</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--amber)"></span>部分降級</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--red)"></span>中斷</span>
-          </div>
-        </div>
+      <div class="mc mc-accent-teal">
+        <div class="mc-label">API Server 狀態</div>
+        <div class="mc-val" id="rel-server-status">—</div>
+        <div class="mc-sub" id="rel-server-sub">檢查中…</div>
       </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">多區域部署狀態</span></div>
-        <div class="card-body">
-          <div class="region-row"><div class="prov-dot pd-green"></div><div style="flex:1"><div class="prov-name">us-east-1（主要）</div><div class="prov-sub">P99: 312ms · 錯誤率: 0.02%</div></div><span class="chip chip-live">Primary</span></div>
-          <div class="region-row"><div class="prov-dot pd-green"></div><div style="flex:1"><div class="prov-name">eu-west-1（備援）</div><div class="prov-sub">P99: 341ms · 錯誤率: 0.01%</div></div><span class="chip" style="background:var(--blue2);color:var(--blue)">Standby</span></div>
-          <div style="margin-top:12px">
-            <div class="sla-box">
-              <div class="sla-title">可用性 SLA 退款條款</div>
-              <div class="sla-item">月可用率 99.0–99.9%：退還 10%</div>
-              <div class="sla-item">月可用率 95.0–99.0%：退還 25%</div>
-              <div class="sla-item">月可用率 &lt;95%：退還 50%</div>
-              <div class="sla-item">停機 15 分鐘內通報客戶</div>
-            </div>
-          </div>
-        </div>
+      <div class="mc">
+        <div class="mc-label">使用中 Providers</div>
+        <div class="mc-val" id="rel-providers">—</div>
+        <div class="mc-sub">目前啟用的 LLM Provider</div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ ROUTING RULES ═══ -->
-<div class="page" id="page-rules">
-  <div class="page-header">
-    <div class="ph-top">
-      <div><div class="ph-title">路由規則</div><div class="ph-sub">設定每個用途的模型策略與品質門檻</div></div>
-      <div class="ph-actions"><button class="btn btn-primary" onclick="alert('已儲存 (Demo)')">儲存變更</button></div>
-    </div>
-  </div>
-  <div class="page-content">
-    <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><span class="card-title">路由策略表</span></div>
-      <div class="card-body" style="padding:0 16px">
-        <div class="rule-row header"><span>用途 + 複雜度</span><span>目標模型</span><span>品質門檻</span><span>狀態</span></div>
-        <div id="rules-table"></div>
+      <div class="mc mc-accent-blue">
+        <div class="mc-label">計費服務</div>
+        <div class="mc-val" id="rel-stripe">—</div>
+        <div class="mc-sub">Stripe 整合狀態</div>
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><span class="card-title">複雜度分類邏輯</span></div>
+      <div class="card-header"><span class="card-title">SLA 條款</span></div>
       <div class="card-body">
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-low">LOW</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">&lt;200 token 且含關鍵字：status, order, track, FAQ, what is, when → Gemini Flash / Cache</span></div>
-          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-med">MED</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">200–1500 token 或任務：summarize, draft, explain, extract, classify → GPT-4o-mini / Haiku</span></div>
-          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0"><span class="tag tag-high">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">&gt;1500 token 或任務：analyze, reason, compare, legal, medical, code → GPT-4o / Claude Sonnet</span></div>
+        <div class="sla-box">
+          <div class="sla-title">可用性 SLA 退款條款</div>
+          <div class="sla-item">月可用率 99.0–99.9%：退還 10%</div>
+          <div class="sla-item">月可用率 95.0–99.0%：退還 25%</div>
+          <div class="sla-item">月可用率 &lt;95%：退還 50%</div>
+          <div class="sla-item">停機 15 分鐘內通報客戶</div>
         </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--t3);line-height:1.6">SLA 以實際 server 日誌為準。如有異常請聯絡 Casca@vastitw.com。</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══ PROVIDERS ═══ -->
+<!-- ═══ AVAILABLE PROVIDERS ═══ -->
 <div class="page" id="page-providers">
   <div class="page-header">
     <div class="ph-top">
-      <div><div class="ph-title">Providers</div><div class="ph-sub">8 個 Provider 支援，每客戶獨立設定</div></div>
-      <div class="ph-actions"><button class="btn btn-primary">+ 新增 Provider</button></div>
+      <div><div class="ph-title">Available Providers</div><div class="ph-sub">勾選要使用的 LLM Provider — Casca 會在路由時自動從您勾選的 provider 中選擇</div></div>
     </div>
   </div>
   <div class="page-content">
+    <div id="prov-lock-banner" style="display:none;background:var(--amber-bg);border:1px solid var(--amber-mid);border-radius:var(--r8);padding:12px 14px;margin-bottom:12px;font-size:12px;color:var(--amber)">
+      <span id="prov-lock-reason">—</span>
+    </div>
     <div class="card" style="margin-bottom:10px">
-      <div class="card-header"><span class="card-title">支援 Provider 總覽</span><span style="font-size:10px;color:var(--t3)">客戶可混用任意組合</span></div>
+      <div class="card-header">
+        <span class="card-title">Provider 清單</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="prov-selected-count" style="font-size:10px;color:var(--t3)">— 已選</span>
+          <button class="btn btn-primary" id="prov-save-btn" onclick="saveProviderSelection()" style="font-size:11px;padding:4px 12px;display:none">儲存變更</button>
+        </div>
+      </div>
       <div class="card-body" style="padding:0 16px">
-        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">OpenAI</div><div class="prov-sub">GPT-4o · GPT-4o-mini · GPT-4o-vision · GPT-4-turbo</div></div><div class="prov-lat">620ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">Anthropic</div><div class="prov-sub">Claude 3.5 Sonnet · Claude Haiku · Claude Opus · Vision 支援</div></div><div class="prov-lat">480ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">Google Vertex AI</div><div class="prov-sub">Gemini 2.0 Flash · Gemini 1.5 Pro · Flash Vision · 影像分析</div></div><div class="prov-lat">310ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-green"></div><div class="prov-info"><div class="prov-name">Azure OpenAI</div><div class="prov-sub">Azure GPT-4o · Azure GPT-4o-mini · 企業合規部署</div></div><div class="prov-lat">540ms</div><span class="chip chip-live">連接中</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track on"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">AWS Bedrock</div><div class="prov-sub">Llama3-70B · Mistral-7B · Titan Express</div></div><div class="prov-lat">720ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">Groq</div><div class="prov-sub">Llama3-70B · Mixtral-8x7B · 超低延遲推論</div></div><div class="prov-lat">95ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">Cohere</div><div class="prov-sub">Command R+ · Command R · 長文本優化</div></div><div class="prov-lat">410ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
-        <div class="prov-row"><div class="prov-dot pd-amber"></div><div class="prov-info"><div class="prov-name">Mistral AI</div><div class="prov-sub">Mistral Large · Mistral Small · Mistral 7B</div></div><div class="prov-lat">380ms</div><span class="chip chip-warn">已設定</span><div class="toggle" onclick="this.querySelector('.tog-track').classList.toggle('on')"><div class="tog-track"><div class="tog-thumb"></div></div></div></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">每 1M Token 費用比較</span></div>
-      <div class="card-body"><div class="chart-wrap" style="height:200px"><canvas id="costCompareChart"></canvas></div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ AUTO-LEARN ═══ -->
-<div class="page" id="page-autolearn">
-  <div class="page-header">
-    <div class="ph-top">
-      <div><div class="ph-title">Auto-Learn 引擎</div><div class="ph-sub">自動收集 AMBIGUOUS 案例 → 人工確認 → 模型自動更新</div></div>
-      <div class="ph-actions"><button class="btn btn-primary" onclick="triggerRetrain()">▶ 立即重新訓練</button></div>
-    </div>
-  </div>
-  <div class="page-content">
-    <div class="two-col" style="margin-bottom:10px">
-      <div class="card">
-        <div class="card-header"><span class="card-title">學習狀態</span></div>
-        <div class="card-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">累計標注</div><div style="font-family:var(--display);font-size:18px;font-weight:700" id="total-labeled">1,000</div></div>
-            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">待標注隊列</div><div style="font-family:var(--display);font-size:18px;font-weight:700;color:var(--amber)" id="queue-count">0</div></div>
-            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">分類準確率</div><div style="font-family:var(--display);font-size:18px;font-weight:700;color:var(--teal)" id="acc-score">94.1%</div></div>
-            <div style="background:var(--bg2);border-radius:var(--r8);padding:10px 12px;text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:4px">上次訓練</div><div style="font-family:var(--display);font-size:14px;font-weight:500" id="last-train">—</div></div>
-          </div>
-          <div style="font-size:11px;color:var(--t3);margin-bottom:6px">訓練進度</div>
-          <div style="background:var(--bg2);border-radius:4px;height:6px;overflow:hidden"><div id="train-bar" style="height:100%;background:var(--teal);border-radius:4px;width:0%;transition:width 1s"></div></div>
-          <div style="font-size:10px;color:var(--t3);margin-top:4px" id="train-status">待命中，累積 10 筆標注即自動觸發更新</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">自動學習流程</span></div>
-        <div class="card-body" style="padding:0 10px">
-          <div style="display:flex;flex-direction:column;gap:0">
-            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--b1)"><div style="width:22px;height:22px;border-radius:50%;background:#dbeafe;color:#1e40af;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">1</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>收集</strong> — 路由引擎實時標記信心度 &lt;80% 的請求</div></div>
-            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--b1)"><div style="width:22px;height:22px;border-radius:50%;background:#d1fae5;color:#065f46;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">2</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>標注</strong> — 人工確認每筆的正確分類（20分鐘/天）</div></div>
-            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--b1)"><div style="width:22px;height:22px;border-radius:50%;background:#fef3c7;color:#78350f;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">3</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>訓練</strong> — 每累積 10 筆自動更新分類規則權重</div></div>
-            <div style="display:flex;gap:10px;padding:8px 0"><div style="width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#4c1d95;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">4</div><div style="font-size:11px;color:var(--t2);line-height:1.5"><strong>部署</strong> — 新規則自動歸納進 Casca，準確率持續提升</div></div>
-          </div>
+        <div id="prov-list">
+          <div style="text-align:center;color:var(--t3);font-size:12px;padding:20px 0">載入中…</div>
         </div>
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><span class="card-title">標注隊列（AMBIGUOUS 案例）</span><span style="font-size:10px;color:var(--t3)">點擊難度按鈕完成標注</span></div>
-      <div class="card-body" id="annotation-queue">
-        <div style="text-align:center;color:var(--t3);font-size:12px;padding:20px 0">尚無待標注案例。使用 Live Router 模擬請求以產生標注隊列。</div>
+      <div class="card-header"><span class="card-title">複雜度分類邏輯</span><span style="font-size:10px;color:var(--t3)">Casca 如何決定使用哪個 Provider</span></div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-low">LOW</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">簡單查詢、定義、翻譯、一句話回應 → 選便宜 provider（Gemini Flash / Cache hit）</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--b1)"><span class="tag tag-med">MED</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">中等生成、摘要、Email 起草、分類 → GPT-4o-mini / Claude Haiku</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0"><span class="tag tag-high">HIGH</span><span style="font-size:11px;color:var(--t2);flex:1;line-height:1.6">深度推理、法律分析、複雜架構、多步驟任務 → GPT-4o / Claude Sonnet（品質優先）</span></div>
+        </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">已完成標注（最近 10 筆）</span></div>
-      <div class="card-body" style="padding:0 16px"><table class="data-table"><thead><tr><th>時間</th><th>提示詞</th><th>領域</th><th>原始</th><th>確認難度</th></tr></thead><tbody id="labeled-log"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -1209,24 +1134,27 @@ print(data['cx'], data['model'], data['costUsd'])</pre>
   </div>
   <div class="page-content">
     <div class="savings-banner">
-      <div><div class="sb-label">推算年化節省</div><div class="sb-big">$218,880 / 年</div><div class="sb-sub">基於過去 30 天推算</div></div>
-      <div style="text-align:right"><div class="sb-label">你的淨節省</div><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--teal)">$170,726 / 年</div><div class="sb-sub">扣除平台費後的實際節省</div></div>
+      <div><div class="sb-label">推算年化節省</div><div class="sb-big" id="au-annual">—</div><div class="sb-sub">基於過去 30 天推算</div></div>
+      <div style="text-align:right"><div class="sb-label">30 天節省</div><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--teal)" id="au-30d">—</div><div class="sb-sub" id="au-30d-sub">尚未產生資料</div></div>
+    </div>
+    <div class="metrics">
+      <div class="mc"><div class="mc-label">30 天請求數</div><div class="mc-val" id="au-requests">—</div></div>
+      <div class="mc"><div class="mc-label">實際費用</div><div class="mc-val" id="au-cost">—</div><div class="mc-sub">Casca 路由後</div></div>
+      <div class="mc mc-accent-blue"><div class="mc-label">GPT-4o 基準</div><div class="mc-val" style="color:var(--red)" id="au-baseline">—</div><div class="mc-sub">若全用 GPT-4o</div></div>
+      <div class="mc mc-accent-teal"><div class="mc-label">節省率</div><div class="mc-val" style="color:var(--teal)" id="au-pct">—</div></div>
     </div>
     <div class="two-col">
       <div class="card">
-        <div class="card-header"><span class="card-title">月費用趨勢（基準 vs 實際）</span><div style="display:flex;gap:10px;font-size:10px;font-family:var(--display);color:var(--t3)"><span style="color:var(--red)">— 基準</span><span style="color:var(--teal)">— 實際</span></div></div>
+        <div class="card-header"><span class="card-title">月費用趨勢（基準 vs 實際）</span><div style="display:flex;gap:10px;font-size:10px;font-family:var(--display);color:var(--t3)"><span style="color:var(--red)">— GPT-4o 基準</span><span style="color:var(--teal)">— 實際</span></div></div>
         <div class="card-body"><div class="chart-wrap" style="height:160px"><canvas id="auditChart"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">各應用費用明細</span></div>
-        <div class="card-body" style="padding:0 16px">
+        <div class="card-header"><span class="card-title">各用途費用明細</span><span style="font-size:10px;color:var(--t3)">按 use_case 分組</span></div>
+        <div class="card-body card-body-flush" style="max-height:260px;overflow-y:auto">
           <table class="data-table">
-            <thead><tr><th>應用程式</th><th>請求數</th><th>實際費用</th><th>節省金額</th><th>節省率</th></tr></thead>
-            <tbody>
-              <tr><td style="color:var(--t1);font-weight:500">客服聊天機器人</td><td>641K</td><td>$8,920</td><td style="color:var(--teal);font-weight:600">$8,120</td><td style="color:var(--teal)">48%</td></tr>
-              <tr><td style="color:var(--t1);font-weight:500">內容生成 Pipeline</td><td>312K</td><td>$6,410</td><td style="color:var(--teal);font-weight:600">$5,840</td><td style="color:var(--teal)">48%</td></tr>
-              <tr><td style="color:var(--t1);font-weight:500">知識查詢助手</td><td>198K</td><td>$3,890</td><td style="color:var(--teal);font-weight:600">$3,190</td><td style="color:var(--teal)">45%</td></tr>
-              <tr><td style="color:var(--t1);font-weight:500">程式碼審查</td><td>89K</td><td>$2,640</td><td style="color:var(--teal);font-weight:600">$1,090</td><td style="color:var(--amber)">29%</td></tr>
+            <thead><tr><th>用途 (uc)</th><th>請求數</th><th>實際費用</th><th>節省金額</th><th>節省率</th></tr></thead>
+            <tbody id="au-breakdown-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--t3);padding:20px">載入中…</td></tr>
             </tbody>
           </table>
         </div>
@@ -1339,45 +1267,21 @@ function closeMobSidebar() {
 // classifyV12 / checkCache / detectModal / selectModel / mCosts
 // are handled by the classifier engine.
 
-// State that Portal UI still needs directly
-let autoLearnQueue = [];
-let totalLearnCount = 0;
-let accuracyScore = 94.1;
-
 /**
  * route(uc, prompt, qualityTier)
  * Thin bridge — delegates to CascaClassifier.route()
- * Returns the same shape the dashboard UI expects:
- * { m, c, cx, tok, cost, base, pct, rule, modal }
+ * Returns the same shape the Live Router UI expects.
+ * AMBIG auto-learn is handled server-side by Path B pipeline, not here.
  */
 function route(uc, pr, q) {
-  const eng = typeof CascaClassifier !== 'undefined'
-    ? CascaClassifier
-    : null;
-
+  const eng = typeof CascaClassifier !== 'undefined' ? CascaClassifier : null;
   if (!eng) {
-    // Graceful degradation: engine script not loaded yet
     console.warn('[Casca] classifier not loaded');
     return { m:'GPT-4o-mini', c:'MED', cx:'MED', tok:120,
              cost:0.000018, base:0.0006, pct:97,
              rule:'fallback (engine not loaded)', modal:'text' };
   }
-
   const result = eng.route(pr, uc, q || 'default');
-
-  // Sync AMBIG items into local autoLearnQueue for the UI
-  // (engine already queues them internally; we mirror here for display)
-  if (result.autoLearn) {
-    autoLearnQueue.push({
-      prompt: pr, uc, rule: result.rule,
-      lang: result.lang, noiseType: result.noiseType,
-      ts: new Date().toLocaleTimeString()
-    });
-    totalLearnCount++;
-    updateLearnBadge();
-  }
-
-  // Return shape expected by dashboard UI
   return {
     m:    result.isCache ? 'Cache hit' : result.model,
     c:    result.isCache ? 'LOW'       : result.cx,
@@ -1392,23 +1296,6 @@ function route(uc, pr, q) {
     noiseType: result.noiseType,
     confidence: result.confidence,
   };
-}
-
-function updateLearnBadge() {
-  const b = document.getElementById('learn-badge');
-  if (b) {
-    b.textContent = autoLearnQueue.length;
-    b.style.display = autoLearnQueue.length > 0 ? 'inline-flex' : 'none';
-  }
-  // Sync accuracy from engine (engine tracks +0.12% per 10 labels)
-  if (typeof CascaClassifier !== 'undefined') {
-    accuracyScore = CascaClassifier.accuracyScore;
-  }
-  const a = document.getElementById('acc-score');
-  if (a) a.textContent = accuracyScore.toFixed(1) + '%';
-  if (autoLearnQueue.length % 10 === 0 && autoLearnQueue.length > 0) {
-    renderAnnotationQueue();
-  }
 }
 
 
@@ -1493,59 +1380,8 @@ const samples=[
 let sIdx=0;
 function toggleAuto(){const btn=document.getElementById('auto-btn');if(autoInt){clearInterval(autoInt);autoInt=null;btn.textContent='▶ 自動模擬';}else{autoInt=setInterval(()=>{const[uc,pr]=samples[sIdx%samples.length];sIdx++;const q=['high','med','low'][Math.floor(Math.random()*3)];const r=route(uc,pr,q);appendStream(r.m,r.c,r.tok,r.pct,uc,r.rule);},800);btn.textContent='■ 停止';}}
 
-// ── BYPASS ────────────────────────────
+// ── BYPASS (Live Router only) ──────────
 function toggleBypass(btn){if(btn.textContent==='啟用旁路'){btn.textContent='停用旁路';btn.className='btn btn-success';}else{btn.textContent='啟用旁路';btn.className='btn btn-danger';}}
-let relBypass=false;
-function toggleBypassRel(btn){relBypass=!relBypass;document.getElementById('rel-alert').style.display=relBypass?'flex':'none';btn.textContent=relBypass?'停用旁路':'啟用緊急旁路';btn.className=relBypass?'btn btn-success':'btn btn-danger';}
-function deactivateBypassRel(){relBypass=false;document.getElementById('rel-alert').style.display='none';document.getElementById('bypass-rel-btn').textContent='啟用緊急旁路';document.getElementById('bypass-rel-btn').className='btn btn-danger';}
-
-// ── QUALITY ROLLBACK ──────────────────
-function triggerRollback(){
-  const a=document.getElementById('q-alert');
-  a.className='alert alert-amber';
-  a.innerHTML='<div class="alert-dot"></div><div class="alert-body"><strong>回滾中</strong> — 正在將所有流量切回 GPT-4o，60 秒內完成...</div><button class="btn" onclick="cancelRollback()">取消</button>';
-  setTimeout(()=>{a.className='alert alert-teal';a.innerHTML='<div class="alert-dot"></div><div class="alert-body"><strong>回滾完成</strong> — 所有流量已切換至 GPT-4o。</div><button class="btn btn-success">重新啟用路由</button>';},3000);
-}
-function cancelRollback(){const a=document.getElementById('q-alert');a.className='alert alert-teal';a.innerHTML='<div class="alert-dot"></div><div class="alert-body"><strong>品質正常</strong> — 目前評分 93.4%，高於客戶設定基準 88.0%。</div><button class="btn btn-success">查看報告</button>';}
-
-// ── RULES TABLE ───────────────────────
-const rules=[
-  {l:'客服·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R1/R2'},
-  {l:'客服·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'客服·HIGH',m:'GPT-4o',q:'>95%',r:'R5'},
-  {l:'內容·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R2'},
-  {l:'內容·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'內容·HIGH',m:'Claude Sonnet',q:'>92%',r:'R5'},
-  {l:'知識·LOW',m:'Cache → Gemini Flash',q:'>75%',r:'R9/R1'},
-  {l:'知識·HIGH',m:'GPT-4o',q:'>96%',r:'R6'},
-  {l:'程式碼·MED',m:'GPT-4o-mini',q:'>88%',r:'R7排除'},
-  {l:'程式碼·HIGH',m:'GPT-4o',q:'>97%',r:'R7'},
-  {l:'HR·LOW',m:'Cache → Gemini Flash',q:'>75%',r:'R9/R1 快取優先'},
-  {l:'HR·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'HR·HIGH',m:'GPT-4o',q:'>95%',r:'R5/R6'},
-  {l:'財務·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R-NEW1a 直接算術'},
-  {l:'財務·MED',m:'GPT-4o-mini',q:'>88%',r:'R-NEW1'},
-  {l:'財務·HIGH',m:'GPT-4o',q:'>95%',r:'R-NEW1b 情境建模'},
-  {l:'法務·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R6排除 知識查詢'},
-  {l:'法務·MED',m:'GPT-4o-mini',q:'>90%',r:'R3'},
-  {l:'法務·HIGH',m:'GPT-4o',q:'>97%',r:'R6 領域觸發'},
-  {l:'行銷·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R2'},
-  {l:'行銷·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'行銷·HIGH',m:'Claude Sonnet',q:'>92%',r:'R5'},
-  {l:'產品·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R1'},
-  {l:'產品·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'產品·HIGH',m:'GPT-4o',q:'>97%',r:'R-NEW2 PRD/規格'},
-  {l:'營運·LOW',m:'Cache → Gemini Flash',q:'>75%',r:'R1'},
-  {l:'營運·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'營運·HIGH',m:'GPT-4o',q:'>95%',r:'R5'},
-  {l:'數據·LOW',m:'Gemini 2.0 Flash',q:'>80%',r:'R1 指標查詢'},
-  {l:'數據·MED',m:'GPT-4o-mini',q:'>88%',r:'R3'},
-  {l:'數據·HIGH',m:'GPT-4o',q:'>96%',r:'R5 推論/建模'},
-  {l:'分析·HIGH',m:'GPT-4o',q:'>95%',r:'R5'},
-];
-const rt=document.getElementById('rules-table');
-rt.innerHTML='<div style="display:grid;grid-template-columns:1fr 160px 72px 100px;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--b1);font-size:10px;font-family:var(--display);color:var(--t3);letter-spacing:0.06em"><span>領域·難度</span><span>目標模型</span><span>品質門檻</span><span>觸發規則</span></div>';
-rules.forEach(r=>{rt.innerHTML+=`<div class="rule-row"><span style="color:var(--t1)">${r.l}</span><select style="font-size:10px;padding:3px 6px;background:var(--bg2);border-color:var(--b2)">${['Gemini 2.0 Flash','Cache → Gemini Flash','GPT-4o-mini','Claude Haiku','GPT-4o','Claude Sonnet'].map(m=>`<option${m===r.m?' selected':''}>${m}</option>`).join('')}</select><select style="font-size:10px;padding:3px 6px;background:var(--bg2);border-color:var(--b2)">${['>75%','>80%','>88%','>90%','>92%','>95%','>96%','>97%'].map(q=>`<option${q===r.q?' selected':''}>${q}</option>`).join('')}</select><span style="font-size:9px;color:var(--t3);font-family:var(--mono)">${r.r}</span></div>`;});
 
 // ── DASH LOG ──────────────────────────
 // Overview 最新請求紀錄表格 — 初始空白，由 loadOverview() 從 API 填入
@@ -1553,10 +1389,6 @@ rules.forEach(r=>{rt.innerHTML+=`<div class="rule-row"><span style="color:var(--
   const dl = document.getElementById('dash-log');
   if (dl) dl.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--t3);padding:24px">尚無請求紀錄 — 開始使用 API Key 後數據會自動出現</td></tr>';
 }
-
-// ── UPTIME GRID ───────────────────────
-const ug=document.getElementById('uptime-grid');
-for(let i=0;i<90;i++){const d=document.createElement('div');d.className='ud';const v=Math.random();d.style.background=v>0.04?'var(--teal)':v>0.015?'var(--amber)':'var(--red)';ug.appendChild(d);}
 
 // ── CHARTS ────────────────────────────
 function initCharts(){
@@ -1574,108 +1406,16 @@ function initCharts(){
 
   // pieChart — 複雜度分配 (HIGH / MED / LOW / Cache). 初始灰色，由 loadOverview() 覆寫
   window._pieChart = new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:['HIGH','MED','LOW','Cache'],datasets:[{data:[0,0,0,0],backgroundColor:['#e2ddd7','#e2ddd7','#e2ddd7','#e2ddd7'],borderWidth:0,borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:true}}}});
-  new Chart(document.getElementById('costCompareChart'),{type:'bar',data:{labels:['GPT-4o','Claude Sonnet','Gemini 1.5Pro','GPT-4o-mini','Claude Haiku','Gemini Flash','Groq Llama'],datasets:[{data:[5.0,3.0,1.25,0.15,0.25,0.10,0.06],backgroundColor:['rgba(255,95,109,0.7)','rgba(167,139,250,0.7)','rgba(59,158,255,0.7)','rgba(134,239,172,0.7)','rgba(255,179,71,0.7)','rgba(0,212,170,0.8)','rgba(74,100,128,0.7)'],borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v,font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480'},grid:{display:false},border:{display:false}}}}});
-  const months=['Oct','Nov','Dec','Jan','Feb','Mar'];
-  const bm=[41200,43800,52100,48900,51200,44800];
-  const rm=bm.map(v=>Math.round(v*0.59));
-  new Chart(document.getElementById('auditChart'),{type:'bar',data:{labels:months,datasets:[{data:bm,backgroundColor:'rgba(255,95,109,0.25)',borderColor:'rgba(255,95,109,0.7)',borderWidth:1,borderRadius:3},{data:rm,backgroundColor:'rgba(0,212,170,0.2)',borderColor:'rgba(0,212,170,0.7)',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'K',font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480'},grid:{display:false},border:{display:false}}}}});
+
+  // auditChart — 月費用趨勢 (baseline vs actual). 初始空白，由 loadAudit() 填入
+  window._auditChart = new Chart(document.getElementById('auditChart'),{type:'bar',data:{labels:[],datasets:[
+    {label:'GPT-4o 基準', data:[], backgroundColor:'rgba(255,95,109,0.25)', borderColor:'rgba(255,95,109,0.7)', borderWidth:1, borderRadius:3},
+    {label:'實際',        data:[], backgroundColor:'rgba(0,212,170,0.2)',  borderColor:'rgba(0,212,170,0.7)',  borderWidth:1, borderRadius:3},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v.toFixed(2),font:{size:9},color:'#4a6480'},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},x:{ticks:{font:{size:9},color:'#4a6480'},grid:{display:false},border:{display:false}}}}});
 }
 
 
-// ── AUTO-LEARN & ANNOTATION ──────────
-function renderAnnotationQueue(){
-  const el=document.getElementById('annotation-queue');
-  const qc=document.getElementById('queue-count');
-  if(qc)qc.textContent=autoLearnQueue.length;
-  if(!el)return;
-  if(autoLearnQueue.length===0){el.innerHTML='<div style="text-align:center;color:var(--t3);font-size:12px;padding:20px 0">尚無待標注案例。使用 Live Router 模擬請求以產生標注隊列。</div>';return;}
-  el.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+autoLearnQueue.slice().reverse().map((item,i)=>`
-    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg2);border-radius:var(--r8);padding:9px 12px">
-      <div style="flex:1">
-        <div style="font-size:11px;font-style:italic;color:var(--t2);margin-bottom:3px">"${(item.prompt||'').substring(0,80)}${item.prompt&&item.prompt.length>80?'…':''}"</div>
-        <div style="font-size:10px;color:var(--t3)">${item.uc||''} · ${item.rule||''} · ${item.ts||''}</div>
-      </div>
-      <div style="display:flex;gap:4px;flex-shrink:0">
-        <button onclick="confirmLabel(${autoLearnQueue.length-1-i},'LOW')" style="font-size:10px;padding:2px 7px;background:#E1F5EE;color:#085041;border:0.5px solid #5DCAA5;border-radius:4px;cursor:pointer">LOW</button>
-        <button onclick="confirmLabel(${autoLearnQueue.length-1-i},'MED')" style="font-size:10px;padding:2px 7px;background:#FAEEDA;color:#633806;border:0.5px solid #EF9F27;border-radius:4px;cursor:pointer">MED</button>
-        <button onclick="confirmLabel(${autoLearnQueue.length-1-i},'HIGH')" style="font-size:10px;padding:2px 7px;background:#FCEBEB;color:#791F1F;border:0.5px solid #F09595;border-radius:4px;cursor:pointer">HIGH</button>
-      </div>
-    </div>`).join('')+'</div>';
-}
-let labeledHistory=[];
-function confirmLabel(idx, cx) {
-  const item = autoLearnQueue[idx];
-  if (!item) return;
-  item.confirmed = cx;
-  labeledHistory.unshift({ ...item, confirmed: cx, labeledAt: new Date().toLocaleTimeString() });
-  autoLearnQueue.splice(idx, 1);
-  totalLearnCount++;
-
-  // Sync label into CascaClassifier engine's internal queue
-  if (typeof CascaClassifier !== 'undefined') {
-    CascaClassifier.confirmLabel(
-      CascaClassifier.autoLearnQueue.length - 1 - idx, cx
-    );
-    accuracyScore = CascaClassifier.accuracyScore;
-  } else {
-    accuracyScore = Math.min(98.5, accuracyScore + 0.012);
-  }
-
-  const tl = document.getElementById('total-labeled');
-  if (tl) tl.textContent = 1000 + totalLearnCount;
-
-  const a = document.getElementById('acc-score');
-  if (a) a.textContent = accuracyScore.toFixed(1) + '%';
-
-  const ts = document.getElementById('train-status');
-  if (ts) ts.textContent = `最後更新：${new Date().toLocaleTimeString()}，累計改善 +${(accuracyScore - 94.1).toFixed(2)}%`;
-
-  const lt = document.getElementById('last-train');
-  if (lt) lt.textContent = new Date().toLocaleTimeString();
-
-  renderAnnotationQueue();
-  renderLabeledLog();
-  if (totalLearnCount % 10 === 0) animateTrainBar();
-  updateLearnBadge();
-}
-function renderLabeledLog(){
-  const tbody=document.getElementById('labeled-log');
-  if(!tbody)return;
-  tbody.innerHTML=labeledHistory.slice(0,10).map(item=>`
-    <tr>
-      <td style="font-size:10px;color:var(--t3);font-family:var(--mono)">${item.labeledAt||''}</td>
-      <td style="font-size:11px;font-style:italic;max-width:200px">"${(item.prompt||'').substring(0,40)}…"</td>
-      <td style="font-size:10px;color:var(--t3)">${item.uc||''}</td>
-      <td><span class="tag tag-ambig" style="font-size:9px">AMBIG</span></td>
-      <td><span class="tag tag-${(item.confirmed||'med').toLowerCase()}" style="font-size:9px">${item.confirmed||'MED'}</span></td>
-    </tr>`).join('');
-}
-function animateTrainBar(){
-  const bar=document.getElementById('train-bar');if(!bar)return;
-  bar.style.width='0%';
-  let w=0;const iv=setInterval(()=>{w+=5;bar.style.width=Math.min(w,100)+'%';if(w>=100)clearInterval(iv);},50);
-}
-function triggerRetrain(){
-  const ts=document.getElementById('train-status');
-  if(ts)ts.textContent='重新訓練中…';
-  animateTrainBar();
-  setTimeout(()=>{
-    accuracyScore=Math.min(98.5,accuracyScore+0.2);
-    const a=document.getElementById('acc-score');if(a)a.textContent=accuracyScore.toFixed(1)+'%';
-    const lt=document.getElementById('last-train');if(lt)lt.textContent=new Date().toLocaleTimeString();
-    if(ts)ts.textContent=`訓練完成 ${new Date().toLocaleTimeString()}，準確率 +0.2% 提升`;
-  },2000);
-}
-function addTrainingSample(){
-  const p=document.getElementById('new-sample-prompt').value.trim();
-  if(!p)return;
-  document.getElementById('new-sample-prompt').value='';
-  const badge=document.getElementById('sample-added');
-  if(badge){badge.style.display='inline';setTimeout(()=>badge.style.display='none',2000);}
-}
-
-// ── INIT ──────────────────────────────
-renderAnnotationQueue();
+// Auto-Learn page removed — Path B 已取代此功能（見 admin 後台）
 
 // ══════════════════════════════════════════════════════
 //  CASCA AUTH + API INTEGRATION
@@ -2403,11 +2143,223 @@ async function flushAllCache() {
 const _origSwitchPage = switchPage;
 window.switchPage = function(id, el) {
   _origSwitchPage(id, el);
-  if (id === 'logs')    loadLogs();
-  if (id === 'apikeys') { loadKeys(); loadMe(); }
-  if (id === 'cache')   loadCache();
-  if (id === 'billing') loadBillingPage();
+  if (id === 'logs')        loadLogs();
+  if (id === 'apikeys')     { loadKeys(); loadMe(); }
+  if (id === 'cache')       loadCache();
+  if (id === 'billing')     loadBillingPage();
+  if (id === 'audit')       loadAudit();
+  if (id === 'quality')     loadQualityPage();
+  if (id === 'reliability') loadReliability();
+  if (id === 'providers')   loadProviders();
+  if (id === 'dashboard')   loadOverview();
 };
+
+// ══════════════════════════════════════════════════════
+//  NEW PAGE LOADERS — Cost Audit, Quality, Reliability, Providers
+// ══════════════════════════════════════════════════════
+
+async function _authedFetch(path, opts = {}) {
+  let bearer = activeApiKey;
+  if (!bearer) {
+    const sb = getSB();
+    if (!sb) return null;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return null;
+    bearer = session.access_token;
+  }
+  return fetch(`${CASCA_CONFIG.apiBase}${path}`, {
+    ...opts,
+    headers: { ...(opts.headers || {}), Authorization: `Bearer ${bearer}` },
+  }).catch(() => null);
+}
+
+// ── Cost Audit ────────────────────────────────────────
+async function loadAudit() {
+  const res = await _authedFetch('/api/dashboard/audit');
+  if (!res || !res.ok) return;
+  const d = await res.json();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const hasData = d.total_requests > 0;
+
+  set('au-annual',     hasData ? '$' + d.annualized_savings_usd.toFixed(2) + ' / 年' : '—');
+  set('au-30d',        hasData ? '$' + d.saved_30d_usd.toFixed(2) : '—');
+  set('au-30d-sub',    hasData ? `基於 ${d.total_requests.toLocaleString()} 筆請求` : '尚未產生資料');
+  set('au-requests',   hasData ? d.total_requests.toLocaleString() : '—');
+  set('au-cost',       hasData ? '$' + d.total_cost_usd.toFixed(4) : '—');
+  set('au-baseline',   hasData ? '$' + d.baseline_usd.toFixed(4) : '—');
+  set('au-pct',        hasData ? d.savings_pct + '%' : '—');
+
+  // Monthly trend chart
+  const chart = window._auditChart;
+  if (chart && d.monthly_trend) {
+    chart.data.labels = d.monthly_trend.map(m => m.month);
+    chart.data.datasets[0].data = d.monthly_trend.map(m => m.baseline);
+    chart.data.datasets[1].data = d.monthly_trend.map(m => m.actual);
+    chart.update();
+  }
+
+  // Breakdown table
+  const tbody = document.getElementById('au-breakdown-tbody');
+  if (tbody) {
+    if (!d.breakdown?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:20px">尚無請求紀錄</td></tr>';
+    } else {
+      tbody.innerHTML = d.breakdown.map(r => `<tr>
+        <td style="font-weight:500">${r.uc}</td>
+        <td>${r.requests.toLocaleString()}</td>
+        <td style="font-family:var(--mono)">$${r.cost_usd.toFixed(4)}</td>
+        <td style="color:var(--teal);font-weight:600">$${r.saved_usd.toFixed(4)}</td>
+        <td style="color:var(--teal)">${r.savings_pct}%</td>
+      </tr>`).join('');
+    }
+  }
+}
+
+// ── Quality Assurance (HIGH routing list) ─────────────
+async function loadQualityPage() {
+  const res = await _authedFetch('/api/dashboard/logs?limit=200&cx=HIGH');
+  if (!res || !res.ok) return;
+  const { logs, total } = await res.json();
+
+  // Also fetch overall total (no filter) to compute HIGH percentage
+  const resAll = await _authedFetch('/api/dashboard/logs?limit=1');
+  let totalAll = 0;
+  if (resAll && resAll.ok) {
+    const { total: t } = await resAll.json();
+    totalAll = t || 0;
+  }
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('q-high-count', (total || 0).toLocaleString());
+  set('q-high-pct',   totalAll > 0 ? Math.round((total / totalAll) * 100) + '%' : '—');
+  const models = [...new Set((logs || []).map(l => l.model_name).filter(Boolean))];
+  set('q-high-model', models.slice(0, 2).join(', ') || '—');
+
+  const tbody = document.getElementById('q-high-tbody');
+  if (tbody) {
+    if (!logs?.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:20px">尚無 HIGH 路由紀錄 — 當複雜請求出現時會自動顯示在此</td></tr>';
+    } else {
+      tbody.innerHTML = logs.slice(0, 50).map(l => `<tr>
+        <td style="font-family:var(--mono);color:var(--t3);font-size:10px">${new Date(l.created_at).toLocaleString('zh-TW', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+        <td style="font-size:10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(l.rule||'').replace(/"/g,'&quot;')}">${l.rule || '—'}</td>
+        <td><span class="model-tag">${l.model_name || '—'}</span></td>
+        <td style="font-size:11px">${l.lang || '—'}</td>
+        <td style="font-family:var(--mono)">${(l.tokens_in||0)+(l.tokens_out||0)}</td>
+        <td style="font-family:var(--mono)">$${(l.cost_usd||0).toFixed(5)}</td>
+        <td style="font-family:var(--mono)">${l.latency_ms || '—'}ms</td>
+      </tr>`).join('');
+    }
+  }
+}
+
+// ── Reliability / Server Health ──────────────────────
+async function loadReliability() {
+  const res = await _authedFetch('/api/dashboard/health');
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+  if (!res || !res.ok) {
+    set('rel-server-status', '<span style="color:var(--red)">Offline</span>');
+    set('rel-server-sub',    '無法連線');
+    set('rel-providers',     '—');
+    set('rel-stripe',        '—');
+    return;
+  }
+  const d = await res.json();
+  set('rel-server-status', d.server_status === 'ok'
+    ? '<span style="color:var(--teal)">Online</span>'
+    : '<span style="color:var(--red)">Degraded</span>');
+  set('rel-server-sub',    `${new Date(d.timestamp).toLocaleTimeString('zh-TW')} · Plan: ${d.client?.plan || '—'}`);
+  set('rel-providers',     String(d.providers || 0));
+  set('rel-stripe',        d.stripe_enabled
+    ? '<span style="color:var(--teal)">Active</span>'
+    : '<span style="color:var(--t3)">Not configured</span>');
+}
+
+// ── Available Providers ──────────────────────────────
+let _providerInitial = []; // for change detection
+async function loadProviders() {
+  const res = await _authedFetch('/api/dashboard/providers');
+  if (!res || !res.ok) return;
+  const d = await res.json();
+
+  const banner = document.getElementById('prov-lock-banner');
+  const reason = document.getElementById('prov-lock-reason');
+  if (!d.can_select) {
+    banner.style.display = 'block';
+    reason.textContent = '🔒 ' + (d.lock_reason || '您目前的方案無法自訂 Provider');
+  } else {
+    banner.style.display = 'none';
+  }
+
+  const listEl = document.getElementById('prov-list');
+  if (!d.providers?.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--t3);font-size:12px;padding:20px 0">尚無 Provider</div>';
+    return;
+  }
+
+  // Group by tier
+  const tierLabel = { HIGH:'HIGH · 深度推理', MED:'MED · 平衡', LOW:'LOW · 低成本', ANY:'ANY · 多用途' };
+  const grouped = {};
+  for (const p of d.providers) {
+    const t = p.tier_capability || 'ANY';
+    (grouped[t] = grouped[t] || []).push(p);
+  }
+
+  _providerInitial = d.providers.filter(p => p.is_selected).map(p => p.model_name).sort();
+
+  const tierOrder = ['HIGH','MED','LOW','ANY'];
+  let html = '';
+  for (const t of tierOrder) {
+    if (!grouped[t]) continue;
+    html += `<div style="margin:12px 0 6px;font-size:10px;font-weight:600;color:var(--t3);letter-spacing:0.08em;text-transform:uppercase">${tierLabel[t] || t}</div>`;
+    for (const p of grouped[t]) {
+      const disabled = !d.can_select ? 'disabled' : '';
+      const checked  = p.is_selected ? 'checked' : '';
+      html += `<div class="prov-row" style="padding:10px 0">
+        <label style="display:flex;align-items:center;gap:10px;cursor:${d.can_select?'pointer':'not-allowed'};flex:1">
+          <input type="checkbox" ${checked} ${disabled} data-model="${p.model_name}" onchange="onProviderToggle()" style="width:16px;height:16px;cursor:${d.can_select?'pointer':'not-allowed'}">
+          <div class="prov-info" style="flex:1">
+            <div class="prov-name">${p.display_name || p.model_name}</div>
+            <div class="prov-sub">${p.provider_name} · $${p.cost_per_1m_tokens}/1M tokens${p.supports_vision?' · Vision':''}</div>
+          </div>
+        </label>
+        <span class="chip" style="background:var(--bg2);color:var(--t3);font-size:10px">${t}</span>
+      </div>`;
+    }
+  }
+  listEl.innerHTML = html;
+
+  document.getElementById('prov-selected-count').textContent =
+    `${_providerInitial.length} 已選 / ${d.providers.length} 可用`;
+  document.getElementById('prov-save-btn').style.display = 'none';
+}
+
+function onProviderToggle() {
+  const current = [...document.querySelectorAll('#prov-list input[type=checkbox]:checked')]
+    .map(c => c.dataset.model).sort();
+  const changed = JSON.stringify(current) !== JSON.stringify(_providerInitial);
+  document.getElementById('prov-save-btn').style.display = changed ? 'inline-flex' : 'none';
+  document.getElementById('prov-selected-count').textContent =
+    `${current.length} 已選 / ${document.querySelectorAll('#prov-list input[type=checkbox]').length} 可用`;
+}
+
+async function saveProviderSelection() {
+  const selected = [...document.querySelectorAll('#prov-list input[type=checkbox]:checked')]
+    .map(c => c.dataset.model);
+  const res = await _authedFetch('/api/dashboard/providers', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ selected }),
+  });
+  if (res && res.ok) {
+    _providerInitial = selected.slice().sort();
+    document.getElementById('prov-save-btn').style.display = 'none';
+    alert('✅ Provider 選擇已儲存');
+  } else {
+    const d = res ? await res.json() : null;
+    alert('❌ 儲存失敗：' + (d?.error || '未知錯誤'));
+  }
+}
 
 // ════════════════════════════════════════════════════════════════
 //  BILLING PAGE — subscribe, topup, transactions

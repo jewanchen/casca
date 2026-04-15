@@ -2178,14 +2178,18 @@ app.get('/api/dashboard/me', requireApiKeyOrJWT, async (req, res) => {
   });
 });
 
-app.get('/api/dashboard/logs', requireApiKey, async (req, res) => {
+app.get('/api/dashboard/logs', requireApiKeyOrJWT, async (req, res) => {
   const limit  = Math.min(parseInt(req.query.limit  || '50', 10), 200);
   const offset = parseInt(req.query.offset || '0', 10);
-  const { data, count, error } = await supabase.from('api_logs')
-    .select('id,cx,model_name,tokens_in,tokens_out,cost_usd,savings_pct,is_cache_hit,lang,rule,auto_learn,latency_ms,status_code,created_at', { count: 'exact' })
+  let query = supabase.from('api_logs')
+    .select('id,cx,uc,model_name,tokens_in,tokens_out,cost_usd,savings_pct,is_cache_hit,lang,rule,auto_learn,latency_ms,status_code,created_at', { count: 'exact' })
     .eq('client_id', req.client.id)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
+  if (req.query.cx)   query = query.eq('cx', req.query.cx);
+  if (req.query.uc)   query = query.eq('uc', req.query.uc);
+  if (req.query.lang) query = query.eq('lang', req.query.lang);
+  const { data, count, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   const cacheHits = (data || []).filter(l => l.is_cache_hit).length;
   const totalCost = (data || []).reduce((s, l) => s + (l.cost_usd || 0), 0);
@@ -2193,6 +2197,193 @@ app.get('/api/dashboard/logs', requireApiKey, async (req, res) => {
     .filter(l => l.is_cache_hit)
     .reduce((s, l) => s + ((l.tokens_in || 0) + (l.tokens_out || 0)), 0);
   return res.json({ logs: data, total: count, cacheHits, totalCost, totalTokensSaved });
+});
+
+/**
+ * GET /api/dashboard/audit
+ * Cost Audit page: annualized savings, per-uc breakdown, monthly trend.
+ */
+app.get('/api/dashboard/audit', requireApiKeyOrJWT, async (req, res) => {
+  const clientId = req.client.id;
+  const since30 = new Date(); since30.setDate(since30.getDate() - 30);
+  const since90 = new Date(); since90.setDate(since90.getDate() - 90);
+
+  // Pull 30-day logs for breakdown + annualized savings
+  const { data: logs30, error: e30 } = await supabase
+    .from('api_logs')
+    .select('uc,tokens_in,tokens_out,cost_usd,is_cache_hit,created_at')
+    .eq('client_id', clientId)
+    .gte('created_at', since30.toISOString());
+  if (e30) return res.status(500).json({ error: e30.message });
+
+  // Pull 90-day logs for monthly trend (last 3 months)
+  const { data: logs90, error: e90 } = await supabase
+    .from('api_logs')
+    .select('tokens_in,tokens_out,cost_usd,created_at')
+    .eq('client_id', clientId)
+    .gte('created_at', since90.toISOString());
+  if (e90) return res.status(500).json({ error: e90.message });
+
+  // Aggregate 30-day metrics
+  const totalTokens = (logs30 || []).reduce((s, l) => s + (l.tokens_in || 0) + (l.tokens_out || 0), 0);
+  const totalCost   = (logs30 || []).reduce((s, l) => s + (l.cost_usd || 0), 0);
+  const baseline    = (totalTokens / 1_000_000) * 5.0;  // GPT-4o baseline
+  const saved30     = Math.max(0, baseline - totalCost);
+  const annualized  = saved30 * 12; // naive extrapolation
+
+  // Per-uc breakdown
+  const ucMap = {};
+  for (const l of (logs30 || [])) {
+    const uc = l.uc || 'general';
+    if (!ucMap[uc]) ucMap[uc] = { uc, requests: 0, tokens: 0, cost: 0, baseline: 0 };
+    ucMap[uc].requests++;
+    const tok = (l.tokens_in || 0) + (l.tokens_out || 0);
+    ucMap[uc].tokens += tok;
+    ucMap[uc].cost += (l.cost_usd || 0);
+    ucMap[uc].baseline += (tok / 1_000_000) * 5.0;
+  }
+  const breakdown = Object.values(ucMap).map(u => ({
+    uc: u.uc,
+    requests: u.requests,
+    cost_usd: +u.cost.toFixed(4),
+    saved_usd: +Math.max(0, u.baseline - u.cost).toFixed(4),
+    savings_pct: u.baseline > 0 ? Math.round(((u.baseline - u.cost) / u.baseline) * 100) : 0,
+  })).sort((a, b) => b.saved_usd - a.saved_usd);
+
+  // Monthly trend (last 3 months: baseline vs actual)
+  const monthMap = {};
+  for (const l of (logs90 || [])) {
+    const key = l.created_at.slice(0, 7); // YYYY-MM
+    if (!monthMap[key]) monthMap[key] = { cost: 0, baseline: 0 };
+    const tok = (l.tokens_in || 0) + (l.tokens_out || 0);
+    monthMap[key].cost += (l.cost_usd || 0);
+    monthMap[key].baseline += (tok / 1_000_000) * 5.0;
+  }
+  const now = new Date();
+  const months = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = d.toISOString().slice(0, 7);
+    months.push({
+      month: key,
+      baseline: +(monthMap[key]?.baseline || 0).toFixed(4),
+      actual:   +(monthMap[key]?.cost     || 0).toFixed(4),
+    });
+  }
+
+  return res.json({
+    period: '30d',
+    total_requests: (logs30 || []).length,
+    total_tokens: totalTokens,
+    total_cost_usd: +totalCost.toFixed(4),
+    baseline_usd: +baseline.toFixed(4),
+    saved_30d_usd: +saved30.toFixed(4),
+    annualized_savings_usd: +annualized.toFixed(2),
+    savings_pct: baseline > 0 ? Math.round((saved30 / baseline) * 100) : 0,
+    breakdown,
+    monthly_trend: months,
+  });
+});
+
+/**
+ * GET /api/dashboard/health
+ * Simple server health — proxies /health and adds client quota summary.
+ */
+app.get('/api/dashboard/health', requireApiKeyOrJWT, (req, res) => {
+  return res.json({
+    server_status: 'ok',
+    providers: providerRegistry.size,
+    stripe_enabled: !!stripe,
+    timestamp: new Date().toISOString(),
+    client: {
+      id: req.client.id.slice(0, 8),
+      plan: req.plan?.name || 'Free',
+    },
+  });
+});
+
+/**
+ * GET /api/dashboard/providers
+ * List all available providers, marking which ones the client has selected.
+ * For managed plans, client can check/uncheck providers.
+ * For trial/passthrough plans, selection is locked.
+ */
+app.get('/api/dashboard/providers', requireApiKeyOrJWT, async (req, res) => {
+  const clientId = req.client.id;
+
+  // Get all active providers
+  const { data: providers, error: pe } = await supabase
+    .from('llm_providers')
+    .select('id, provider_name, model_name, display_name, tier_capability, cost_per_1m_tokens, supports_vision, priority')
+    .eq('is_active', true)
+    .order('provider_name')
+    .order('priority');
+  if (pe) return res.status(500).json({ error: pe.message });
+
+  // Get client's routing mode + selected providers
+  const { data: client } = await supabase
+    .from('clients')
+    .select('routing_mode, providers, trial_ends_at, plan_id')
+    .eq('id', clientId)
+    .maybeSingle();
+
+  const routingMode = client?.routing_mode || 'auto';
+  const selectedList = Array.isArray(client?.providers) ? client.providers : [];
+  const isTrialActive = client?.trial_ends_at && new Date(client.trial_ends_at) > new Date();
+
+  // Check if any active paid subscription
+  const hasPaidPlan = !!client?.plan_id && !isTrialActive;
+
+  // Selection allowed only for managed (paid) plans
+  const canSelect = routingMode === 'managed' || (hasPaidPlan && routingMode !== 'passthrough');
+
+  return res.json({
+    routing_mode: routingMode,
+    can_select: canSelect,
+    lock_reason: !canSelect ? (
+      isTrialActive ? '試用期方案無法自訂 Provider，升級 Managed 方案即可勾選'
+      : routingMode === 'passthrough' ? '您使用自有 API Key，Provider 由您的 Key 決定'
+      : '此功能僅限 Casca Managed 方案'
+    ) : null,
+    selected: selectedList,
+    providers: (providers || []).map(p => ({
+      ...p,
+      is_selected: selectedList.includes(p.model_name),
+    })),
+  });
+});
+
+/**
+ * PATCH /api/dashboard/providers
+ * Update client's selected providers list.
+ * Body: { selected: ['gpt-4o', 'claude-3-5-sonnet-...', ...] }
+ */
+app.patch('/api/dashboard/providers', requireApiKeyOrJWT, async (req, res) => {
+  const clientId = req.client.id;
+  const { selected } = req.body;
+  if (!Array.isArray(selected))
+    return res.status(400).json({ error: 'selected must be an array of model_name strings.' });
+
+  // Verify selection is allowed
+  const { data: client } = await supabase
+    .from('clients')
+    .select('routing_mode, trial_ends_at, plan_id')
+    .eq('id', clientId)
+    .maybeSingle();
+  const routingMode = client?.routing_mode || 'auto';
+  const isTrialActive = client?.trial_ends_at && new Date(client.trial_ends_at) > new Date();
+  const hasPaidPlan = !!client?.plan_id && !isTrialActive;
+  if (!(routingMode === 'managed' || (hasPaidPlan && routingMode !== 'passthrough'))) {
+    return res.status(403).json({ error: 'Provider selection not available for your current plan.' });
+  }
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ providers: selected, updated_at: new Date().toISOString() })
+    .eq('id', clientId);
+  if (error) return res.status(500).json({ error: error.message });
+
+  return res.json({ ok: true, selected });
 });
 
 app.get('/api/dashboard/cache', requireApiKey, async (req, res) => {
