@@ -29,6 +29,7 @@ from model.train import (
     train, load_jsonl, load_from_supabase, evaluate,
     LABEL_TO_ID, PromptDataset,
 )
+from storage import upload_checkpoint, download_checkpoint, storage_path_for
 
 
 # ── Supabase client ──────────────────────────────────────────────
@@ -43,10 +44,17 @@ is_training = False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model on startup."""
+    """
+    Load model on startup.
+
+    Order:
+      1. Look up active version in DB (minilm_versions where is_active=true).
+      2. If checkpoint exists locally, use it.
+      3. Else if Supabase Storage has it, download + extract, then use.
+      4. Else fall back to base model.
+    """
     global active_version
 
-    # Try to load the latest active checkpoint from DB
     checkpoint = None
     if sb:
         try:
@@ -54,19 +62,27 @@ async def lifespan(app: FastAPI):
                 "is_active", True
             ).limit(1).execute()
             if res.data:
-                candidate = res.data[0]["checkpoint_path"]
-                # Only use checkpoint if file actually exists on disk
-                # (Railway containers lose local files between deploys)
-                if candidate and Path(candidate).exists():
-                    checkpoint = candidate
-                    active_version = res.data[0]["version"]
+                version = res.data[0]["version"]
+                local_path = res.data[0]["checkpoint_path"] or f"./model/checkpoints/{version}"
+
+                # 2. Local file present?
+                if Path(local_path).exists() and any(Path(local_path).iterdir()):
+                    checkpoint = local_path
+                    active_version = version
+                    print(f"[app] using local checkpoint: {local_path}")
                 else:
-                    print(f"[app] DB says active={res.data[0]['version']} but checkpoint file missing on disk: {candidate}")
-                    print(f"[app] → falling back to base model. Re-run cold start to restore.")
+                    # 3. Try downloading from Supabase Storage
+                    storage_path = storage_path_for(version)
+                    print(f"[app] local checkpoint missing — fetching from Storage: {storage_path}")
+                    if download_checkpoint(sb, storage_path, local_path):
+                        checkpoint = local_path
+                        active_version = version
+                    else:
+                        print(f"[app] Storage download failed for {version} — falling back to base model")
         except Exception as e:
             print(f"[app] DB lookup failed: {e}")
 
-    # Fallback: check env or use base model
+    # 4. Fallback to env-specified or base model
     if not checkpoint:
         env_ckpt = os.getenv("ACTIVE_CHECKPOINT")
         if env_ckpt and Path(env_ckpt).exists():
@@ -76,12 +92,12 @@ async def lifespan(app: FastAPI):
             checkpoint = None
             active_version = "base"
 
-    # Try loading; if it fails (e.g. corrupt checkpoint), fall back to base model
+    # Try loading; last-resort fallback to base model on any failure
     try:
         load_model(checkpoint)
     except Exception as e:
         print(f"[app] load_model({checkpoint}) failed: {e}")
-        print(f"[app] → loading base model as fallback")
+        print(f"[app] → loading base model as last-resort fallback")
         active_version = "base"
         load_model(None)
 
@@ -167,6 +183,12 @@ async def api_train_trigger():
 
         result = train(train_p, train_l, val_p, val_l, base_model=base)
 
+        # Upload checkpoint to Supabase Storage (survives container restart)
+        try:
+            upload_checkpoint(sb, result["version"], result["checkpoint_path"])
+        except Exception as e:
+            print(f"[train/trigger] checkpoint upload failed: {e}")
+
         # Mark samples as trained
         for sid in sample_ids:
             sb.table("training_samples").update({
@@ -237,6 +259,23 @@ async def api_train_import(file: UploadFile = File(...)):
             prompts[split_idx:], labels[split_idx:],
         )
 
+        # Upload checkpoint to Supabase Storage
+        if sb:
+            try:
+                upload_checkpoint(sb, result["version"], result["checkpoint_path"])
+                # Register in DB
+                sb.table("minilm_versions").upsert({
+                    "version": result["version"],
+                    "training_samples_count": result["training_samples_count"],
+                    "val_accuracy": result["val_accuracy"],
+                    "val_f1": result["val_f1"],
+                    "checkpoint_path": result["checkpoint_path"],
+                    "is_active": False,
+                    "notes": "Batch import",
+                }, on_conflict="version").execute()
+            except Exception as e:
+                print(f"[train/import] persist failed: {e}")
+
         return TrainResponse(**result)
     finally:
         is_training = False
@@ -272,8 +311,14 @@ async def api_cold_start():
             version="v0.1.0_cold_start",
         )
 
-        # Register in DB
+        # Upload checkpoint to Supabase Storage (survives Railway restart)
         if sb:
+            try:
+                upload_checkpoint(sb, result["version"], result["checkpoint_path"])
+            except Exception as e:
+                print(f"[cold-start] checkpoint upload failed: {e}")
+
+            # Register in DB (mark as active)
             sb.table("minilm_versions").upsert({
                 "version": result["version"],
                 "training_samples_count": result["training_samples_count"],
@@ -281,11 +326,18 @@ async def api_cold_start():
                 "val_f1": result["val_f1"],
                 "checkpoint_path": result["checkpoint_path"],
                 "is_active": True,
-                "notes": "Cold start from 485 samples",
+                "notes": "Cold start from seed dataset",
             }, on_conflict="version").execute()
 
+            # Deactivate other versions (only one active at a time)
+            sb.table("minilm_versions").update({"is_active": False}).neq(
+                "version", result["version"]
+            ).execute()
+
         # Reload the model with new checkpoint
+        global active_version
         load_model(result["checkpoint_path"])
+        active_version = result["version"]
 
         return TrainResponse(**result)
     finally:
