@@ -54,17 +54,37 @@ async def lifespan(app: FastAPI):
                 "is_active", True
             ).limit(1).execute()
             if res.data:
-                checkpoint = res.data[0]["checkpoint_path"]
-                active_version = res.data[0]["version"]
+                candidate = res.data[0]["checkpoint_path"]
+                # Only use checkpoint if file actually exists on disk
+                # (Railway containers lose local files between deploys)
+                if candidate and Path(candidate).exists():
+                    checkpoint = candidate
+                    active_version = res.data[0]["version"]
+                else:
+                    print(f"[app] DB says active={res.data[0]['version']} but checkpoint file missing on disk: {candidate}")
+                    print(f"[app] → falling back to base model. Re-run cold start to restore.")
         except Exception as e:
             print(f"[app] DB lookup failed: {e}")
 
     # Fallback: check env or use base model
     if not checkpoint:
-        checkpoint = os.getenv("ACTIVE_CHECKPOINT") or None
-        active_version = "base" if not checkpoint else Path(checkpoint).name
+        env_ckpt = os.getenv("ACTIVE_CHECKPOINT")
+        if env_ckpt and Path(env_ckpt).exists():
+            checkpoint = env_ckpt
+            active_version = Path(env_ckpt).name
+        else:
+            checkpoint = None
+            active_version = "base"
 
-    load_model(checkpoint)
+    # Try loading; if it fails (e.g. corrupt checkpoint), fall back to base model
+    try:
+        load_model(checkpoint)
+    except Exception as e:
+        print(f"[app] load_model({checkpoint}) failed: {e}")
+        print(f"[app] → loading base model as fallback")
+        active_version = "base"
+        load_model(None)
+
     print(f"[app] Ready — version={active_version}")
 
     yield  # App runs
