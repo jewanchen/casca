@@ -3023,11 +3023,23 @@ app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
   if (!version) return res.status(400).json({ error: 'Missing version' });
 
   try {
-    // Deactivate all versions
-    await supabase.from('minilm_versions').update({ is_active: false }).neq('version', '');
+    // Deactivate all OTHER versions (skip target to avoid flapping)
+    const { error: deacErr } = await supabase
+      .from('minilm_versions')
+      .update({ is_active: false })
+      .neq('version', version);
+    if (deacErr) return res.status(500).json({ error: 'deactivate failed: ' + deacErr.message });
+
     // Activate target version
-    const { error } = await supabase.from('minilm_versions').update({ is_active: true }).eq('version', version);
-    if (error) return res.status(500).json({ error: error.message });
+    const { data: activated, error: actErr } = await supabase
+      .from('minilm_versions')
+      .update({ is_active: true })
+      .eq('version', version)
+      .select();
+    if (actErr) return res.status(500).json({ error: 'activate failed: ' + actErr.message });
+    if (!activated || activated.length === 0) {
+      return res.status(404).json({ error: 'version not found: ' + version });
+    }
 
     // Notify MiniLM service to reload the new active checkpoint
     const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
