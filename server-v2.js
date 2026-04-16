@@ -2974,6 +2974,7 @@ app.get('/api/admin/pathb/minilm', requireAdmin, async (req, res) => {
       service_status: liveStatus ? 'online' : 'offline',
       active_version: liveStatus?.active_version || versions?.find(v => v.is_active)?.version || '—',
       is_training: liveStatus?.is_training || false,
+      training_progress: liveStatus?.progress || null,
       versions: versions || [],
     });
   } catch (err) {

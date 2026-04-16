@@ -121,6 +121,7 @@ def train(
     epochs: int | None = None,
     batch_size: int | None = None,
     learning_rate: float | None = None,
+    on_progress: callable | None = None,
 ) -> dict:
     """
     Fine-tune MiniLM on classification data.
@@ -195,6 +196,16 @@ def train(
                   f"({elapsed:.0f}s)")
         else:
             print(f"[train] epoch {epoch+1}/{epochs} loss={avg_loss:.4f} ({elapsed:.0f}s)")
+
+        if on_progress:
+            on_progress({
+                "epoch": epoch + 1,
+                "total_epochs": epochs,
+                "loss": round(avg_loss, 4),
+                "val_accuracy": val_metrics["accuracy"] if val_metrics else None,
+                "val_f1": val_metrics["f1_macro"] if val_metrics else None,
+                "elapsed_s": round(elapsed, 1),
+            })
 
     # Save checkpoint
     save_path = os.path.join(checkpoint_dir, version)

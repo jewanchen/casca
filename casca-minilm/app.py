@@ -40,6 +40,7 @@ sb = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY 
 # ── State ────────────────────────────────────────────────────────
 active_version = None
 is_training = False
+training_progress = None  # dict with epoch, total_epochs, loss, val_accuracy, val_f1, elapsed_s
 
 
 @asynccontextmanager
@@ -131,9 +132,18 @@ class TrainResponse(BaseModel):
     training_samples_count: int
     duration_s: float
 
+class TrainingProgress(BaseModel):
+    epoch: int
+    total_epochs: int
+    loss: float
+    val_accuracy: float | None = None
+    val_f1: float | None = None
+    elapsed_s: float
+
 class ModelStatus(BaseModel):
     active_version: str | None
     is_training: bool
+    progress: TrainingProgress | None = None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -156,7 +166,7 @@ async def api_train_trigger():
     Trigger incremental fine-tune using untrained samples from Supabase.
     Fetches samples where used_for_training = FALSE, trains, saves checkpoint.
     """
-    global is_training, active_version
+    global is_training, active_version, training_progress
 
     if is_training:
         raise HTTPException(status_code=409, detail="Training already in progress.")
@@ -164,6 +174,7 @@ async def api_train_trigger():
         raise HTTPException(status_code=503, detail="Supabase not configured.")
 
     is_training = True
+    training_progress = None
     try:
         # Fetch untrained samples
         prompts, labels, sample_ids = load_from_supabase(sb)
@@ -181,7 +192,11 @@ async def api_train_trigger():
         # Use current active checkpoint as base (incremental)
         base = os.getenv("ACTIVE_CHECKPOINT") or os.getenv("MODEL_NAME", "microsoft/MiniLM-L6-H384-uncased")
 
-        result = train(train_p, train_l, val_p, val_l, base_model=base)
+        def _on_progress(p):
+            global training_progress
+            training_progress = p
+
+        result = train(train_p, train_l, val_p, val_l, base_model=base, on_progress=_on_progress)
 
         # Upload checkpoint to Supabase Storage (survives container restart)
         try:
@@ -209,6 +224,7 @@ async def api_train_trigger():
         return TrainResponse(**result)
     finally:
         is_training = False
+        training_progress = None
 
 
 @app.post("/train/import", response_model=TrainResponse)
@@ -217,12 +233,13 @@ async def api_train_import(file: UploadFile = File(...)):
     Upload a JSONL file and train on it.
     JSONL format: { "prompt": "...", "label": "HIGH|MED|LOW", ... }
     """
-    global is_training
+    global is_training, training_progress
 
     if is_training:
         raise HTTPException(status_code=409, detail="Training already in progress.")
 
     is_training = True
+    training_progress = None
     try:
         # Save uploaded file temporarily
         content = await file.read()
@@ -252,11 +269,16 @@ async def api_train_import(file: UploadFile = File(...)):
                     "used_for_training": True,
                 }).execute()
 
+        def _on_progress(p):
+            global training_progress
+            training_progress = p
+
         # Split 90/10
         split_idx = max(1, int(len(prompts) * 0.9))
         result = train(
             prompts[:split_idx], labels[:split_idx],
             prompts[split_idx:], labels[split_idx:],
+            on_progress=_on_progress,
         )
 
         # Upload checkpoint to Supabase Storage
@@ -279,6 +301,7 @@ async def api_train_import(file: UploadFile = File(...)):
         return TrainResponse(**result)
     finally:
         is_training = False
+        training_progress = None
 
 
 @app.post("/train/cold-start", response_model=TrainResponse)
@@ -287,7 +310,7 @@ async def api_cold_start():
     Cold start fine-tune using files in data/ directory.
     Expects: data/train.jsonl, data/val.jsonl (optional: data/test.jsonl)
     """
-    global is_training
+    global is_training, training_progress
 
     if is_training:
         raise HTTPException(status_code=409, detail="Training already in progress.")
@@ -300,15 +323,21 @@ async def api_cold_start():
         raise HTTPException(status_code=404, detail="data/train.jsonl not found.")
 
     is_training = True
+    training_progress = None
     try:
         train_p, train_l = load_jsonl(str(train_file))
         val_p, val_l = None, None
         if val_file.exists():
             val_p, val_l = load_jsonl(str(val_file))
 
+        def _on_progress(p):
+            global training_progress
+            training_progress = p
+
         result = train(
             train_p, train_l, val_p, val_l,
             version="v0.1.0_cold_start",
+            on_progress=_on_progress,
         )
 
         # Upload checkpoint to Supabase Storage (survives Railway restart)
@@ -342,6 +371,7 @@ async def api_cold_start():
         return TrainResponse(**result)
     finally:
         is_training = False
+        training_progress = None
 
 
 @app.get("/model/status", response_model=ModelStatus)
@@ -350,6 +380,7 @@ async def api_model_status():
     return ModelStatus(
         active_version=active_version,
         is_training=is_training,
+        progress=TrainingProgress(**training_progress) if training_progress else None,
     )
 
 
