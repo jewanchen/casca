@@ -16,6 +16,7 @@ import torch
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+from typing import Optional, List, Tuple
 from torch.utils.data import Dataset, DataLoader
 from transformers import (
     AutoTokenizer,
@@ -31,7 +32,7 @@ ID_TO_LABEL = {0: "HIGH", 1: "MED", 2: "LOW"}
 class PromptDataset(Dataset):
     """Dataset of (prompt, label) pairs."""
 
-    def __init__(self, prompts: list[str], labels: list[int], tokenizer, max_length=256):
+    def __init__(self, prompts: List[str], labels: List[int], tokenizer, max_length=256):
         self.encodings = tokenizer(
             prompts, truncation=True, padding="max_length",
             max_length=max_length, return_tensors="pt",
@@ -47,7 +48,7 @@ class PromptDataset(Dataset):
         return item
 
 
-def load_jsonl(path: str) -> tuple[list[str], list[int]]:
+def load_jsonl(path: str) -> Tuple[List[str], List[int]]:
     """Load JSONL file → (prompts, label_ids)."""
     prompts, labels = [], []
     with open(path, "r", encoding="utf-8") as f:
@@ -61,7 +62,7 @@ def load_jsonl(path: str) -> tuple[list[str], list[int]]:
     return prompts, labels
 
 
-def load_from_supabase(supabase_client, limit: int = 5000) -> tuple[list[str], list[int]]:
+def load_from_supabase(supabase_client, limit: int = 5000) -> Tuple[List[str], List[int], List]:
     """Fetch untrained samples from Supabase training_samples table."""
     data = (
         supabase_client.table("training_samples")
@@ -111,17 +112,17 @@ def evaluate(model, dataloader, device) -> dict:
 
 
 def train(
-    train_prompts: list[str],
-    train_labels: list[int],
-    val_prompts: list[str] | None = None,
-    val_labels: list[int] | None = None,
-    base_model: str | None = None,
-    checkpoint_dir: str | None = None,
-    version: str | None = None,
-    epochs: int | None = None,
-    batch_size: int | None = None,
-    learning_rate: float | None = None,
-    on_progress: callable | None = None,
+    train_prompts: List[str],
+    train_labels: List[int],
+    val_prompts: Optional[List[str]] = None,
+    val_labels: Optional[List[int]] = None,
+    base_model: Optional[str] = None,
+    checkpoint_dir: Optional[str] = None,
+    version: Optional[str] = None,
+    epochs: Optional[int] = None,
+    batch_size: Optional[int] = None,
+    learning_rate: Optional[float] = None,
+    on_progress: Optional[callable] = None,
 ) -> dict:
     """
     Fine-tune MiniLM on classification data.
