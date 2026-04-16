@@ -384,6 +384,34 @@ async def api_model_status():
     )
 
 
+@app.post("/model/reload")
+async def api_model_reload():
+    """Reload the active model version from DB. Called after admin activates a new version."""
+    global active_version
+    if not sb:
+        raise HTTPException(status_code=503, detail="Supabase not configured.")
+
+    res = sb.table("minilm_versions").select("version, checkpoint_path").eq(
+        "is_active", True
+    ).limit(1).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="No active version found in DB.")
+
+    version = res.data[0]["version"]
+    local_path = res.data[0]["checkpoint_path"] or f"./model/checkpoints/{version}"
+
+    # Download from Storage if not available locally
+    if not Path(local_path).exists() or not any(Path(local_path).iterdir()):
+        storage_path = storage_path_for(version)
+        if not download_checkpoint(sb, storage_path, local_path):
+            raise HTTPException(status_code=500, detail=f"Failed to download checkpoint for {version}")
+
+    load_model(local_path)
+    active_version = version
+    print(f"[app] Reloaded model: {version}")
+    return {"ok": True, "active_version": version}
+
+
 @app.get("/report/rule-health")
 async def api_rule_health():
     """Rule accuracy report from Supabase."""

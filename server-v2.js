@@ -3015,6 +3015,38 @@ app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) =>
 });
 
 /**
+ * POST /api/admin/pathb/minilm/activate
+ * 將指定版本設為 active，停用其他版本，並通知 MiniLM service 載入新 checkpoint
+ */
+app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
+  const { version } = req.body || {};
+  if (!version) return res.status(400).json({ error: 'Missing version' });
+
+  try {
+    // Deactivate all versions
+    await supabase.from('minilm_versions').update({ is_active: false }).neq('version', '');
+    // Activate target version
+    const { error } = await supabase.from('minilm_versions').update({ is_active: true }).eq('version', version);
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Notify MiniLM service to reload the new active checkpoint
+    const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+    let reloaded = false;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST' });
+      clearTimeout(timer);
+      if (r.ok) reloaded = true;
+    } catch (_) { /* service may not support reload yet */ }
+
+    return res.json({ ok: true, version, reloaded });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /api/admin/pathb/upload
  * 批量上傳 JSONL
  *
