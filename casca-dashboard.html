@@ -1167,27 +1167,67 @@ print(data['cx'], data['model'], data['costUsd'])</pre>
 <div class="page" id="page-billing">
   <div class="page-header">
     <div class="ph-top">
-      <div><div class="ph-title">Billing & Subscription</div><div class="ph-sub">管理方案、餘額與交易紀錄</div></div>
+      <div><div class="ph-title">Billing & Subscription</div><div class="ph-sub">帳號模式 · 用量 · 方案 · 交易紀錄</div></div>
     </div>
   </div>
   <div class="page-content">
 
-    <!-- Account Balance -->
-    <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+    <!-- Quota Paused Banner -->
+    <div id="bill-paused-banner" style="display:none;background:var(--red2);border:1px solid rgba(255,95,109,0.3);border-radius:var(--r8);padding:14px 16px;margin-bottom:12px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div>
+          <div style="font-weight:600;color:var(--red);margin-bottom:4px">Service Paused — 用量已達額度上限</div>
+          <div style="font-size:11px;color:var(--t3)" id="bill-paused-msg">等待下週重設或升級方案。</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-primary" onclick="approveOverage()" style="font-size:11px;padding:6px 14px">同意超額計費 →</button>
+          <a href="https://cascaio.com/#pricing" class="btn" style="font-size:11px;padding:6px 14px" target="_blank">升級方案</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account Mode -->
+    <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
       <div class="mc mc-accent-teal">
+        <div class="mc-label">Account Mode</div>
+        <div class="mc-val" style="font-size:18px" id="bill-mode">—</div>
+        <div class="mc-sub" id="bill-mode-sub">loading…</div>
+      </div>
+      <div class="mc">
         <div class="mc-label">Current Plan</div>
         <div class="mc-val" id="bill-plan">—</div>
         <div class="mc-sub" id="bill-plan-sub">loading…</div>
       </div>
       <div class="mc">
-        <div class="mc-label">Token Usage (This Cycle)</div>
+        <div class="mc-label">用量</div>
         <div class="mc-val" id="bill-usage">—</div>
         <div class="mc-sub" id="bill-usage-sub">loading…</div>
       </div>
       <div class="mc mc-accent-blue">
-        <div class="mc-label">Overage Balance</div>
+        <div class="mc-label">餘額 / 額度</div>
         <div class="mc-val" style="color:var(--teal)" id="bill-balance">—</div>
-        <div class="mc-sub">Available for overage charges</div>
+        <div class="mc-sub" id="bill-balance-sub">loading…</div>
+      </div>
+    </div>
+
+    <!-- Mode Switch -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header"><div class="card-title">帳號模式</div><div class="card-sub">你可以同時使用 Passthrough 和 Managed 模式，各自獨立計費</div></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="bill-mode-cards">
+          <!-- Passthrough card -->
+          <div style="border:1px solid var(--b2);border-radius:var(--r8);padding:16px;position:relative" id="bill-mode-pass">
+            <div style="font-weight:600;margin-bottom:6px">🔑 Passthrough</div>
+            <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:10px">用你自己的 LLM Key（OpenAI / Anthropic / Google），Casca 負責路由分類，LLM 費用由你自付。</div>
+            <div style="font-size:11px;color:var(--t2)" id="bill-pass-status">載入中…</div>
+          </div>
+          <!-- Managed card -->
+          <div style="border:1px solid var(--b2);border-radius:var(--r8);padding:16px;position:relative" id="bill-mode-mgd">
+            <div style="font-weight:600;margin-bottom:6px">⬡ Casca Managed</div>
+            <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:10px">Casca 幫你管理所有 LLM，一張帳單。用你的 csk_ Key 就好。</div>
+            <div style="font-size:11px;color:var(--t2)" id="bill-mgd-status">載入中…</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2371,25 +2411,103 @@ async function loadBillingPage() {
 
 async function loadBillingAccount() {
   try {
-    const res = await fetch(`${CASCA_CONFIG.apiBase}/api/dashboard/me`, {
-      headers: { Authorization: `Bearer ${activeApiKey}` }
-    });
-    if (!res.ok) return;
+    const res = await _authedFetch('/api/dashboard/me');
+    if (!res || !res.ok) return;
     const d = await res.json();
     const el = id => document.getElementById(id);
+
+    // Account mode
+    const mode = d.account_type || 'passthrough';
+    const modeLabels = { passthrough: 'Passthrough', managed: 'Managed', both: 'Both' };
+    el('bill-mode').textContent = modeLabels[mode] || mode;
+    el('bill-mode-sub').textContent = mode === 'passthrough'
+      ? '使用你自己的 LLM Key'
+      : mode === 'managed' ? 'Casca 管理 LLM' : '混合模式';
+
+    // Mode cards — highlight active
+    const passCard = document.getElementById('bill-mode-pass');
+    const mgdCard  = document.getElementById('bill-mode-mgd');
+    if (passCard) passCard.style.borderColor = (mode === 'passthrough' || mode === 'both') ? 'var(--teal)' : 'var(--b2)';
+    if (mgdCard)  mgdCard.style.borderColor  = (mode === 'managed' || mode === 'both') ? 'var(--teal)' : 'var(--b2)';
+
+    // Passthrough status
+    const passStatus = document.getElementById('bill-pass-status');
+    if (passStatus) {
+      if (d.trial?.is_trial && d.trial_type === 'passthrough') {
+        passStatus.innerHTML = `<span style="color:var(--teal)">Trial Active</span> · ${d.trial?.days_remaining || 0} 天剩餘`;
+      } else {
+        passStatus.textContent = mode === 'passthrough' || mode === 'both' ? '✓ Active — Free member' : 'Not active';
+      }
+    }
+
+    // Managed status
+    const mgdStatus = document.getElementById('bill-mgd-status');
+    if (mgdStatus) {
+      if (mode === 'managed' || mode === 'both') {
+        const plan = d.plan_name || 'Free';
+        if (d.weekly_credit_usd && !d.plan_id) {
+          mgdStatus.innerHTML = `✓ Active — Free ($${d.weekly_credit_usd}/週額度)`;
+        } else {
+          mgdStatus.innerHTML = `✓ Active — ${plan}`;
+        }
+      } else {
+        mgdStatus.innerHTML = '<a href="https://cascaio.com/#pricing" target="_blank" style="color:var(--teal);text-decoration:underline">啟用 Managed 模式 →</a>';
+      }
+    }
+
+    // Plan
     el('bill-plan').textContent = d.plan_name || d.plan || 'Free';
     el('bill-plan-sub').textContent = d.included_m_tokens
       ? `${d.included_m_tokens}M tokens included/mo`
-      : 'No token quota';
+      : d.weekly_credit_usd ? `每週 $${d.weekly_credit_usd} 額度` : 'Passthrough Free';
+
+    // Usage
     const used = d.cycle_used_tokens || 0;
     const included = (d.included_m_tokens || 0) * 1000000;
-    const pct = included > 0 ? Math.round((used / included) * 100) : 0;
-    el('bill-usage').textContent = (used / 1000000).toFixed(2) + 'M';
-    el('bill-usage-sub').textContent = included > 0
-      ? `${pct}% of ${d.included_m_tokens}M included`
-      : 'Unlimited (no plan limit)';
+    if (included > 0) {
+      const pct = Math.round((used / included) * 100);
+      el('bill-usage').textContent = (used / 1000000).toFixed(2) + 'M';
+      el('bill-usage-sub').textContent = `${pct}% of ${d.included_m_tokens}M`;
+    } else if (d.weekly_credit_usd) {
+      const wUsed = parseFloat(d.weekly_credit_used_usd) || 0;
+      const wTotal = parseFloat(d.weekly_credit_usd) || 3;
+      const wPct = Math.round((wUsed / wTotal) * 100);
+      el('bill-usage').textContent = `$${wUsed.toFixed(2)}`;
+      el('bill-usage-sub').textContent = `${wPct}% of $${wTotal}/週`;
+    } else {
+      el('bill-usage').textContent = (used / 1000000).toFixed(2) + 'M';
+      el('bill-usage-sub').textContent = 'Passthrough (no Casca billing)';
+    }
+
+    // Balance
     el('bill-balance').textContent = '$' + (parseFloat(d.balance_credits) || 0).toFixed(2);
+    el('bill-balance-sub').textContent = d.quota_paused
+      ? '⚠ Service paused' : 'Available for overage';
+
+    // Quota paused banner
+    const banner = document.getElementById('bill-paused-banner');
+    if (banner) {
+      if (d.quota_paused && !d.overage_approved) {
+        banner.style.display = 'block';
+        const msg = document.getElementById('bill-paused-msg');
+        if (msg && d.weekly_credit_usd) {
+          msg.textContent = `本週 $${d.weekly_credit_usd} 額度已用完。下次重設：下週一。`;
+        }
+      } else {
+        banner.style.display = 'none';
+      }
+    }
   } catch (e) { console.error('[billing] account:', e); }
+}
+
+async function approveOverage() {
+  const res = await _authedFetch('/api/billing/approve-overage', { method: 'POST' });
+  if (res && res.ok) {
+    alert('✅ 超額計費已批准，服務恢復。');
+    loadBillingPage();
+  } else {
+    alert('❌ 操作失敗');
+  }
 }
 
 async function loadBillingPlans() {

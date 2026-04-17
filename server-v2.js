@@ -2233,6 +2233,8 @@ app.get('/api/dashboard/me', requireApiKeyOrJWT, async (req, res) => {
     id:                  client.id,
     email:               client.email,
     company_name:        client.company_name,
+    // ── Account type ──
+    account_type:        client.account_type ?? 'passthrough',
     // ── Flat convenience fields (for Dashboard billing page) ──
     plan_id:             plan?.id ?? null,
     plan_name:           plan?.name ?? 'Free',
@@ -2241,6 +2243,16 @@ app.get('/api/dashboard/me', requireApiKeyOrJWT, async (req, res) => {
     overage_rate_per_1m: plan?.overage_rate_per_1m ?? 0,
     cycle_used_tokens:   usedTokens,
     balance_credits:     client.balance_credits ?? 0,
+    // ── Weekly credit (Managed Free) ──
+    weekly_credit_usd:      client.weekly_credit_usd ?? 0,
+    weekly_credit_used_usd: client.weekly_credit_used_usd ?? 0,
+    weekly_reset_at:        client.weekly_reset_at ?? null,
+    quota_paused:           client.quota_paused ?? false,
+    overage_approved:       client.overage_approved ?? false,
+    // ── Trial ──
+    trial_type:          client.trial_type ?? null,
+    trial_token_limit:   client.trial_token_limit ?? 0,
+    trial_tokens_used:   client.trial_tokens_used ?? 0,
     // ── Nested (backward compat) ──
     plan: plan ? {
       id:                  plan.id,
@@ -2264,6 +2276,7 @@ app.get('/api/dashboard/me', requireApiKeyOrJWT, async (req, res) => {
     trial: client.trial_ends_at ? {
       is_trial:       true,
       trial_ends_at:  client.trial_ends_at,
+      trial_type:     client.trial_type,
       days_remaining: Math.max(0, Math.ceil((new Date(client.trial_ends_at) - Date.now()) / 86_400_000)),
       hours_remaining:Math.max(0, Math.ceil((new Date(client.trial_ends_at) - Date.now()) / 3_600_000)),
       expired:        new Date(client.trial_ends_at) < new Date(),
