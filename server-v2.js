@@ -3094,7 +3094,10 @@ app.get('/api/admin/pathb/minilm', requireAdmin, async (req, res) => {
 app.post('/api/admin/pathb/minilm/train', requireAdmin, async (req, res) => {
   const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
   try {
-    const r = await fetch(`${minilmUrl}/train/trigger`, { method: 'POST' });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000); // 30s timeout for trigger (async now)
+    const r = await fetch(`${minilmUrl}/train/trigger`, { method: 'POST', signal: controller.signal });
+    clearTimeout(timer);
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json(data);
     return res.json(data);

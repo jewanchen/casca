@@ -14,6 +14,7 @@ Endpoints:
 import os
 import json
 import tempfile
+import threading
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -41,6 +42,8 @@ sb = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY 
 active_version = None
 is_training = False
 training_progress = None  # dict with epoch, total_epochs, loss, val_accuracy, val_f1, elapsed_s
+last_train_result = None  # dict with version, val_accuracy, etc. after training completes
+last_train_error = None   # error message if training failed
 
 
 @asynccontextmanager
@@ -160,71 +163,94 @@ async def api_predict(req: PredictRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/train/trigger", response_model=TrainResponse)
+@app.post("/train/trigger")
 async def api_train_trigger():
     """
     Trigger incremental fine-tune using untrained samples from Supabase.
-    Fetches samples where used_for_training = FALSE, trains, saves checkpoint.
+    Returns immediately and runs training in a background thread.
+    Monitor progress via GET /model/status.
     """
-    global is_training, active_version, training_progress
+    global is_training, training_progress, last_train_result, last_train_error
 
     if is_training:
         raise HTTPException(status_code=409, detail="Training already in progress.")
     if not sb:
         raise HTTPException(status_code=503, detail="Supabase not configured.")
 
+    # Pre-fetch samples before starting background thread
+    prompts, labels, sample_ids = load_from_supabase(sb)
+    if len(prompts) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Not enough untrained samples ({len(prompts)}). Need at least 10.",
+        )
+
     is_training = True
     training_progress = None
-    try:
-        # Fetch untrained samples
-        prompts, labels, sample_ids = load_from_supabase(sb)
-        if len(prompts) < 10:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Not enough untrained samples ({len(prompts)}). Need at least 10.",
-            )
+    last_train_result = None
+    last_train_error = None
 
-        # Split 90/10 for train/val
-        split_idx = max(1, int(len(prompts) * 0.9))
-        train_p, train_l = prompts[:split_idx], labels[:split_idx]
-        val_p, val_l = prompts[split_idx:], labels[split_idx:]
-
-        # Use current active checkpoint as base (incremental)
-        base = os.getenv("ACTIVE_CHECKPOINT") or os.getenv("MODEL_NAME", "microsoft/MiniLM-L6-H384-uncased")
-
-        def _on_progress(p):
-            global training_progress
-            training_progress = p
-
-        result = train(train_p, train_l, val_p, val_l, base_model=base, on_progress=_on_progress)
-
-        # Upload checkpoint to Supabase Storage (survives container restart)
+    def _train_background():
+        global is_training, training_progress, active_version, last_train_result, last_train_error
         try:
-            upload_checkpoint(sb, result["version"], result["checkpoint_path"])
+            # Split 90/10 for train/val
+            split_idx = max(1, int(len(prompts) * 0.9))
+            train_p, train_l = prompts[:split_idx], labels[:split_idx]
+            val_p, val_l = prompts[split_idx:], labels[split_idx:]
+
+            # Use current active checkpoint as base (incremental)
+            base = os.getenv("ACTIVE_CHECKPOINT") or os.getenv("MODEL_NAME", "microsoft/MiniLM-L6-H384-uncased")
+
+            def _on_progress(p):
+                global training_progress
+                training_progress = p
+
+            result = train(train_p, train_l, val_p, val_l, base_model=base, on_progress=_on_progress)
+
+            # Upload checkpoint to Supabase Storage (survives container restart)
+            try:
+                upload_checkpoint(sb, result["version"], result["checkpoint_path"])
+            except Exception as e:
+                print(f"[train/trigger] checkpoint upload failed: {e}")
+
+            # Mark samples as trained (batch update for efficiency)
+            batch_size = 200
+            for i in range(0, len(sample_ids), batch_size):
+                batch = sample_ids[i:i+batch_size]
+                for sid in batch:
+                    sb.table("training_samples").update({
+                        "used_for_training": True,
+                        "model_version": result["version"],
+                    }).eq("id", sid).execute()
+
+            # Register version in DB
+            sb.table("minilm_versions").insert({
+                "version": result["version"],
+                "training_samples_count": result["training_samples_count"],
+                "val_accuracy": result["val_accuracy"],
+                "val_f1": result["val_f1"],
+                "checkpoint_path": result["checkpoint_path"],
+                "is_active": False,  # Manual activation for safety
+            }).execute()
+
+            last_train_result = result
+            print(f"[train/trigger] DONE: {result['version']} acc={result['val_accuracy']}% f1={result['val_f1']}")
+
         except Exception as e:
-            print(f"[train/trigger] checkpoint upload failed: {e}")
+            last_train_error = str(e)
+            print(f"[train/trigger] ERROR: {e}")
+        finally:
+            is_training = False
+            training_progress = None
 
-        # Mark samples as trained
-        for sid in sample_ids:
-            sb.table("training_samples").update({
-                "used_for_training": True,
-                "model_version": result["version"],
-            }).eq("id", sid).execute()
+    thread = threading.Thread(target=_train_background, daemon=True)
+    thread.start()
 
-        # Register version in DB
-        sb.table("minilm_versions").insert({
-            "version": result["version"],
-            "training_samples_count": result["training_samples_count"],
-            "val_accuracy": result["val_accuracy"],
-            "val_f1": result["val_f1"],
-            "checkpoint_path": result["checkpoint_path"],
-            "is_active": False,  # Manual activation for safety
-        }).execute()
-
-        return TrainResponse(**result)
-    finally:
-        is_training = False
-        training_progress = None
+    return {
+        "status": "training_started",
+        "samples": len(prompts),
+        "message": f"Training started in background with {len(prompts)} samples. Monitor via GET /model/status",
+    }
 
 
 @app.post("/train/import", response_model=TrainResponse)
@@ -374,14 +400,19 @@ async def api_cold_start():
         training_progress = None
 
 
-@app.get("/model/status", response_model=ModelStatus)
+@app.get("/model/status")
 async def api_model_status():
     """Current model version and training status."""
-    return ModelStatus(
-        active_version=active_version,
-        is_training=is_training,
-        progress=TrainingProgress(**training_progress) if training_progress else None,
-    )
+    result = {
+        "active_version": active_version,
+        "is_training": is_training,
+        "progress": training_progress,
+    }
+    if last_train_result:
+        result["last_result"] = last_train_result
+    if last_train_error:
+        result["last_error"] = last_train_error
+    return result
 
 
 @app.post("/model/reload")
