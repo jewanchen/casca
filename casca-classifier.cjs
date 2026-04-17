@@ -1150,8 +1150,11 @@
     const isFrag_ES=/^(c[oó]mo se hace esto|ya terminaste|ya est[aá]|qu[eé] te parece|est[aá] bien|por qu[eé] no|algo m[aá]s|qu[eé] debo hacer|est[aá]s seguro|como antes|elige otro|resu[eé]lvelo)[?!., /]*$/i.test(tl)||/^(por cierto|adem[aá]s|tambi[eé]n|luego|finalmente|asimismo|al mismo tiempo|por otro lado|aparte de eso|contin[uú]a)[?!.,]?$/i.test(tl);
     const isFrag_DE=/^(wie macht man das|fertig|bist du fertig|was denkst du|ist das okay|warum nicht|bist du sicher|und dann|wie vorher|erledige das|was ist los)[?!., /]*$/i.test(tl)||/^([üu]brigens|au[ßs]erdem|auch|dann|danach|gleichzeitig|andererseits|weiter|noch eine sache)[?!.,]?$/i.test(tl);
     const isFrag_IT=/^(come si fa|hai finito|qual [eè]|cosa ne pensi|va bene cos[ií]|perch[eé] no|altro|cosa devo fare|fallo velocemente|pi[uù] o meno|sei sicuro|e poi|sai cosa intendo|come prima|scegline un altro|risolvilo)[?!., /]*$/i.test(tl)||/^(a proposito|inoltre|anche|poi|dopo|infine|allo stesso (modo|tempo)|d.altra parte|oltre a|continua)[?!.,]?$/i.test(tl);
+    const isFrag_TH=/^(?:เอาอีก|เอาแบบเมื่อกี้|ทำอันนี้ให้หน่อย|จบแล้วหรือยัง|แล้วไงต่อ|อันไหน|ยังไง|เอาไหม)[？?！!.,]?$/u.test(tl)||/^(?:นอกจากนี้|แล้วก็|อีกอย่าง|ต่อไป|แล้วอีก)[？?！!、,]?$/u.test(tl);
+    const isFrag_VI=/^(?:làm cái này đi|xong chưa|rồi sao|cái nào|thế nào|được không|làm lại đi|cứ thế nhé)[？?！!.,]?$/iu.test(tl)||/^(?:ngoài ra|à mà|nhân tiện|thêm nữa)[？?！!、,]?$/iu.test(tl);
+    const isFrag_ID=/^(?:yang tadi|lakukan ini|sudah belum|terus gimana|yang mana|gimana|boleh nggak|ulangi)[？?！!.,]?$/iu.test(tl)||/^(?:selain itu|oh iya|ngomong-ngomong|terus)[？?！!、,]?$/iu.test(tl);
     if (isFrag_ellipsis||isFrag_ZH||isFrag_ZH_SC||isFrag_JA||isFrag_EN||isFrag_FR||
-        isFrag_ES||isFrag_DE||isFrag_IT||isFrag_KO||isFrag_HI||isFrag_AR) {
+        isFrag_ES||isFrag_DE||isFrag_IT||isFrag_KO||isFrag_HI||isFrag_AR||isFrag_TH||isFrag_VI||isFrag_ID) {
       return { cx: 'AMBIG', rule: 'R-FRAGMENT: 裸片段/模糊脈絡句 → AMBIG', confidence: 25, noiseType: 'FRAGMENT' };
     }
 
@@ -1352,6 +1355,15 @@
       return { cx:'LOW', rule:'TH-SHORT: Thai รูปแบบสั้น → LOW', confidence:88 };
     if (TH_T3_RE.test(text.trim()))
       return { cx:'MED', rule:'TH-T3: Thai ตัวเชื่อม T3 → MED', confidence:85 };
+    // TH-DEF: คืออะไร / มีอะไรบ้าง / กี่โมง / กี่บาท → LOW
+    if (/(?:คืออะไร|มี(?:อะไร|ท่า.{0,10}อะไร)บ้าง|กี่โมง|กี่บาท|ปิดกี่โมง|ตารางรถ|อากาศ.{0,10}ยังไง|เมืองหลวง)/u.test(text) && text.length < 60)
+      return { cx:'LOW', rule:'TH-DEF: Thai คำถามนิยาม/ข้อเท็จจริง → LOW', confidence:88 };
+    // TH-LIFE-LOW: วิธี.../สอนวิธี... + short → LOW
+    if (/^(?:วิธี|สอนวิธี|สอน.{0,5}หน่อย)/u.test(text.trim()) && text.length < 50)
+      return { cx:'LOW', rule:'TH-LIFE-LOW: Thai สูตร/วิธีทำ → LOW', confidence:86 };
+    // TH-EMO-FLOOR: emotional distress → MED
+    if (/(?:หมดไฟ|burnout|เครียดมาก|ท้อแท้|ไม่ไหวแล้ว|หมดแรง|เหนื่อยใจ|ซึมเศร้า|อยากลาออก|กดดัน)/iu.test(text) && text.length < 80)
+      return { cx:'MED', rule:'TH-EMO-FLOOR: Thai ความเครียด → MED', confidence:85 };
     if (TH_HIGH_QUALS.test(text) && TH_HIGH_NOUNS.test(text) && TH_HIGH_VERBS.test(text))
       return { cx:'HIGH', rule:'TH-HIGH-COMP: Thai ครอบคลุม+แผน+กริยา → HIGH', confidence:91 };
     if (TH_HIGH_QUALS.test(text) && TH_HIGH_VERBS.test(text) && text.length > 20)
@@ -1381,6 +1393,15 @@
       return { cx:'LOW', rule:'VI-SHORT: Vietnamese định dạng ngắn → LOW', confidence:88 };
     if (VI_T3_RE.test(text.trim()))
       return { cx:'MED', rule:'VI-T3: Vietnamese từ nối T3 → MED', confidence:85 };
+    // VI-DEF: "là gì" / "bao nhiêu" / factual → LOW
+    if (/\b(?:là gì|là bao nhiêu|bao giờ|thủ đô|tỷ giá|thời tiết|lịch trình)\b/iu.test(text) && text.length < 60)
+      return { cx:'LOW', rule:'VI-DEF: Vietnamese câu hỏi định nghĩa → LOW', confidence:88 };
+    // VI-LIFE-LOW: cách làm / công thức / dạy cách → LOW
+    if (/^(?:cách làm|cách nấu|công thức|dạy cách|dạy tôi)\b/iu.test(text.trim()) && text.length < 50)
+      return { cx:'LOW', rule:'VI-LIFE-LOW: Vietnamese công thức → LOW', confidence:86 };
+    // VI-EMO-FLOOR: emotional distress → MED
+    if (/(?:kiệt sức|burnout|stress nặng|chán nản|muốn bỏ việc|không chịu nổi|mệt mỏi quá|trầm cảm|áp lực)/iu.test(text) && text.length < 80)
+      return { cx:'MED', rule:'VI-EMO-FLOOR: Vietnamese căng thẳng → MED', confidence:85 };
     if (VI_HIGH_QUALS.test(text) && VI_HIGH_NOUNS.test(text) && VI_HIGH_VERBS.test(text))
       return { cx:'HIGH', rule:'VI-HIGH-COMP: Vietnamese toàn diện+kế hoạch+đv → HIGH', confidence:91 };
     if (VI_HIGH_QUALS.test(text) && VI_HIGH_VERBS.test(text) && text.length > 25)
@@ -1411,6 +1432,15 @@
       return { cx:'LOW', rule:'ID-SHORT: Indonesian format pendek → LOW', confidence:88 };
     if (ID_T3_RE.test(text.trim()))
       return { cx:'MED', rule:'ID-T3: Indonesian kata penghubung T3 → MED', confidence:85 };
+    // ID-DEF: "apa itu" / "berapa" / factual → LOW
+    if (/\b(?:apa itu|apa saja|berapa harga|berapa lama|ibu kota|kurs|cuaca|jadwal)\b/iu.test(text) && text.length < 60)
+      return { cx:'LOW', rule:'ID-DEF: Indonesian pertanyaan definisi → LOW', confidence:88 };
+    // ID-LIFE-LOW: cara membuat / resep / cara kerja simple → LOW
+    if (/^(?:cara membuat|cara memasak|resep|ajarkan cara)\b/iu.test(text.trim()) && text.length < 50)
+      return { cx:'LOW', rule:'ID-LIFE-LOW: Indonesian resep/cara → LOW', confidence:86 };
+    // ID-EMO-FLOOR: emotional distress → MED
+    if (/(?:burnout|stres berat|lelah sekali|ingin resign|tidak kuat lagi|depresi|tekanan berat|capek banget|nggak sanggup)/iu.test(text) && text.length < 80)
+      return { cx:'MED', rule:'ID-EMO-FLOOR: Indonesian stres → MED', confidence:85 };
     if (ID_HIGH_QUALS.test(text) && ID_HIGH_NOUNS.test(text) && ID_HIGH_VERBS.test(text))
       return { cx:'HIGH', rule:'ID-HIGH-COMP: Indonesian komprehensif+rencana+meN- → HIGH', confidence:91 };
     if (ID_HIGH_QUALS.test(text) && ID_HIGH_VERBS.test(text) && text.length > 20)
@@ -1771,6 +1801,10 @@
         return { cx:'LOW', rule:'ZH-LIFE-LOW: CJK短生活查詢 → LOW', tok, modal, lang, noiseType:null, confidence:82 };
       }
     }
+    // ── R-CREATIVE-FORM: Strict literary/poetry forms → HIGH (before lang-specific blocks) ──
+    if (/(?:sonnet|alexandrin|villanelle|terza rima|sestina|กลอนสุนทรภู่|กลอนแปด|โคลง|ฉันทลักษณ์|七[言字]絕句|七律|五言|절구|한시|시조|dohā|ḍhālā|lục bát|ghazal|قصيدة|मुक्तक|सवैया|दोहा)/iu.test(prompt)) {
+      return { cx:'HIGH', rule:'R-CREATIVE-FORM: 古典詩歌格式 → HIGH', tok, modal, lang, noiseType:null, confidence:87 };
+    }
     // ── P0-TH: Thai ────────────────────────────────────────────
     if (lang === 'TH') {
       const th = processThai(prompt);
@@ -1927,7 +1961,10 @@
       /^how (does|do|is|are|can) .{3,35} (work|function|differ|operate)/i.test(prompt.trim()) ||
       /^(wie funktioniert|come funziona|cómo funciona|comment fonctionne|hoe werkt|como funciona)\b/i.test(prompt.trim()) ||
       /^어떻게 .{2,20} (작동|작동하나요|작동합니다|할까요)\??$/.test(prompt.trim()) ||
-      /^كيف تعمل/.test(prompt.trim())
+      /^كيف تعمل/.test(prompt.trim()) ||
+      /^(?:ทำงานยังไง|ทำงานอย่างไร|อธิบาย.{0,20}กลไก)/u.test(prompt.trim()) ||
+      /^(?:hoạt động như thế nào|cơ chế hoạt động)\b/iu.test(prompt.trim()) ||
+      /^(?:bagaimana cara kerja|mekanisme kerja)\b/iu.test(prompt.trim())
     )) {
       return { cx:'MED', rule:'R-HOW-WORK: explanation request \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
     }
