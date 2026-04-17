@@ -1159,7 +1159,7 @@
     const isFrag_ZH_SC=/^(好了吗|那是哪一个|帮我看一下|你觉得呢|这样行吗|为什么不行|还有其他的吗|怎么办|这是什么意思|随便弄一下|差不多就好|那个呢|然后呢|懂我意思吧|就照之前的|换一个|帮我搞定|什么情况|这个怎么弄)[？?!!。]?$/.test(tl)||/^(顺便|还有|另外|接着|然后|再帮我|承上|根据刚刚的|把上面的|最后|以及|同时|对了[，,]?|另一方面|除此之外|基于上述|继续|帮我把它|再补充一点|还有就是)[，,。!!？?]?$/.test(tl);
     const isFrag_KO=/^(감사합니다|고맙습니다|알겠습니다|알겠어요|확인했습니다|수고하세요|좋아요|완료|네[!.]?|이해했습니다)[!.！]?$/.test(tl)||/^(어떻게 해|다 됐어|어느 거야|한번 봐줘|이거 괜찮아|왜 안 돼|다른 건 없어|어떡하지|이게 무슨 뜻이야|대충 해줘|이 정도면 돼|그건|확실해|무슨 상황이야|해결해줘)[?？!！.。]?$/.test(tl)||/^(그리고|또한|게다가|다음으로|이어서|마지막으로|동시에|그런데|반면에|계속해서|추가로)[?？!！.,]?$/.test(tl);
     const isFrag_HI=/^(यह कैसे करें|हो गया|कौन सा है|इसे देखो|यह ठीक है|क्यों नहीं|और कुछ|क्या हो रहा है)[??！!।]?$/.test(tl)||/^(वैसे|इसके अलावा|साथ ही|इसके बाद|फिर|और भी|आगे|अंत में|तथा|जारी रखें)[??！!.,।]?$/.test(tl);
-    const isFrag_AR=/^(كيف أفعل هذا|هل انتهيت|أيهما|ما رأيك|هل هذا جيد|لماذا لا|ماذا أفعل|ما معنى هذا|هل أنت متأكد|وبعدين|كما قبل|ما الوضع)[?;؟!،]?$/.test(tl)||/^(بالمناسبة|بالإضافة|كذلك|ثم|بعد ذلك|وأيضاً|أخيراً|في نفس الوقت|من ناحية أخرى|واصل|نقطة أخرى)[?;؟!،.]?$/.test(tl);
+    const isFrag_AR=/^(كيف أفعل هذا|هل انتهيت|أيهما|ما رأيك|هل هذا جيد|لماذا لا|ماذا أفعل|ما معنى هذا|هل أنت متأكد|وبعدين|كما قبل|ما الوضع|بص على ده|ممكن تبص|خلك صريح|تم الاعتماد|خلاص|كدة تمام|وش رايك|ايش السالفة|يا ريت توضح|عطني خبر)[?;؟!،.]?$/.test(tl)||/^(بالمناسبة|بالإضافة|كذلك|ثم|بعد ذلك|وأيضاً|أخيراً|في نفس الوقت|من ناحية أخرى|واصل|نقطة أخرى)[?;؟!،.]?$/.test(tl);
     const isFrag_ES=/^(c[oó]mo se hace esto|ya terminaste|ya est[aá]|qu[eé] te parece|est[aá] bien|por qu[eé] no|algo m[aá]s|qu[eé] debo hacer|est[aá]s seguro|como antes|elige otro|resu[eé]lvelo)[?!., /]*$/i.test(tl)||/^(por cierto|adem[aá]s|tambi[eé]n|luego|finalmente|asimismo|al mismo tiempo|por otro lado|aparte de eso|contin[uú]a)[?!.,]?$/i.test(tl);
     const isFrag_DE=/^(wie macht man das|fertig|bist du fertig|was denkst du|ist das okay|warum nicht|bist du sicher|und dann|wie vorher|erledige das|was ist los)[?!., /]*$/i.test(tl)||/^([üu]brigens|au[ßs]erdem|auch|dann|danach|gleichzeitig|andererseits|weiter|noch eine sache)[?!.,]?$/i.test(tl);
     const isFrag_IT=/^(come si fa|hai finito|qual [eè]|cosa ne pensi|va bene cos[ií]|perch[eé] no|altro|cosa devo fare|fallo velocemente|pi[uù] o meno|sei sicuro|e poi|sai cosa intendo|come prima|scegline un altro|risolvilo)[?!., /]*$/i.test(tl)||/^(a proposito|inoltre|anche|poi|dopo|infine|allo stesso (modo|tempo)|d.altra parte|oltre a|continua)[?!.,]?$/i.test(tl);
@@ -1296,7 +1296,7 @@
   const KO_COMP_W=/(종합|전반적인|상세한|체계적인|완전한|단계별|전략적)/;
   function processKorean(text){
     const tl=text.toLowerCase();
-    if(/(?:이란 무엇인가|뜻이 뭐야|무엇인가|무슨 뜻|[가-힣]+가 뭐야|수도가 어디|주가 알려줘)/.test(tl)&&text.length<60)return{cx:'LOW',rule:'KO-DEF: 정의/사실 쿼리 \u2192 LOW',confidence:86};
+    if(/(?:이란 무엇인가|뜻이 뭐야|무엇인가|무슨 뜻|[가-힣]+[가이] 뭐야|수도가 어디|주가 알려줘|증상이 뭐|어디서 해|얼마야|과목이 뭐|요금 얼마|시간 알려줘|첫차 시간)/.test(tl)&&text.length<60)return{cx:'LOW',rule:'KO-DEF: 정의/사실 쿼리 \u2192 LOW',confidence:86};
     // KO-LIFE-LOW: 만드는 법 / 레시피 → LOW
     if(/(?:만드는 법|레시피|만드는 방법)\s*(알려줘|알려주세요)?/.test(tl)&&text.length<50)return{cx:'LOW',rule:'KO-LIFE-LOW: 레시피 \u2192 LOW',confidence:86};
     // KO-HIGH-COMP: comprehensive deliverable with 해 주세요
@@ -1340,7 +1340,9 @@
         /(أعدّ|طوّر|صمّم|قم بصياغة|قم بتطوير|قم بإعداد|قم بتحليل|اكتب|اقترح|ابنِ)/.test(text)) {
       return{cx:'HIGH',rule:'AR-HIGH-COMP: شاملة+خطة+فعل → HIGH',confidence:90};
     }
-    if(/(ما هو|ما هي|تعريف|ماذا يعني|اشرح معنى|ما هي أعراض|كم الساعة|ما هي عاصمة|أعطني مرادفات)/.test(text)&&text.length<80)return{cx:'LOW',rule:'AR-DEF: تعريف/حقيقة \u2192 LOW',confidence:84};
+    if(/(ما هو|ما هي|تعريف|ماذا يعني|اشرح معنى|ما هي أعراض|كم الساعة|ما هي عاصمة|أعطني مرادفات|إيش يعني|إيه هي|بكام|وش يعني|إيه ده)/.test(text)&&text.length<80)return{cx:'LOW',rule:'AR-DEF: تعريف/حقيقة \u2192 LOW',confidence:84};
+    // AR-CLOSURE: dialect closures → LOW
+    if(/^(جزاك الله خيراً|ما قصرت|ما تقصر|يعطيك العافية|تمام|ماشي|خلاص كدة|تفضل|سلام عليكم|بارك الله فيك)[.،؟!]?$/u.test(text.trim())&&text.length<30)return{cx:'LOW',rule:'AR-CLOSURE: إغلاق \u2192 LOW',confidence:95};
     // AR-LIFE-LOW: كيف أصنع / وصفة → LOW
     if(/(كيف أصنع|كيف أطبخ|وصفة|طريقة عمل|طريقة تحضير)/.test(text)&&text.length<60)return{cx:'LOW',rule:'AR-LIFE-LOW: وصفة \u2192 LOW',confidence:86};
     if(AR_HIGH_W.test(text)&&text.length>25)return{cx:'HIGH',rule:'AR-HIGH: مهمة معقدة \u2192 HIGH',confidence:82};
@@ -1651,8 +1653,8 @@
         const koLifeCx = (tok <= 17) ? 'LOW' : 'MED';
         return { cx:koLifeCx, rule:'KO-LIFESTYLE: 한국어 생활쿼리 → '+koLifeCx, tok, modal, lang, noiseType:null, confidence:83 };
       }
-      // KO-EMO-FLOOR: strong emotion keywords → MED regardless of tok
-      if (/갑질|번아웃|멘탈 탈탈|눈물만 나|배신감|쓰레기 같|지친다|광탈|우울|힘들어|외로워|퇴사|미치겠어/.test(prompt)) {
+      // KO-EMO-FLOOR: strong emotion keywords → MED regardless of tok (skip if definition query)
+      if (/갑질|번아웃|멘탈 탈탈|눈물만 나|배신감|쓰레기 같|지친다|광탈|우울|힘들어|외로워|퇴사|미치겠어/.test(prompt) && !/뭐야|무슨 뜻|증상이 뭐|무엇인가/.test(prompt)) {
         return { cx:'MED', rule:'KO-EMO-FLOOR: 한국어 감정표현 → MED', tok, modal, lang, noiseType:null, confidence:85 };
       }
       // KO-SHORT: short-format → LOW
@@ -1826,6 +1828,19 @@
     if (/(?:sonnet|alexandrin|villanelle|terza rima|sestina|กลอนสุนทรภู่|กลอนแปด|โคลง|ฉันทลักษณ์|七[言字]絕句|七律|五言|절구|한시|시조|dohā|ḍhālā|lục bát|ghazal|قصيدة|मुक्तक|सवैया|दोहा)/iu.test(prompt)) {
       return { cx:'HIGH', rule:'R-CREATIVE-FORM: 古典詩歌格式 → HIGH', tok, modal, lang, noiseType:null, confidence:87 };
     }
+    // R-CREATIVE-CONSTRAINED: modern poetry/prose with strict style constraints → HIGH
+    if (/(現代詩|现代诗|散文詩|散文诗|跨文體|跨文体).{0,20}(語法|语法|風格|风格|節奏|节奏|意象|輕盈|轻盈|嚴謹|严谨)/.test(prompt) ||
+        /(blank verse|free verse).{0,20}(exploring|focusing|reflecting)/i.test(prompt)) {
+      return { cx:'HIGH', rule:'R-CREATIVE-CONSTRAINED: 現代詩+風格約束 → HIGH', tok, modal, lang, noiseType:null, confidence:86 };
+    }
+    // ── R-STOCK-ANALYSIS: Stock ticker + analysis verb → HIGH ──
+    if (/\(\d{3,6}(?:\.[A-Z]{1,4})?\)/.test(prompt) && /(分析|預測|預判|评估|要約|요약|분석|차트|決算|실적|成長|수주|営収|주봉|週線|analyze|forecast|evaluate)/iu.test(prompt)) {
+      return { cx:'HIGH', rule:'R-STOCK-ANALYSIS: 股票代碼+分析 → HIGH', tok, modal, lang, noiseType:null, confidence:88 };
+    }
+    // ── R-CODE-SIMPLE: Simple code definition queries → LOW ──
+    if (prompt.length <= 50 && /(how do i (define|print|create|import|declare)\b|如何用 python|怎麼用 python|如何用 python 爬取|comment (imprimer|définir)|wie definiere ich|cómo imprimir|como imprimir|كيف أعرف فئة|python.{0,10}(爬取|印出|定義|クラス定義|Hello World)|^如何.{0,10}(爬取|印出|打印))/iu.test(prompt)) {
+      return { cx:'LOW', rule:'R-CODE-SIMPLE: 簡單程式查詢 → LOW', tok, modal, lang, noiseType:null, confidence:86 };
+    }
     // ── P0-TH: Thai ────────────────────────────────────────────
     if (lang === 'TH') {
       const th = processThai(prompt);
@@ -1926,6 +1941,10 @@
       );
       if (_jaHigh) {
         return { cx:'HIGH', rule:'JA-HIGH-COMP: 包括的+成果物+動詞 → HIGH', tok, modal, lang, noiseType:null, confidence:89 };
+      }
+      // JA-CLOSURE: 承知しました / お疲れ様 / よろしくお願いします → LOW (before fragment check)
+      if (/^(承知しました|承知いたしました|かしこまりました|お疲れ様でした|大変お疲れ様でした|お疲れ様です|よろしくお願いします|よろしくお願いいたします|宜しくお願いいたします|お世話になります|お世話になっております|ありがとうございました|ありがとうございます)[。！!]?$/u.test(workingText.trim())) {
+        return { cx:'LOW', rule:'JA-CLOSURE: 敬語確認/挨拶 → LOW', tok, modal, lang, noiseType:null, confidence:95 };
       }
       // Check for JA FRAGMENT phrases first (they bypass processJapanese)
       const jaFragCore = classifyCore(workingText, uc, tok);
