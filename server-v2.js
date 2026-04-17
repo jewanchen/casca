@@ -484,47 +484,71 @@ async function requireApiKey(req, res, next) {
   const stage = detectKeyStage(raw);
 
   // ── Stage 1/2: PASSTHROUGH — client's own LLM key ────────────
-  // No Casca account lookup needed for the primary key.
-  // Optionally accept X-Casca-Key header for classification billing.
+  // REQUIRED: X-Casca-Key header with a valid csk_ key.
+  // Passthrough users must register a free Casca account.
   if (stage && stage !== 'managed') {
     req.isPassthrough    = true;
     req.passthroughKey   = raw;
     req.passthroughStage = stage;
 
-    // Optional: X-Casca-Key header → track classification usage on a Casca account
+    // X-Casca-Key is REQUIRED for passthrough (mandatory registration)
     const cascaKey = (req.headers['x-casca-key'] || '').trim();
-    if (cascaKey && cascaKey.startsWith('csk_')) {
-      const hash = sha256(cascaKey);
-      const { data: keyRow } = await supabase
-        .from('api_keys')
-        .select('client_id, is_active')
-        .eq('key_hash', hash)
-        .maybeSingle();
-      if (keyRow?.is_active) {
-        const { data: client } = await supabase
-          .from('clients')
-          .select(`id, email, company_name, plan_id, balance_credits,
-                   quota_limit, quota_used, cycle_used_tokens, billing_cycle_start,
-                   stripe_customer_id, stripe_sub_id, trial_ends_at,
-                   subscription_plans (
-                     id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
-                   )`)
-          .eq('id', keyRow.client_id)
-          .single();
-        if (client) {
-          req.client = client;
-          req.plan   = client.subscription_plans ?? null;
-        }
+    if (!cascaKey || !cascaKey.startsWith('csk_')) {
+      return res.status(401).json({
+        error:  'X-Casca-Key header required for passthrough mode.',
+        code:   'CASCA_KEY_REQUIRED',
+        action: 'Register a free account at https://cascaio.com/dashboard to get your Casca Key.',
+        docs:   'https://cascaio.com/docs',
+      });
+    }
+
+    const hash = sha256(cascaKey);
+    const { data: keyRow } = await supabase
+      .from('api_keys')
+      .select('client_id, is_active')
+      .eq('key_hash', hash)
+      .maybeSingle();
+
+    if (!keyRow || !keyRow.is_active) {
+      return res.status(401).json({
+        error:  'Invalid or inactive Casca Key.',
+        code:   'INVALID_CASCA_KEY',
+        action: 'Check your key at https://cascaio.com/dashboard → API Keys.',
+      });
+    }
+
+    const { data: client } = await supabase
+      .from('clients')
+      .select(`id, email, company_name, plan_id, balance_credits,
+               quota_limit, quota_used, cycle_used_tokens, billing_cycle_start,
+               stripe_customer_id, stripe_sub_id, trial_ends_at, path_b_judge_enabled,
+               account_type, weekly_credit_usd, weekly_credit_used_usd, quota_paused,
+               overage_approved, trial_type, trial_token_limit, trial_tokens_used,
+               subscription_plans (
+                 id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
+               )`)
+      .eq('id', keyRow.client_id)
+      .single();
+
+    if (!client) {
+      return res.status(401).json({ error: 'Client record not found.' });
+    }
+
+    // Check passthrough trial token limit
+    if (client.trial_type === 'passthrough' && client.trial_token_limit > 0) {
+      if (client.trial_tokens_used >= client.trial_token_limit) {
+        return res.status(402).json({
+          error:  'Passthrough trial token limit reached.',
+          code:   'TRIAL_LIMIT_REACHED',
+          used:   client.trial_tokens_used,
+          limit:  client.trial_token_limit,
+          action: 'Upgrade to a paid plan or contact admin to extend trial.',
+        });
       }
     }
 
-    // If no Casca account linked, attach a minimal anonymous context
-    if (!req.client) {
-      req.client = { id: null, email: 'passthrough', company_name: null,
-                     plan_id: null, balance_credits: 0,
-                     quota_used: 0, cycle_used_tokens: 0 };
-      req.plan = null;
-    }
+    req.client = client;
+    req.plan   = client.subscription_plans ?? null;
 
     return next();
   }
@@ -671,22 +695,60 @@ async function requireApiKeyOrJWT(req, res, next) {
 //  Cache hits bypass this entirely — called only before real LLM calls.
 // ════════════════════════════════════════════════════════════════
 function checkBillingGate(client, plan) {
-  // No plan = unmetered (internal / dev accounts)
+  // ── Managed Free (weekly quota) ────────────────────────────
+  // Free users have no plan_id. They use weekly_credit system.
+  if (!plan && client.account_type !== 'passthrough') {
+    // Check if quota is paused
+    if (client.quota_paused && !client.overage_approved) {
+      return {
+        allowed: false,
+        status:  402,
+        body: {
+          error:   'Weekly quota exhausted.',
+          code:    'WEEKLY_QUOTA_PAUSED',
+          weekly_credit_usd: client.weekly_credit_usd,
+          weekly_used_usd:   client.weekly_credit_used_usd,
+          resets_at:         getNextMonday(),
+          action:  'Wait for weekly reset (every Monday) or upgrade to a paid plan.',
+        },
+      };
+    }
+    return { allowed: true, isFreeWeekly: true };
+  }
+
+  // No plan + passthrough = unmetered routing (Casca doesn't pay LLM)
   if (!plan) return { allowed: true };
 
+  // ── Paid plans (monthly quota) ─────────────────────────────
   const includedTokens = (plan.included_m_tokens || 0) * 1_000_000;
   const usedTokens     = client.cycle_used_tokens || 0;
 
   // Within included quota → proceed
   if (usedTokens < includedTokens) return { allowed: true };
 
-  // Over quota → check overage wallet
-  // Minimum viable check: can the balance cover at least 1K tokens of overage?
+  // Quota paused and client hasn't approved overage
+  if (client.quota_paused && !client.overage_approved) {
+    mQuotaExhaustedTotal.inc({ plan_id: String(plan.id ?? 'unknown') });
+    return {
+      allowed: false,
+      status:  402,
+      body: {
+        error:    'Monthly quota exhausted. Service paused.',
+        code:     'QUOTA_PAUSED',
+        quota:    { included: plan.included_m_tokens, used_millions: (usedTokens / 1_000_000).toFixed(2) },
+        balance:  client.balance_credits,
+        action:   'Approve overage at /api/billing/approve-overage or upgrade your plan.',
+      },
+    };
+  }
+
+  // Over quota but overage approved → check wallet
   const minViableCharge = (1000 / 1_000_000) * (plan.overage_rate_per_1m || 1.00);
   if ((client.balance_credits || 0) >= minViableCharge) {
     return { allowed: true, isOverage: true };
   }
 
+  // No balance left
   mQuotaExhaustedTotal.inc({ plan_id: String(plan.id ?? 'unknown') });
   return {
     allowed: false,
@@ -699,6 +761,15 @@ function checkBillingGate(client, plan) {
       action:   'Top up your balance at /api/billing/topup to continue.',
     },
   };
+}
+
+function getNextMonday() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? 1 : 8 - day; // days until next Monday
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -827,13 +898,33 @@ async function postProcess({
 
     // ── 2. Token accounting + billing deduction ─────────────────
     if (!isCache && totalTokens > 0) {
-      // Atomic: increment cycle tokens + deduct overage credits
-      const { error: billingErr } = await supabase.rpc('account_usage_and_deduct', {
-        p_client_id:    clientId,
-        p_tokens:       totalTokens,
-        p_overage_rate: overageRate ?? 1.00,
-      });
-      if (billingErr) console.error('[casca] billing deduct error:', billingErr.message);
+      // Check if this is a Managed Free user (weekly credit system)
+      const { data: clientInfo } = await supabase
+        .from('clients')
+        .select('account_type, plan_id')
+        .eq('id', clientId)
+        .maybeSingle();
+
+      const isManagedFree = clientInfo &&
+        clientInfo.account_type !== 'passthrough' && !clientInfo.plan_id;
+
+      if (isManagedFree) {
+        // Weekly credit deduction for Managed Free users
+        const { data: allowed, error: wErr } = await supabase.rpc('check_and_deduct_weekly_credit', {
+          p_client_id: clientId,
+          p_cost_usd:  costUsd,
+        });
+        if (wErr) console.error('[casca] weekly credit error:', wErr.message);
+        // If not allowed, account will be paused for next request
+      } else {
+        // Paid plan: atomic increment cycle tokens + deduct overage credits
+        const { error: billingErr } = await supabase.rpc('account_usage_and_deduct', {
+          p_client_id:    clientId,
+          p_tokens:       totalTokens,
+          p_overage_rate: overageRate ?? 1.00,
+        });
+        if (billingErr) console.error('[casca] billing deduct error:', billingErr.message);
+      }
     } else {
       // Cache hit or 0-token: just increment quota count (no billing)
       supabase.rpc('increment_quota_used', { p_client_id: clientId }).then(() => {});
@@ -1398,12 +1489,14 @@ app.post('/api/auth/register', async (req, res) => {
     trialEnd.setDate(trialEnd.getDate() + 30);
     const trialEndIso = trialEnd.toISOString();
 
-    // Upsert clients record with trial
+    // Upsert clients record — default to Passthrough Free
     await supabase.from('clients').upsert({
       id:             userId,
       email,
       company_name:   company_name || null,
+      account_type:   'passthrough',           // default: passthrough free member
       trial_ends_at:  trialEndIso,
+      path_b_judge_enabled: false,             // trial/free users: judge off by default
       status:         'active',
       updated_at:     new Date().toISOString(),
     }, { onConflict: 'id' });
@@ -2974,7 +3067,6 @@ app.get('/api/admin/pathb/minilm', requireAdmin, async (req, res) => {
       service_status: liveStatus ? 'online' : 'offline',
       active_version: liveStatus?.active_version || versions?.find(v => v.is_active)?.version || '—',
       is_training: liveStatus?.is_training || false,
-      training_progress: liveStatus?.progress || null,
       versions: versions || [],
     });
   } catch (err) {
@@ -3011,50 +3103,6 @@ app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) =>
     return res.json(data);
   } catch (err) {
     return res.status(502).json({ error: 'MiniLM service unreachable: ' + err.message });
-  }
-});
-
-/**
- * POST /api/admin/pathb/minilm/activate
- * 將指定版本設為 active，停用其他版本，並通知 MiniLM service 載入新 checkpoint
- */
-app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
-  const { version } = req.body || {};
-  if (!version) return res.status(400).json({ error: 'Missing version' });
-
-  try {
-    // Deactivate all OTHER versions (skip target to avoid flapping)
-    const { error: deacErr } = await supabase
-      .from('minilm_versions')
-      .update({ is_active: false })
-      .neq('version', version);
-    if (deacErr) return res.status(500).json({ error: 'deactivate failed: ' + deacErr.message });
-
-    // Activate target version
-    const { data: activated, error: actErr } = await supabase
-      .from('minilm_versions')
-      .update({ is_active: true })
-      .eq('version', version)
-      .select();
-    if (actErr) return res.status(500).json({ error: 'activate failed: ' + actErr.message });
-    if (!activated || activated.length === 0) {
-      return res.status(404).json({ error: 'version not found: ' + version });
-    }
-
-    // Notify MiniLM service to reload the new active checkpoint
-    const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
-    let reloaded = false;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
-      const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST' });
-      clearTimeout(timer);
-      if (r.ok) reloaded = true;
-    } catch (_) { /* service may not support reload yet */ }
-
-    return res.json({ ok: true, version, reloaded });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -3184,29 +3232,18 @@ app.get('/api/admin/pathb/training-readiness', requireAdmin, async (req, res) =>
       .from('training_samples')
       .select('id', { count: 'exact', head: true });
 
-    // Fetch ALL untrained rows for lang distribution (paginate to avoid 1000-row default limit)
-    let allLangRows = [];
-    let offset = 0;
-    const PAGE = 1000;
-    while (true) {
-      const { data: page } = await supabase
-        .from('training_samples')
-        .select('lang')
-        .eq('used_for_training', false)
-        .range(offset, offset + PAGE - 1);
-      if (!page || page.length === 0) break;
-      allLangRows = allLangRows.concat(page);
-      if (page.length < PAGE) break;
-      offset += PAGE;
-    }
+    const { data: byLang } = await supabase
+      .from('training_samples')
+      .select('lang')
+      .eq('used_for_training', false);
 
     const langCounts = {};
-    for (const r of allLangRows) {
+    for (const r of (byLang || [])) {
       const l = r.lang || 'unknown';
       langCounts[l] = (langCounts[l] || 0) + 1;
     }
 
-    // Milestone thresholds (based on total samples including trained)
+    // Milestone thresholds
     const milestones = [
       { name: 'M1: Pilot validation', threshold: 1000 },
       { name: 'M2: Production',       threshold: 2500 },
@@ -3303,6 +3340,105 @@ app.patch('/api/admin/pathb/clients/:id', requireAdmin, async (req, res) => {
   return res.json({ ok: true, id, path_b_judge_enabled });
 });
 
+// ════════════════════════════════════════════════════════════════
+//  BILLING: Overage Approval + Weekly Credit Endpoints
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/billing/approve-overage
+ * Client approves continuing service beyond quota (will be billed overage).
+ */
+app.post('/api/billing/approve-overage', requireApiKeyOrJWT, async (req, res) => {
+  const { error } = await supabase
+    .from('clients')
+    .update({ overage_approved: true, quota_paused: false, updated_at: new Date().toISOString() })
+    .eq('id', req.client.id);
+  if (error) return res.status(500).json({ error: error.message });
+  console.log(`[billing] client ${req.client.id.slice(0,8)} approved overage`);
+  return res.json({ ok: true, message: 'Overage approved. Service resumed.' });
+});
+
+/**
+ * POST /api/trial/apply-passthrough
+ * Apply for passthrough trial (5B tokens, 30 days).
+ * Requires: Supabase JWT.
+ */
+app.post('/api/trial/apply-passthrough', requireSupabaseJWT, async (req, res) => {
+  const user = req.supabaseUser;
+
+  const { data: client } = await supabase
+    .from('clients')
+    .select('id, trial_type, trial_ends_at')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (client?.trial_type === 'passthrough' && client?.trial_ends_at) {
+    const end = new Date(client.trial_ends_at);
+    if (end > new Date()) {
+      return res.status(409).json({ error: 'You already have an active passthrough trial.' });
+    }
+  }
+
+  const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 30);
+
+  await supabase.from('clients').update({
+    trial_type:        'passthrough',
+    trial_ends_at:     trialEnd.toISOString(),
+    trial_token_limit: 5_000_000_000,  // 5B tokens
+    trial_tokens_used: 0,
+    trial_extended_count: 0,
+    path_b_judge_enabled: false,       // Trial users default off to save cost
+    updated_at:        new Date().toISOString(),
+  }).eq('id', user.id);
+
+  console.log(`[trial] passthrough trial activated for ${user.email} until ${trialEnd.toISOString()}`);
+  return res.status(201).json({
+    ok: true,
+    trial_type: 'passthrough',
+    trial_ends_at: trialEnd.toISOString(),
+    trial_token_limit: 5_000_000_000,
+    message: 'Passthrough trial activated. 5B tokens, 30 days. Use your own LLM key with X-Casca-Key header.',
+  });
+});
+
+/**
+ * POST /api/admin/trial/approve-extension
+ * Admin approves a trial extension request.
+ * Body: { client_id, extra_days? }
+ */
+app.post('/api/admin/trial/approve-extension', requireAdmin, async (req, res) => {
+  const { client_id, extra_days = 30 } = req.body;
+  if (!client_id) return res.status(400).json({ error: 'client_id required.' });
+
+  const { data: client } = await supabase
+    .from('clients')
+    .select('id, trial_ends_at, trial_extended_count')
+    .eq('id', client_id)
+    .maybeSingle();
+
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+
+  const now = new Date();
+  const base = client.trial_ends_at && new Date(client.trial_ends_at) > now
+    ? new Date(client.trial_ends_at)
+    : now;
+  base.setDate(base.getDate() + extra_days);
+
+  await supabase.from('clients').update({
+    trial_ends_at: base.toISOString(),
+    trial_extended_count: (client.trial_extended_count || 0) + 1,
+    updated_at: new Date().toISOString(),
+  }).eq('id', client_id);
+
+  console.log(`[admin] trial extended for ${client_id.slice(0,8)} → ${base.toISOString()} (extension #${(client.trial_extended_count||0)+1})`);
+  return res.json({ ok: true, trial_ends_at: base.toISOString(), extended_count: (client.trial_extended_count||0)+1 });
+});
+
+// ════════════════════════════════════════════════════════════════
+//  CRON: Trial Expiry + Weekly Credit Reset
+// ════════════════════════════════════════════════════════════════
+
 function scheduleTrialExpiry() {
   const runExpiry = async () => {
     try {
@@ -3317,12 +3453,36 @@ function scheduleTrialExpiry() {
     }
   };
 
-  // Run once on startup (catches any missed expirations during downtime)
   runExpiry();
-
-  // Then run every hour
   setInterval(runExpiry, TRIAL_CHECK_INTERVAL_MS);
   console.log(`[trial-cron] scheduled — checks every ${TRIAL_CHECK_INTERVAL_MS / 60000} minutes`);
+}
+
+function scheduleWeeklyReset() {
+  const WEEKLY_CHECK_MS = 60 * 60 * 1000; // check every hour
+
+  const runReset = async () => {
+    // Only actually reset on Mondays (or if last reset was >7 days ago)
+    const day = new Date().getUTCDay();
+    if (day !== 1) return; // 1 = Monday
+
+    try {
+      const { data: count, error } = await supabase.rpc('reset_weekly_credits');
+      if (error) {
+        console.error('[weekly-cron] reset error:', error.message);
+      } else if (count > 0) {
+        console.log(`[weekly-cron] ${count} Managed Free account(s) weekly credit reset`);
+      }
+    } catch (err) {
+      console.error('[weekly-cron] unexpected error:', err.message);
+    }
+  };
+
+  // Check once on startup (in case server was down during Monday)
+  runReset();
+
+  setInterval(runReset, WEEKLY_CHECK_MS);
+  console.log('[weekly-cron] scheduled — checks every hour, resets on Mondays');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3340,6 +3500,7 @@ async function start() {
   }
   if (!stripe) console.warn('[casca] STRIPE_SECRET_KEY not set — billing endpoints disabled.');
   scheduleTrialExpiry();
+  scheduleWeeklyReset();
   app.listen(PORT, () => {
     console.log(`🚀 Casca v3 API Proxy → http://localhost:${PORT}`);
     console.log(`   Providers: ${providerRegistry.size}  |  Stripe: ${!!stripe}  |  Cache TTL: ${CACHE_TTL_DAYS}d`);
