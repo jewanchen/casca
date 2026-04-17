@@ -2058,6 +2058,89 @@
   }
 
   // ══════════════════════════════════════════════════════════════
+  //  CONFIDENCE CALIBRATION LAYER
+  //  Detects known conflict patterns where L1 is confidently wrong,
+  //  and reduces confidence so the gateway sends to L2 MiniLM.
+  // ══════════════════════════════════════════════════════════════
+
+  // Cross-language action verbs (generation/modification tasks)
+  const _CAL_ACTION_VERBS = /\b(write|create|draft|design|explain|summarize|compare|develop|build|plan|outline|evaluate|list|review|check|fix|adjust|elaborate|flesh out|dive deep|rephrase|rewrite|translate|organize|refine|restructure|polish|tighten|condense|expand|simplify|proofread)\b|rédig|écri[svtz]|approfond|structur|développ|réduit|étoff|concev|compos|fais.moi|topo|mets? à jour|développez|escrib|diseñ[aeo]|resum|explic|redact|analiz|compar|dale una vuelta|ir al grano|schreib|erstell|entwerf|entwickl|erläuter|verfein|vergleich|punkt|scriv|progett|crea |confronta|approfond|作成|設計|分析|書いて|整理|要約|翻訳|検討|ブラッシュアップ|재검토|리라이팅|작성|설계|분석|정리|요약|계산|도와줘|다듬어|เขียน|ออกแบบ|วิเคราะห์|สรุป|ช่วย|viết|thiết kế|phân tích|lập|giải thích|chỉnh|chốt|tulis|rancang|analisis|buatkan|susun|buat|evaluasi|rencanakan|rapikan|brief|carikan|लिख|बना|विश्लेषण|समझा|तैयार|सिम्पलीफाई|ब्रीफ|اكتب|صمم|حلل|لخص|عطني|يا ريت|تنجز/iu;
+
+  // Cross-language definition patterns
+  const _CAL_DEF_PATTERN = /^(what is|what are|what does|define |how do you say)\b|什麼是|什么是|是什麼|是什么|とは何|とは？|って何|뭐야|무엇인가|무슨 뜻|c.est quoi|qu.est.ce que|qué es|cuál es|cos.è|cos'è|cosa significa|was ist|ما هو|ما هي|إيش يعني|إيه ه|وش يعني|क्या है|คืออะไร|là gì|apa itu|que es\b/iu;
+
+  // Cross-language HIGH signal words (complex analysis/architecture)
+  const _CAL_HIGH_SIGNALS = /\b(design|architect|framework|comprehensive|end-to-end|scalable|microservices|evaluate|analyze|strategy|compliance|security audit|vulnerability|migration|sensitivity analysis)\b|設計|架構|框架|全面|評估|戦略|フレームワーク|アーキテクチャ|전략|프레임워크|아키텍처|สถาปัตยกรรม|กลยุทธ์|kiến trúc|chiến lược|arsitektur|strategi|रणनीति|استراتيجية|شامل/iu;
+
+  function calibrate(result, prompt) {
+    let conf = result.confidence;
+    const rule = result.rule || '';
+    const cx = result.cx;
+    let calibrated = false;
+    let signal = null;
+
+    // ── Signal 1: R1 LOW but prompt has action verbs ──
+    // R1 fires on tok<20, but European/SEA languages often have
+    // meaningful MED tasks under 20 tokens.
+    if (rule.includes('R1') && cx === 'LOW' && _CAL_ACTION_VERBS.test(prompt)) {
+      conf = Math.min(conf, 40);
+      calibrated = true;
+      signal = 'S1:action-verb-conflict';
+    }
+
+    // ── Signal 2: Legal/compliance keyword → HIGH but definition query ──
+    // R6 forces HIGH on GDPR/NDA/法律, but "What is GDPR?" is LOW.
+    // Also catches language-specific rules that fire on legal terms.
+    if ((rule.includes('R6') || (cx === 'HIGH' && /legal|法律|合規|GDPR|NDA|DSGVO|RGPD|compli/i.test(rule))) && _CAL_DEF_PATTERN.test(prompt)) {
+      conf = Math.min(conf, 35);
+      calibrated = true;
+      signal = 'S2:legal-def-conflict';
+    }
+
+    // ── Signal 3: R4 token fallback MED but prompt has HIGH signals ──
+    // R4 is the catch-all for tok 20-200, but some prompts clearly need HIGH.
+    if (rule.includes('R4') && cx === 'MED' && _CAL_HIGH_SIGNALS.test(prompt)) {
+      conf = Math.min(conf, 45);
+      calibrated = true;
+      signal = 'S3:fallback-high-conflict';
+    }
+
+    // ── Signal 4: Fragment / context-dependent → always low confidence ──
+    // These need conversation context that L1 doesn't have.
+    if (result.noiseType === 'FRAGMENT' || result.noiseType === 'VAGUE') {
+      conf = Math.min(conf, Math.floor(conf * 0.7));
+      calibrated = true;
+      signal = signal || 'S4:fragment-context';
+    }
+
+    // ── Signal 5: Language-specific HIGH rules over-triggering ──
+    // DE-1, ES-HIGH, IT-HIGH sometimes match MED-level prompts.
+    if (/^(DE-1|ES-HIGH|ES-1|IT-HIGH)/.test(rule) && cx === 'HIGH' && _CAL_DEF_PATTERN.test(prompt)) {
+      conf = Math.min(conf, 38);
+      calibrated = true;
+      signal = 'S5:lang-high-def-conflict';
+    }
+
+    if (calibrated) {
+      return {
+        ...result,
+        confidence: conf,
+        _calibrated: true,
+        _signal: signal,
+        _originalConfidence: result.confidence,
+      };
+    }
+    return result;
+  }
+
+  // Wrap classify to apply calibration
+  const _rawClassify = classify;
+  classify = function(prompt, uc) {
+    const result = _rawClassify(prompt, uc);
+    return calibrate(result, prompt);
+  };
+
+  // ══════════════════════════════════════════════════════════════
   //  MODEL SELECTION
   // ══════════════════════════════════════════════════════════════
 
