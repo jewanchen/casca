@@ -62,17 +62,35 @@ def load_jsonl(path: str) -> Tuple[List[str], List[int]]:
     return prompts, labels
 
 
-def load_from_supabase(supabase_client, limit: int = 5000) -> Tuple[List[str], List[int], List]:
-    """Fetch untrained samples from Supabase training_samples table."""
-    data = (
-        supabase_client.table("training_samples")
-        .select("id, prompt_masked, judge_label")
-        .eq("used_for_training", False)
-        .limit(limit)
-        .execute()
-    )
+def load_from_supabase(supabase_client, limit: int = 10000) -> Tuple[List[str], List[int], List]:
+    """Fetch untrained samples from Supabase training_samples table.
+
+    Paginates through results to avoid Supabase's default 1000-row limit.
+    """
+    PAGE = 1000
+    all_rows = []
+    offset = 0
+    while offset < limit:
+        page_size = min(PAGE, limit - offset)
+        data = (
+            supabase_client.table("training_samples")
+            .select("id, prompt_masked, judge_label")
+            .eq("used_for_training", False)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = data.data or []
+        if not rows:
+            break
+        all_rows.extend(rows)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+
+    print(f"[load_from_supabase] fetched {len(all_rows)} untrained samples (paginated)")
+
     prompts, labels, ids = [], [], []
-    for row in data.data or []:
+    for row in all_rows:
         label = row.get("judge_label", "MED")
         if label not in LABEL_TO_ID:
             continue
