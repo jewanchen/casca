@@ -610,6 +610,13 @@
                noiseType: 'F-MULTI', confidence: 78 };
     }
 
+    // FR-DEF: "C'est quoi" / "Qu'est-ce que" / factual → LOW
+    if (/^(c'est quoi|qu'est.ce que|quelle est la (capitale|définition|différence)|qui est l'auteur|quel temps fait|combien font|donne.moi (la définition|trois synonymes))\b/i.test(tl) && text.length < 80)
+      return { cx:'LOW', rule:'FR-DEF: Question de définition → LOW', confidence:88 };
+    // FR-LIFE-LOW: comment faire / recette → LOW
+    if (/^(comment faire (des|du|de la|un|une)\b|recette (de|du|des)\b)/i.test(tl) && text.length < 60)
+      return { cx:'LOW', rule:'FR-LIFE-LOW: Recette/comment faire → LOW', confidence:86 };
+
     // FR MED verbs (catch-all for known MED verbs)
     if (FR_MED_VERBS.test(tl)) {
       const v = (tl.match(/^\w+/) || [''])[0];
@@ -659,6 +666,12 @@
     }
     const tl = text.toLowerCase();
     if (ES_HIGH_P.test(tl)) return { cx: 'HIGH', rule: 'ES-1: Español HIGH', confidence: 82 };
+    // ES-DEF: "¿Qué es" / "¿Cuál es" / factual → LOW
+    if (/^[¿?]?(qué es|cuál es|cuánto|cuántos|quién es|qué síntomas|qué significa|a cuánto está)\b/i.test(tl) && text.length < 80)
+      return { cx:'LOW', rule:'ES-DEF: Pregunta de definición → LOW', confidence:88 };
+    // ES-LIFE-LOW: cómo hacer / receta → LOW
+    if (/^[¿?]?(cómo (hacer|preparar|cocinar|se hace)\b|receta de\b)/i.test(tl) && text.length < 60)
+      return { cx:'LOW', rule:'ES-LIFE-LOW: Receta/cómo hacer → LOW', confidence:86 };
     if (ES_MED_P.test(tl))  return { cx: 'MED',  rule: 'ES-2: Español MED',  confidence: 78 };
     return null;
   }
@@ -1269,7 +1282,9 @@
       return { cx: 'HIGH', rule: 'IT-HIGH: Analisi complessa \u2192 HIGH', confidence: 86 };
     }
     const tl=text.toLowerCase();
-    if(/^(cos[\u2019'][\xE8e]|cosa significa|cosa vuol dire)[^,;]{0,40}[?.]?$/i.test(tl))return{cx:'LOW',rule:'IT-DEF: definizione \u2192 LOW',confidence:86};
+    if(/^(cos[\u2019'][\xE8e]|cosa significa|cosa vuol dire|quanto vale|quanto costa|qual [\xE8e] la capitale|che ore sono|sinonimi di|sintomi del)[^,;]{0,60}[?.]?$/i.test(tl))return{cx:'LOW',rule:'IT-DEF: definizione/fatto \u2192 LOW',confidence:86};
+    // IT-LIFE-LOW: come fare / ricetta → LOW
+    if(/^(come (fare|preparare|cucinare|si fa)\b|ricetta (del|della|di)\b)/i.test(tl)&&text.length<60)return{cx:'LOW',rule:'IT-LIFE-LOW: ricetta/come fare \u2192 LOW',confidence:86};
     if(IT_COMP_W.test(text)||(IT_HIGH_W.test(text)&&text.length>25))return{cx:'HIGH',rule:'IT-HIGH: compito complesso \u2192 HIGH',confidence:83};
     if(IT_MED_W.test(tl))return{cx:'MED',rule:'IT-MED: verbo generazione \u2192 MED',confidence:81};
     return null;
@@ -1281,7 +1296,9 @@
   const KO_COMP_W=/(종합|전반적인|상세한|체계적인|완전한|단계별|전략적)/;
   function processKorean(text){
     const tl=text.toLowerCase();
-    if(/^(이란 무엇인가|뜻이 뭐야|무엇인가|무슨 뜻)[^,;]{0,40}[?？]?$/.test(tl))return{cx:'LOW',rule:'KO-DEF: 정의 쿼리 \u2192 LOW',confidence:86};
+    if(/(?:이란 무엇인가|뜻이 뭐야|무엇인가|무슨 뜻|[가-힣]+가 뭐야|수도가 어디|주가 알려줘)/.test(tl)&&text.length<60)return{cx:'LOW',rule:'KO-DEF: 정의/사실 쿼리 \u2192 LOW',confidence:86};
+    // KO-LIFE-LOW: 만드는 법 / 레시피 → LOW
+    if(/(?:만드는 법|레시피|만드는 방법)\s*(알려줘|알려주세요)?/.test(tl)&&text.length<50)return{cx:'LOW',rule:'KO-LIFE-LOW: 레시피 \u2192 LOW',confidence:86};
     // KO-HIGH-COMP: comprehensive deliverable with 해 주세요
     if (KO_COMP_W.test(text) && /(로드맵|전략|계획|프로토콜|프레임워크|분석|매뉴얼|계획서|논문|에세이|아키텍처|바이블|캠페인|프로그램|감사 계획|보고서)/.test(text) && /(개발해|수립해|작성해|설계해|분석해|기획해|평가해|제안해|준비해|공식화해)(\s*주세요|줘)[.]?$/.test(text)) {
       return{cx:'HIGH',rule:'KO-HIGH-COMP: 포괄적 성과물 → HIGH',confidence:90};
@@ -1305,7 +1322,9 @@
         /(तैयार करें|विकसित करें|बनाएं|डिज़ाइन करें|लिखें|स्थापित करें|तैयार करें|प्रस्तुत करें)[।]?$/.test(text)) {
       return{cx:'HIGH',rule:'HI-HIGH-COMP: व्यापक योजना → HIGH',confidence:90};
     }
-    if(/^(क्या है|का अर्थ|परिभाषा|यह क्या है)[^,;।]{0,40}[?।]?$/.test(tl))return{cx:'LOW',rule:'HI-DEF: परिभाषा \u2192 LOW',confidence:84};
+    if(/(क्या है|का अर्थ|परिभाषा|यह क्या है|के लक्षण क्या|की राजधानी|पर्यायवाची)/.test(tl)&&text.length<80)return{cx:'LOW',rule:'HI-DEF: परिभाषा/तथ्य \u2192 LOW',confidence:84};
+    // HI-LIFE-LOW: रेसिपी / बनाने की विधि → LOW
+    if(/(रेसिपी|बनाने की विधि|कैसे बनाएं|कैसे बनाते)/.test(tl)&&text.length<60)return{cx:'LOW',rule:'HI-LIFE-LOW: रेसिपी \u2192 LOW',confidence:86};
     if(HI_HIGH_W.test(text)&&text.length>25)return{cx:'HIGH',rule:'HI-HIGH: जटिल कार्य \u2192 HIGH',confidence:82};
     if(HI_MED_W.test(text))return{cx:'MED',rule:'HI-MED: उत्पादन क्रिया \u2192 MED',confidence:80};
     return null;
@@ -1321,7 +1340,9 @@
         /(أعدّ|طوّر|صمّم|قم بصياغة|قم بتطوير|قم بإعداد|قم بتحليل|اكتب|اقترح|ابنِ)/.test(text)) {
       return{cx:'HIGH',rule:'AR-HIGH-COMP: شاملة+خطة+فعل → HIGH',confidence:90};
     }
-    if(/^(ما هو|ما هي|تعريف|ماذا يعني|اشرح معنى)[^,;،]{0,40}[?؟]?$/.test(text))return{cx:'LOW',rule:'AR-DEF: تعريف \u2192 LOW',confidence:84};
+    if(/(ما هو|ما هي|تعريف|ماذا يعني|اشرح معنى|ما هي أعراض|كم الساعة|ما هي عاصمة|أعطني مرادفات)/.test(text)&&text.length<80)return{cx:'LOW',rule:'AR-DEF: تعريف/حقيقة \u2192 LOW',confidence:84};
+    // AR-LIFE-LOW: كيف أصنع / وصفة → LOW
+    if(/(كيف أصنع|كيف أطبخ|وصفة|طريقة عمل|طريقة تحضير)/.test(text)&&text.length<60)return{cx:'LOW',rule:'AR-LIFE-LOW: وصفة \u2192 LOW',confidence:86};
     if(AR_HIGH_W.test(text)&&text.length>25)return{cx:'HIGH',rule:'AR-HIGH: مهمة معقدة \u2192 HIGH',confidence:82};
     if(AR_MED_W.test(text))return{cx:'MED',rule:'AR-MED: فعل إنشاء \u2192 MED',confidence:80};
     return null;
