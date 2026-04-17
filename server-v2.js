@@ -3184,18 +3184,29 @@ app.get('/api/admin/pathb/training-readiness', requireAdmin, async (req, res) =>
       .from('training_samples')
       .select('id', { count: 'exact', head: true });
 
-    const { data: byLang } = await supabase
-      .from('training_samples')
-      .select('lang')
-      .eq('used_for_training', false);
+    // Fetch ALL untrained rows for lang distribution (paginate to avoid 1000-row default limit)
+    let allLangRows = [];
+    let offset = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data: page } = await supabase
+        .from('training_samples')
+        .select('lang')
+        .eq('used_for_training', false)
+        .range(offset, offset + PAGE - 1);
+      if (!page || page.length === 0) break;
+      allLangRows = allLangRows.concat(page);
+      if (page.length < PAGE) break;
+      offset += PAGE;
+    }
 
     const langCounts = {};
-    for (const r of (byLang || [])) {
+    for (const r of allLangRows) {
       const l = r.lang || 'unknown';
       langCounts[l] = (langCounts[l] || 0) + 1;
     }
 
-    // Milestone thresholds
+    // Milestone thresholds (based on total samples including trained)
     const milestones = [
       { name: 'M1: Pilot validation', threshold: 1000 },
       { name: 'M2: Production',       threshold: 2500 },
