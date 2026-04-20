@@ -392,17 +392,15 @@
     let forcedCx = null;
     // Check HIGH abbreviations
     for (const [abbr, full] of Object.entries(JA_ABR_HIGH)) {
-      const re = new RegExp(abbr, 'g');
-      if (re.test(expanded)) {
-        expanded = expanded.replace(re, full);
+      if (expanded.includes(abbr)) {
+        expanded = expanded.replaceAll(abbr, full);
         forcedCx = 'HIGH';
       }
     }
     if (!forcedCx) {
       for (const [abbr, full] of Object.entries(JA_ABR_MED)) {
-        const re = new RegExp(abbr, 'g');
-        if (re.test(expanded)) {
-          expanded = expanded.replace(re, full);
+        if (expanded.includes(abbr)) {
+          expanded = expanded.replaceAll(abbr, full);
           if (!forcedCx) forcedCx = 'MED';
         }
       }
@@ -697,10 +695,13 @@
    */
   function checkCache(text) {
     const tl = text.toLowerCase().trim();
-    return CACHE_POOL.some(p =>
-      tl.includes(p.toLowerCase()) ||
-      levenshtein(tl, p.toLowerCase()) < 5
-    );
+    return CACHE_POOL.some(p => {
+      const pl = p.toLowerCase();
+      if (tl.includes(pl)) return true;
+      // Skip expensive Levenshtein if length diff > threshold (can't be <5 edits)
+      if (Math.abs(tl.length - pl.length) > 5) return false;
+      return levenshtein(tl, pl) < 5;
+    });
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -832,11 +833,6 @@
         return { cx: 'MED', rule: 'R6排除: Summarize differences → MED', confidence: 84 };
       }
       // 中文「什麼是 X」「解釋 X」→ 定義查詢，降為 LOW
-      // R-EN-MEDICAL-ACUTE: acute medical terms → HIGH
-    if (/\b(heart attack|cardiac arrest|stroke|anaphylaxis|acute (kidney|renal|liver) (failure)?|CPR|AED|emergency (medication|drug)|angina|myocardial|chest (pain|tightness)|left arm (pain|ache))/i.test(tl)) {
-      return { cx: 'HIGH', rule: 'R-EN-MEDICAL-ACUTE: Acute medical → HIGH', confidence: 94 };
-    }
-
     if (/^(解釋|說明|介紹)?什麼是[^，。]{0,30}[？?]?$/.test(tl) ||
           /^什麼是.{0,20}(縮寫|定義|全名|意思)[？?]?$/.test(tl)) {
         return { cx: 'LOW', rule: 'R6排除: 中文法律定義查詢 → LOW', confidence: 88 };
@@ -1190,8 +1186,8 @@
         const ord = { HIGH:3, MED:2, LOW:1, AMBIG:2 };
         let top = 'LOW';
         segs.forEach(seg => {
-          // Re-use core logic inline for each segment
-          const sr = classifyCore(seg, uc, Math.ceil(seg.length * 1.5));
+          if (!seg || seg.length === 0) return;
+          const sr = classifyCore(seg, uc, Math.max(1, Math.ceil(seg.length * 1.5)));
           const scx = sr.cx === 'AMBIG' ? 'MED' : sr.cx;
           if ((ord[scx]||0) > (ord[top]||0)) top = scx;
         });
@@ -1974,7 +1970,7 @@
       if (jaResult.isMultiTask) {
         const segs = workingText.split(/ついでに|それから|と、?あと|同時に|それと|また、/).map(s=>s.trim()).filter(s=>s.length>3);
         const ord={HIGH:3,MED:2,LOW:1,AMBIG:2}; let top='MED';
-        segs.forEach(seg=>{const sr=classifyCore(seg,uc,tok);const scx=sr.cx==='AMBIG'?'MED':sr.cx;if((ord[scx]||0)>(ord[top]||0))top=scx;});
+        segs.forEach(seg=>{if(!seg||!seg.length)return;const sr=classifyCore(seg,uc,Math.max(1,tok));const scx=sr.cx==='AMBIG'?'MED':sr.cx;if((ord[scx]||0)>(ord[top]||0))top=scx;});
         const fCx=jaResult.abbrCx==='HIGH'?'HIGH':top;
         return{cx:fCx,rule:'JR-4: J-MULTI → '+fCx+' ('+segs.length+'segs)',tok,modal,lang,noiseType:'J-MULTI',confidence:80};
       }
@@ -2773,16 +2769,13 @@ function route(prompt, uc, qualityTier, conversationContext) {
       // (no floor capping — emergency overrides history)
     }
 
-    // ── Model selection ───────────────────────────────────────
-    const MODEL_MAP = {
-      HIGH: { model: 'GPT-4o',      costPer1M: 5.0  },
-      MED:  { model: 'GPT-4o-mini', costPer1M: 0.15 },
-      LOW:  { model: 'GPT-3.5',     costPer1M: 0.002},
-    };
-    const selected  = MODEL_MAP[cx] || MODEL_MAP['MED'];
+    // ── Model selection (uses TIER_MODELS + MODEL_COSTS as single source of truth) ──
+    const _selModel = selectModel(cx, classified.modal, qualityTier);
+    const _modelName = typeof _selModel === 'string' ? _selModel : (_selModel.default || _selModel);
+    const _costPer1M = MODEL_COSTS[_modelName] || 0.15;
     const tok       = classified.tok;
-    const cost      = (tok / 1000) * selected.costPer1M / 1000;
-    const baseCost  = (tok / 1000) * MODEL_MAP['HIGH'].costPer1M / 1000;
+    const cost      = (tok / 1000) * _costPer1M / 1000;
+    const baseCost  = (tok / 1000) * (MODEL_COSTS['GPT-4o'] || 5.0) / 1000;
     const pct       = baseCost > 0 ? Math.round((1 - cost / baseCost) * 100) : 0;
 
     // ── Conversation mode ─────────────────────────────────────
@@ -2813,7 +2806,7 @@ function route(prompt, uc, qualityTier, conversationContext) {
     const bridgeRequired = trendSignal === 'UP' && !!prevTier;
 
     return {
-      model:          selected.model,
+      model:          _modelName,
       cx,
       originalCx:     classified.cx,
       rule:           classified.rule,

@@ -3113,7 +3113,10 @@ app.post('/api/admin/pathb/minilm/train', requireAdmin, async (req, res) => {
 app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) => {
   const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
   try {
-    const r = await fetch(`${minilmUrl}/train/cold-start`, { method: 'POST' });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    const r = await fetch(`${minilmUrl}/train/cold-start`, { method: 'POST', signal: controller.signal });
+    clearTimeout(timer);
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json(data);
     return res.json(data);
@@ -3153,10 +3156,12 @@ app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10000);
-      const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST' });
+      const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST', signal: controller.signal });
       clearTimeout(timer);
       if (r.ok) reloaded = true;
-    } catch (_) {}
+    } catch (reloadErr) {
+      console.log(`[pathb] MiniLM reload notify failed (non-blocking): ${reloadErr.message}`);
+    }
 
     return res.json({ ok: true, version, reloaded });
   } catch (err) {
