@@ -228,8 +228,7 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
 }
 .mtz.on { background: var(--teal); color: var(--black); }
 .mtz:not(.on):hover { background: var(--teal-gm); color: var(--teal); }
-.pnl { display: none; }
-.pnl.on { display: block; }
+/* .pnl panels now always visible (stacked layout, no tab switch) */
 /* Passthrough 三欄 */
 .pt3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-bottom: 28px; }
 .ptz {
@@ -480,14 +479,15 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
   </div>
 
   <div class="pricing-wrap">
-    <!-- 模式切換 -->
-    <div class="mode-switch-zh reveal">
-      <button class="mtz on" onclick="switchModeZh('pass', this)">🔑 用我自己的 API Key</button>
-      <button class="mtz" onclick="switchModeZh('mng', this)">⬡ 讓 Casca 全權管理</button>
-    </div>
-
     <!-- ══ PASSTHROUGH 模式 ══ -->
-    <div class="pnl on" id="pnl-pass">
+    <div class="reveal" style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">🔑</span>
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:-0.02em">用你自己的 API Key</div>
+        <div style="font-size:12px;color:var(--t3)">帶入你的 OpenAI / Anthropic / Google Key，Casca 負責路由。LLM 費用你自付。</div>
+      </div>
+    </div>
+    <div>
       <div class="pt3 reveal">
 
         <!-- Free -->
@@ -565,7 +565,15 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
     </div>
 
     <!-- ══ MANAGED 模式 ══ -->
-    <div class="pnl" id="pnl-mng">
+    <div style="margin-top:48px">
+    <div class="reveal" style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⬡</span>
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:-0.02em">讓 Casca 全權管理 LLM</div>
+        <div style="font-size:12px;color:var(--t3)">一張帳單。不用 OpenAI 帳號。Casca 管理所有 LLM Provider，你只需支付一筆更低的費用。</div>
+      </div>
+    </div>
+    <div>
 
       <div class="mhero reveal">
         <div class="mhero-in">
@@ -664,6 +672,7 @@ footer{padding:40px 48px;border-top:1px solid var(--border);display:flex;align-i
         不需要 OpenAI 帳號 · 一張帳單搞定所有 LLM · 5+ 供應商由 Casca 統一管理 · 隨時可取消
       </div>
     </div>
+    </div>
   </div>
 </section>
 
@@ -742,12 +751,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   animCounter();
   calcROI();
 });
-function switchModeZh(mode, btn) {
-  document.querySelectorAll('.mtz').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  document.querySelectorAll('.pnl').forEach(p => p.classList.remove('on'));
-  document.getElementById('pnl-' + mode).classList.add('on');
-}
+/* switchModeZh removed — both pricing panels now stacked */
 </script>
 </body>
 </html>

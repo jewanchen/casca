@@ -628,8 +628,7 @@ input, textarea { font-family: var(--sans); }
 }
 
 /* Mode panels */
-.pricing-mode-panel { display: none; }
-.pricing-mode-panel.active { display: block; }
+/* pricing-mode-panel no longer hidden — both shown stacked */
 
 /* Passthrough: 3-col grid */
 .pricing-grid-pass {
@@ -971,7 +970,7 @@ footer {
   </div>
   <div class="nav-cta">
     <button class="btn-ghost" onclick="window.location.href='casca-dashboard.html'">Log In</button>
-    <button class="btn-primary" onclick="window.location.href='casca-dashboard.html#signup'">免費試用 →</button>
+    <button class="btn-primary" onclick="window.location.href='casca-dashboard.html#signup'">Start Free →</button>
   </div>
 </nav>
 
@@ -1005,7 +1004,7 @@ footer {
 
   <div class="hero-actions">
     <button class="btn-hero btn-hero-primary" onclick="window.location.href='casca-dashboard.html#signup'">
-      申請免費試用 →
+      Start Free Trial →
     </button>
     <button class="btn-hero btn-hero-ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">
       See How It Works ↓
@@ -1071,7 +1070,7 @@ footer {
       <div class="feature-card glass reveal reveal-d4">
         <div class="feature-icon blue-icon">↻</div>
         <h3>Auto-Learn Flywheel</h3>
-        <p>Ambiguous prompts ("幫我搞定", "fix it") enter the AMBIG queue for review. Every resolution trains the engine. Your savings compound monthly — clients see 15-25% improvement in routing accuracy over 6 months.</p>
+        <p>Ambiguous prompts ("handle this for me", "fix it") enter the AMBIG queue for review. Every resolution trains the engine. Your savings compound monthly — clients see 15-25% improvement in routing accuracy over 6 months.</p>
         <span class="feature-tag">AMBIG QUEUE · CONTEXT-AWARE · COMPOUNDING</span>
       </div>
     </div>
@@ -1151,14 +1150,15 @@ footer {
       <p>Two ways to deploy Casca. Pick the model that fits your team — both deliver far more savings than they cost.</p>
     </div>
 
-    <!-- Mode Switcher -->
-    <div class="pricing-mode-switch reveal">
-      <button class="mode-tab active" onclick="switchMode('passthrough', this)">🔑 Use My Own API Keys</button>
-      <button class="mode-tab" onclick="switchMode('managed', this)">⬡ Let Casca Manage LLMs</button>
-    </div>
-
     <!-- ══ PASSTHROUGH MODE ══ -->
-    <div class="pricing-mode-panel active" id="mode-passthrough">
+    <div class="reveal" style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">🔑</span>
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:-0.02em">Use Your Own API Keys</div>
+        <div style="font-size:12px;color:var(--text3)">Bring your OpenAI / Anthropic / Google keys — Casca handles the routing. You pay LLM costs directly.</div>
+      </div>
+    </div>
+    <div>
       <div class="pricing-grid-pass reveal reveal-d1">
 
         <!-- Free -->
@@ -1234,7 +1234,15 @@ footer {
     </div>
 
     <!-- ══ MANAGED MODE ══ -->
-    <div class="pricing-mode-panel" id="mode-managed">
+    <div style="margin-top:48px">
+    <div class="reveal" style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⬡</span>
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:-0.02em">Let Casca Manage Your LLMs</div>
+        <div style="font-size:12px;color:var(--text3)">One invoice. No OpenAI account needed. Casca manages all providers and bills you one dramatically lower price.</div>
+      </div>
+    </div>
+    <div>
 
       <div class="managed-hero reveal">
         <div class="managed-hero-inner">
@@ -1331,6 +1339,7 @@ footer {
       </div>
       <div class="pricing-note reveal reveal-d3">No OpenAI account required · One invoice · 5+ LLM providers managed by Casca · Cancel anytime</div>
     </div>
+    </div>
 
   </div>
 </section>
@@ -1349,13 +1358,13 @@ footer {
 <section class="cta-section" id="cta">
   <div class="cta-inner reveal">
     <h2>Stop Burning Money.<br><span class="green">Start Today.</span></h2>
-    <p>建立免費帳號，立即啟動 30 天試用，取得 API Key 開始整合。無需信用卡，試用到期自動停用。</p>
+    <p>Create your free account, get your API Key, and start routing in minutes. No credit card required.</p>
     <div class="cta-form" style="justify-content:center;gap:12px;flex-wrap:wrap">
-      <button class="cta-submit" style="min-width:200px" onclick="window.location.href='casca-dashboard.html#signup'">建立帳號 &amp; 申請試用 →</button>
-      <button class="cta-submit" style="min-width:160px;background:transparent;border:1.5px solid rgba(0,230,118,0.5);color:var(--green)" onclick="window.location.href='casca-dashboard.html'">已有帳號？登入</button>
+      <button class="cta-submit" style="min-width:200px" onclick="window.location.href='casca-dashboard.html#signup'">Create Account &amp; Start Free →</button>
+      <button class="cta-submit" style="min-width:160px;background:transparent;border:1.5px solid rgba(0,230,118,0.5);color:var(--green)" onclick="window.location.href='casca-dashboard.html'">Already have an account? Log in</button>
     </div>
     <div class="cta-small">
-      <span>✓</span> 30 天免費試用 &nbsp;·&nbsp; <span>✓</span> 無需信用卡 &nbsp;·&nbsp; <span>✓</span> 到期自動停用
+      <span>✓</span> Free to start &nbsp;·&nbsp; <span>✓</span> No credit card &nbsp;·&nbsp; <span>✓</span> Cancel anytime
     </div>
   </div>
 </section>
@@ -1380,13 +1389,6 @@ footer {
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-/* ═══ PRICING MODE SWITCH ═══ */
-function switchMode(mode, btn) {
-  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.pricing-mode-panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('mode-' + mode).classList.add('active');
-}
 /* ═══ LIVE ROUTING DEMO ═══ */
 const DEMO_REQUESTS=[
   {cx:'LOW',model:'Gemini Flash',prompt:'What is our return policy?',saving:'-97%'},
@@ -1396,12 +1398,12 @@ const DEMO_REQUESTS=[
   {cx:'LOW',model:'Gemini Flash',prompt:'How many PTO days do I have?',saving:'-97%'},
   {cx:'HIGH',model:'GPT-4o Vision',prompt:'[X-ray] analyze this scan',saving:'-12%'},
   {cx:'MED',model:'GPT-4o-mini',prompt:'Draft onboarding email for new hire',saving:'-97%'},
-  {cx:'LOW',model:'Gemini Flash',prompt:'最新訂單狀態查詢 #A2391',saving:'-97%'},
+  {cx:'LOW',model:'Gemini Flash',prompt:'Latest order status #A2391',saving:'-97%'},
   {cx:'HIGH',model:'Claude Sonnet',prompt:'[Contract scan] extract indemnification clauses',saving:'-40%'},
   {cx:'CACHE',model:'Cache hit',prompt:'What is our remote work policy?',saving:'-100%'},
   {cx:'MED',model:'GPT-4o-mini',prompt:'Translate this report to Japanese',saving:'-97%'},
   {cx:'LOW',model:'Gemini Flash',prompt:'DAU yesterday?',saving:'-97%'},
-  {cx:'HIGH',model:'GPT-4o',prompt:'設計 PM 職級晉升制度',saving:'0%'},
+  {cx:'HIGH',model:'GPT-4o',prompt:'Design PM career ladder framework',saving:'0%'},
   {cx:'MED',model:'GPT-4o-mini',prompt:'Summarize Q4 sales performance',saving:'-97%'},
   {cx:'HIGH',model:'GPT-4o Vision',prompt:'[Dashboard] explain the revenue dip',saving:'-18%'},
 ];
