@@ -2505,12 +2505,17 @@ function route(prompt, uc, qualityTier, conversationContext) {
                  !/^(what|how|could|should|would|can|is|are|does|did|was|were|which|who|when|why)\b/i.test(_sd_tl) &&
                  !/^(mettilo|mett[oi]|elenca|riassumi|fornisci [0-9]+|scrivi (un[a]? )?(breve|corto)|fai (una?|un)|mostrami|dammi la formula|listez|résumez|donnez|élaborez un court|fassen sie|listen sie|zeigen sie mir eine|nennen sie [0-9]+|stellen sie .{0,20}tabelle|übersetzen sie|schreiben sie ein kurz|schlagen sie eine kurze|لخّص|اذكر [0-9]+|قم بإدراج|اكتب (قائمة|نصاً)|ضع .{0,15}(جدول|ترتيب زمني)|ترجم هذا|resume (los?|las?|un[a]?)|haz una? (lista|tabla)|dame (la f[oó]rmula|una lista)|escribe (una prueba|un guion|un correo|un email)|pon (esto|los?|las?) en (orden|tabla|lista)|traduce (esa|esta)|muestra un ejemplo|haz una lista del?|pon .{3,25} en (una? )?tabla|एक (विस्तृत )?(सूची|तालिका|स्क्रिप्ट|सारांश|फ़ॉर्मूला|अनुवाद)|मुख्य .{2,15} (तालिका|सूची)|[0-9]+ सेकंड का)/i.test(_sd_tl) &&
                  !/^(謝謝|好的謝謝|好謝謝|感謝|感謝您|明白了|收到了|了解了|沒問題|知道了|谢谢|好的谢谢|好谢谢|感谢|感谢您|明白了|收到了|了解了|没问题|知道了)[^一-鿿]{0,3}$/.test(prompt.trim())) {
+          // For very short fragments (<=12 tok), cap PROFESSIONAL at MED
+          // "再細一點" with HIGH context should be MED, not inherit HIGH
+          const _profRes = (classified.tok <= 12 && prompt.trim().length <= 30)
+            ? contextFloor('LOW', _lt_sd)  // HIGH→MED, MED→MED
+            : _lt_sd;
           const modeRes = {
-            PROFESSIONAL: _lt_sd, EMPATHY:'MED', SIMPLE:'LOW',
+            PROFESSIONAL: _profRes, EMPATHY:'MED', SIMPLE:'LOW',
             TROUBLESHOOT:'LOW', CREATIVE:'MED', LEARNING:'LOW', LIFESTYLE:'LOW',
             CODE_TASK:'MED', IMPATIENT:'MED', CASCADING: tierDown[_lt_sd]||'LOW',
             ESCALATING:_lt_sd, PLATEAU:'MED', CRITICAL_BURST:_lt_sd,
-            MULTI_AGENT:_lt_sd, REFINEMENT:_lt_sd, VERIFICATION:'MED',
+            MULTI_AGENT:_lt_sd, REFINEMENT: _profRes, VERIFICATION:'MED',
             HANDOFF:'MED', FATIGUE: tierDown[_lt_sd]||'LOW',
           };
           const resolved = modeRes[_mode_sd];
@@ -2523,6 +2528,16 @@ function route(prompt, uc, qualityTier, conversationContext) {
           (_mode_sd === 'PROFESSIONAL' || _mode_sd === 'CODE_TASK') &&
           /^(comment (ça|ca) (marche|fonctionne)\??|wie (funktioniert|geht) (das|es)?\??|come funziona\??|c[oó]mo funciona|それはなぜ|왜 그|那.{0,5}(怎麼|是什麼)|how (does|do) (this|it)|what (is|are) (the|this)|why (is|does))/i.test(_sd_tl)) {
         cx = 'MED';
+      }
+
+      // ── Context floor: short non-closure prompts inherit minimum MED ──
+      // "再細一點", "もう少し分かりやすく", "좀 더 디테일하게" etc.
+      // These are refinement instructions that only make sense in context.
+      // If lastTier >= MED and prompt is short but NOT a closure, floor to MED.
+      if (cx === 'LOW' && !_isClosureWord && classified.tok <= 20 &&
+          prompt.trim().length >= 3 && prompt.trim().length <= 30 &&
+          ({'HIGH':3,'MED':2}[conversationContext.lastTier] || 0) >= 2) {
+        cx = contextFloor(cx, conversationContext.lastTier);
       }
     }
 
