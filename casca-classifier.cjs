@@ -2121,6 +2121,15 @@
       signal = 'S5:lang-high-def-conflict';
     }
 
+    // ── Signal 6: R1 LOW but prompt has real content (>30 chars) ──
+    // European/SEA languages have fewer tokens per word, so R1 (tok<20)
+    // catches real MED tasks. If prompt is long enough, reduce confidence.
+    if (!calibrated && rule.includes('R1') && cx === 'LOW' && prompt.length > 30) {
+      conf = Math.min(conf, 50);
+      calibrated = true;
+      signal = 'S6:short-tok-long-text';
+    }
+
     if (calibrated) {
       return {
         ...result,
