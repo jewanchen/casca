@@ -1816,7 +1816,7 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
   //    3. Use L2 result if available, otherwise keep L1
   let l2Result = null;
   const pathBEnabled = (process.env.PATH_B_ENABLED || '').toLowerCase() === 'true';
-  const confThreshold = parseInt(process.env.PATH_B_CONFIDENCE_THRESHOLD || '80', 10);
+  const confThreshold = parseInt(process.env.PATH_B_CONFIDENCE_THRESHOLD || '86', 10);
 
   if (pathBEnabled && classifyResult.confidence) {
     const dynConf = await getDynamicConfidence(
