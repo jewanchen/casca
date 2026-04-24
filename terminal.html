@@ -1648,15 +1648,9 @@ async function sendMessage() {
 
     const content = result.content;
     const casca   = result.casca || {};
-
-    // Add assistant to history
-    messages.push({ role: 'assistant', content });
-
-    // Render bubble
     const cx = (casca.cx || '').toUpperCase();
-    appendBubble('ai', content, cx, casca.model, casca.pct);
 
-    // Update dashboard
+    // ── Step 1: Show classification IMMEDIATELY ──
     if (cascaEnabled && cx) {
       updateDashboard({
         cx:       cx,
@@ -1668,8 +1662,9 @@ async function sendMessage() {
         cost:     casca.costUsd || estimateCost(casca.model, result.tokens),
         cacheHit: casca.cacheHit || false,
       });
+      // Show routing badge before AI response
+      appendRoutingBadge(cx, casca.model, casca.pct);
     } else {
-      // Direct mode
       updateDashboard({
         cx:      null,
         model:   CONFIG.DEFAULT_MODEL,
@@ -1680,6 +1675,12 @@ async function sendMessage() {
         cost:    estimateCost(CONFIG.DEFAULT_MODEL, result.tokens),
       });
     }
+
+    // ── Step 2: Show AI response with brief delay for visual separation ──
+    await new Promise(r => setTimeout(r, 150));
+
+    messages.push({ role: 'assistant', content });
+    appendBubble('ai', content, null, casca.model, null);
 
   } catch (err) {
     removeThinking(thinkId);
@@ -1883,6 +1884,20 @@ function appendBubble(role, text, cx, model, pct, isError = false) {
       <div class="msg-meta"><span>${time}</span>${role === 'ai' && model ? `<span>via ${model}</span>` : ''}</div>
     </div>`;
 
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendRoutingBadge(cx, model, pct) {
+  const container = document.getElementById('chatMessages');
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  const cfg = CX_CONFIG[cx] || {};
+  row.innerHTML = `
+    <div class="msg-avatar ai-av" style="visibility:hidden">AI</div>
+    <div class="msg-content">
+      <div><span class="routing-badge ${cfg.rb || ''}">${cfg.icon || ''} ${cx}${pct > 0 ? ' · -' + pct + '%' : ''}${model ? ' · ' + model : ''}</span></div>
+    </div>`;
   container.appendChild(row);
   container.scrollTop = container.scrollHeight;
 }
