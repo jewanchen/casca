@@ -102,7 +102,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       .from('enterprise_licenses')
       .select('*, enterprise_deployments(id, status, last_heartbeat, engine_version)')
       .order('created_at', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     // Enrich with usage summary
     const now = new Date();
@@ -130,9 +130,13 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
 
     if (!client_name) return res.status(400).json({ error: 'client_name required.' });
 
-    // Generate license key
-    const { data: keyData } = await supabase.rpc('gen_enterprise_license_key');
-    const license_key = keyData || ('ent_' + crypto.randomBytes(16).toString('hex'));
+    // Generate license key (fail explicitly if RPC unavailable)
+    const { data: keyData, error: keyErr } = await supabase.rpc('gen_enterprise_license_key');
+    if (keyErr || !keyData) {
+      console.error('[enterprise] key generation RPC failed:', keyErr?.message);
+      return res.status(500).json({ error: 'License key generation failed.' });
+    }
+    const license_key = keyData;
 
     const expires = new Date();
     expires.setMonth(expires.getMonth() + (expires_months || 12));
@@ -150,7 +154,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       notes: notes || null,
     }).select().single();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     // Audit
     await supabase.from('enterprise_audit').insert({
@@ -169,10 +173,19 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
     const allowed = ['client_name', 'client_contact', 'machine_id', 'features',
                      'token_limit_monthly', 'max_qps', 'is_active', 'notes'];
     const updates = {};
-    for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+
+    // Input validation
+    for (const k of allowed) {
+      if (req.body[k] === undefined) continue;
+      const v = req.body[k];
+      if (k === 'token_limit_monthly' && (typeof v !== 'number' || v < 0)) continue;
+      if (k === 'max_qps' && (typeof v !== 'number' || v < 1 || v > 100000)) continue;
+      if (k === 'is_active' && typeof v !== 'boolean') continue;
+      updates[k] = v;
+    }
 
     // Handle renew (extend expiry)
-    if (req.body.extend_months) {
+    if (req.body.extend_months && Number.isInteger(req.body.extend_months) && req.body.extend_months > 0) {
       const { data: current } = await supabase
         .from('enterprise_licenses')
         .select('expires_at')
@@ -182,6 +195,15 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
         const base = new Date(current.expires_at) > new Date() ? new Date(current.expires_at) : new Date();
         base.setMonth(base.getMonth() + req.body.extend_months);
         updates.expires_at = base.toISOString();
+
+        // Audit extension
+        await supabase.from('enterprise_audit').insert({
+          license_id: req.params.id,
+          event_type: 'LICENSE_EXTEND',
+          detail: { extend_months: req.body.extend_months, new_expires_at: updates.expires_at },
+          actor: 'admin',
+          ip_address: req.ip,
+        });
       }
     }
 
@@ -193,7 +215,12 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
         event_type: 'LICENSE_REVOKE',
         detail: { reason: req.body.reason || 'Admin revoked' },
         actor: 'admin',
+        ip_address: req.ip,
       });
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update.' });
     }
 
     updates.updated_at = new Date().toISOString();
@@ -204,7 +231,10 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       .eq('id', req.params.id)
       .select()
       .single();
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      console.error('[enterprise] license update error:', error);
+      return res.status(500).json({ error: 'Database operation failed.' });
+    }
     return res.json({ license: data });
   });
 
@@ -351,7 +381,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       request_count: request_count || 0,
       breakdown: breakdown || {},
     });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     // Audit
     await supabase.from('enterprise_audit').insert({
@@ -406,7 +436,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       .from('enterprise_deployments')
       .select('*, enterprise_licenses(client_name, license_key, expires_at, is_active)')
       .order('last_heartbeat', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     // Mark offline if no heartbeat in 2 hours
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
@@ -436,7 +466,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
     if (license_id) query = query.eq('license_id', license_id);
 
     const { data, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     return res.json({ usage: data });
   });
@@ -450,7 +480,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       p_year: year,
       p_month: month,
     });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
     return res.json({ summary: data, period: `${year}-${String(month).padStart(2, '0')}` });
   });
 
@@ -470,7 +500,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
     if (event_type) query = query.eq('event_type', event_type);
 
     const { data, count, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     return res.json({ events: data, total: count });
   });
@@ -499,7 +529,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       is_current: !!set_current,
     }, { onConflict: 'version' }).select().single();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     // Audit
     await supabase.from('enterprise_audit').insert({
@@ -517,7 +547,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       .from('enterprise_releases')
       .select('*')
       .order('published_at', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) { console.error('[enterprise] DB error:', error.message); return res.status(500).json({ error: 'Database operation failed.' }); }
 
     // Enrich with deployment count per version
     const { data: deps } = await supabase
@@ -598,12 +628,21 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       .maybeSingle();
     if (!release) return res.status(404).json({ error: `Version ${to_version} not found.` });
 
-    // Store rollback intent in deployment metadata
+    // Store rollback intent — merge with existing metadata (atomic read-modify-write)
+    const { data: currentDep } = await supabase
+      .from('enterprise_deployments')
+      .select('metadata')
+      .eq('license_id', license_id)
+      .maybeSingle();
+
+    const mergedMeta = {
+      ...(currentDep?.metadata || {}),
+      rollback_to: to_version,
+      rollback_requested_at: new Date().toISOString(),
+    };
+
     await supabase.from('enterprise_deployments')
-      .update({
-        metadata: { rollback_to: to_version, rollback_requested_at: new Date().toISOString() },
-        updated_at: new Date().toISOString(),
-      })
+      .update({ metadata: mergedMeta, updated_at: new Date().toISOString() })
       .eq('license_id', license_id);
 
     // Audit

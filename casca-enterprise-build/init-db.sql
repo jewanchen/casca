@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS public.api_logs (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   prompt_hash      TEXT,
-  cx               TEXT NOT NULL,
+  cx               TEXT NOT NULL CHECK (cx IN ('LOW','MED','HIGH','AMBIG')),
   model_name       TEXT,
   tokens_in        INTEGER NOT NULL DEFAULT 0,
   tokens_out       INTEGER NOT NULL DEFAULT 0,
@@ -88,5 +88,20 @@ BEGIN
     FROM public.api_logs WHERE reported = FALSE;
 
   UPDATE public.api_logs SET reported = TRUE WHERE reported = FALSE;
+END;
+$$;
+
+-- Data retention: clean up old reported logs (keep 90 days)
+CREATE OR REPLACE FUNCTION public.cleanup_old_logs()
+RETURNS INTEGER LANGUAGE plpgsql AS $$
+DECLARE v_count INTEGER;
+BEGIN
+  WITH deleted AS (
+    DELETE FROM public.api_logs
+    WHERE reported = TRUE AND created_at < NOW() - INTERVAL '90 days'
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_count FROM deleted;
+  RETURN v_count;
 END;
 $$;

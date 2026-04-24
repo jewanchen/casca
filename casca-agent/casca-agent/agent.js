@@ -50,7 +50,11 @@ const VERSION_FILE      = path.join(__dirname, 'version.json');
 //  UTILITIES
 // ════════════════════════════════════════════════════════════════
 
+const VERBOSE = process.argv.includes('--verbose') || process.argv.includes('--debug')
+                || (process.env.LOG_LEVEL || '').toLowerCase() === 'debug';
+
 function log(level, msg, data) {
+  if (level === 'debug' && !VERBOSE) return;
   const ts = new Date().toISOString();
   const prefix = `[${ts}] [agent] [${level}]`;
   if (data) console.log(`${prefix} ${msg}`, JSON.stringify(data));
@@ -320,9 +324,35 @@ async function reportUsage() {
   if (ok) {
     log('info', `Usage reported: ${tokens} tokens, ${requests} requests`);
     lastReportedAt = now;
+    // Clear any queued offline reports
+    const queueFile = path.join(CACHE_DIR, 'usage_queue.json');
+    if (fs.existsSync(queueFile)) {
+      try {
+        const queued = JSON.parse(fs.readFileSync(queueFile, 'utf-8'));
+        if (queued.length > 0) {
+          log('info', `Flushing ${queued.length} queued offline reports...`);
+          for (const q of queued) {
+            await fetchJson(`${CLOUD_URL}/api/enterprise/usage/report`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ license_key: LICENSE_KEY, ...q }),
+            });
+          }
+        }
+        fs.unlinkSync(queueFile);
+      } catch {}
+    }
   } else {
-    log('warn', `Usage report failed: ${error || 'Unknown'}`);
-    // Don't update lastReportedAt so it retries next cycle
+    log('warn', `Usage report failed: ${error || 'Unknown'}. Queuing locally.`);
+    // Queue offline for retry
+    ensureCacheDir();
+    const queueFile = path.join(CACHE_DIR, 'usage_queue.json');
+    let queue = [];
+    try { queue = JSON.parse(fs.readFileSync(queueFile, 'utf-8')); } catch {}
+    queue.push({ period_start: since, period_end: now, total_tokens: tokens, request_count: requests, breakdown });
+    if (queue.length > 1000) queue = queue.slice(-500); // cap at 500
+    fs.writeFileSync(queueFile, JSON.stringify(queue));
+    log('info', `Queued (${queue.length} pending reports).`);
   }
 }
 
@@ -376,14 +406,15 @@ async function applyUpdate(updateInfo) {
 
     const buffer = Buffer.from(await res.arrayBuffer());
 
-    // Verify checksum
-    if (updateInfo.checksum_sha256) {
-      const hash = crypto.createHash('sha256').update(buffer).digest('hex');
-      if (hash !== updateInfo.checksum_sha256) {
-        throw new Error(`Checksum mismatch: expected ${updateInfo.checksum_sha256.slice(0, 16)}..., got ${hash.slice(0, 16)}...`);
-      }
-      log('info', 'Checksum verified ✓');
+    // Verify checksum (MANDATORY — reject updates without checksum)
+    if (!updateInfo.checksum_sha256) {
+      throw new Error('Release missing required checksum. Refusing update for security.');
     }
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+    if (hash !== updateInfo.checksum_sha256) {
+      throw new Error(`Checksum mismatch: expected ${updateInfo.checksum_sha256.slice(0, 16)}..., got ${hash.slice(0, 16)}...`);
+    }
+    log('info', 'Checksum verified ✓');
 
     // Save new binary
     fs.writeFileSync(downloadPath, buffer);
@@ -401,12 +432,13 @@ async function applyUpdate(updateInfo) {
     fs.copyFileSync(downloadPath, currentBinary);
     fs.chmodSync(currentBinary, 0o755);
 
-    // Update version file
-    fs.writeFileSync(VERSION_FILE, JSON.stringify({
-      version: updateInfo.new_version,
-      updated_at: new Date().toISOString(),
-      previous_version: getEngineVersion(),
-    }));
+    // Update version file (merge, preserve history)
+    let versionData = {};
+    try { versionData = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf-8')); } catch {}
+    versionData.previous_version = versionData.version || 'unknown';
+    versionData.version = updateInfo.new_version;
+    versionData.updated_at = new Date().toISOString();
+    fs.writeFileSync(VERSION_FILE, JSON.stringify(versionData, null, 2));
 
     log('info', `Update applied: ${updateInfo.new_version}. Restart engine to activate.`);
 
@@ -499,15 +531,18 @@ async function main() {
 
   log('info', 'Agent running. Press Ctrl+C to stop.');
 
-  // Keep process alive
-  process.on('SIGINT', () => {
-    log('info', 'Agent shutting down.');
+  // Graceful shutdown
+  let shuttingDown = false;
+  async function gracefulShutdown(signal) {
+    if (shuttingDown) { log('warn', 'Force shutdown.'); process.exit(1); }
+    shuttingDown = true;
+    log('info', `${signal} received. Sending final heartbeat...`);
+    try { await sendHeartbeat(); } catch {}
+    log('info', 'Goodbye.');
     process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    log('info', 'Agent shutting down (SIGTERM).');
-    process.exit(0);
-  });
+  }
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 }
 
 main().catch(err => {
