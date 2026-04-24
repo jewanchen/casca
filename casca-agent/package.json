@@ -1,0 +1,16 @@
+{
+  "name": "casca-agent",
+  "version": "1.0.0",
+  "description": "Casca Enterprise Agent — license validation, usage reporting, update management",
+  "type": "module",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
