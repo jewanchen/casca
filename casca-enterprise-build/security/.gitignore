@@ -1,0 +1,4 @@
+# NEVER commit private keys
+license-private.pem
+*.key
+*.p12
