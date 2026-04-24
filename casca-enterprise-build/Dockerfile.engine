@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════
+# Casca Enterprise Engine — compiled binary, no source code
+# ══════════════════════════════════════════════════════════════
+
+FROM node:20-slim AS builder
+
+WORKDIR /build
+
+# Copy source for compilation
+COPY server-v2.js casca-classifier.cjs casca-path-b.js casca-enterprise-api.js package.json ./
+
+# Install deps
+RUN npm install --omit=dev
+
+# Install pkg
+RUN npm install -g @yao-pkg/pkg
+
+# Create CJS entry point (pkg requires CJS)
+RUN echo 'async function main() { try { await import("./server-v2.js"); } catch(e) { console.error("Fatal:", e.message); process.exit(1); } } main();' > entry.cjs
+
+# Compile to binary
+RUN pkg entry.cjs \
+    --targets node20-linux-x64 \
+    --output /build/casca-engine \
+    --compress GZip
+
+# ── Production image (no source, only binary) ────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy ONLY the compiled binary (no .js source files)
+COPY --from=builder /build/casca-engine ./casca-engine
+RUN chmod +x casca-engine
+
+# Copy classifier as compiled asset (obfuscated in production)
+COPY --from=builder /build/casca-classifier.cjs ./casca-classifier.cjs
+
+EXPOSE 3001
+
+ENV PORT=3001
+ENV NODE_ENV=production
+
+CMD ["./casca-engine"]

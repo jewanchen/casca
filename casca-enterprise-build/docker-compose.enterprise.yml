@@ -1,0 +1,106 @@
+# ══════════════════════════════════════════════════════════════
+# Casca Enterprise — On-Premise Deployment
+#
+# Usage:
+#   cp .env.example .env
+#   # Edit .env with your license key and settings
+#   docker compose -f docker-compose.enterprise.yml up -d
+#
+# Services:
+#   casca-engine  — compiled API gateway + classifier (port 3001)
+#   casca-minilm  — L2 MiniLM inference (internal only)
+#   casca-agent   — license + usage + updates daemon
+#   db            — local PostgreSQL for logs/cache
+# ══════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+
+  # ── Casca Engine (compiled binary) ──────────────────
+  casca-engine:
+    image: casca-enterprise-engine:latest
+    ports:
+      - "${ENGINE_PORT:-3001}:3001"
+    environment:
+      - PORT=3001
+      - SUPABASE_URL=                              # Not used in enterprise (local DB)
+      - SUPABASE_SERVICE_KEY=                       # Not used in enterprise
+      - DATABASE_URL=postgresql://casca:${DB_PASSWORD:-cascapass}@db:5432/casca
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - LLM_TIMEOUT_MS=${LLM_TIMEOUT_MS:-30000}
+      - CACHE_PROMOTE_THRESHOLD=3
+      - CACHE_PROMOTE_WINDOW_H=24
+      - CACHE_TTL_DAYS=7
+      - MINILM_SERVICE_URL=http://casca-minilm:8000
+      - PATH_B_ENABLED=${PATH_B_ENABLED:-false}
+      - PATH_B_CONFIDENCE_THRESHOLD=86
+      - CASCA_LICENSE_KEY=${CASCA_LICENSE_KEY}
+      - ADMIN_SECRET=${ADMIN_SECRET:-change_me}
+    depends_on:
+      db:
+        condition: service_healthy
+      casca-minilm:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── MiniLM L2 Classifier ────────────────────────────
+  casca-minilm:
+    image: casca-enterprise-minilm:latest
+    expose:
+      - "8000"
+    environment:
+      - PORT=8000
+      - MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+      - NUM_LABELS=3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Casca Agent (license + usage + updates) ─────────
+  casca-agent:
+    image: casca-enterprise-agent:latest
+    environment:
+      - CASCA_LICENSE_KEY=${CASCA_LICENSE_KEY}
+      - CASCA_CLOUD_URL=${CASCA_CLOUD_URL:-https://api.cascaio.com}
+      - CASCA_ENGINE_URL=http://casca-engine:3001
+      - DATABASE_URL=postgresql://casca:${DB_PASSWORD:-cascapass}@db:5432/casca
+      - HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL:-3600}
+      - USAGE_REPORT_INTERVAL=${USAGE_REPORT_INTERVAL:-3600}
+      - LICENSE_CHECK_INTERVAL=${LICENSE_CHECK_INTERVAL:-86400}
+      - UPDATE_CHECK_INTERVAL=${UPDATE_CHECK_INTERVAL:-21600}
+      - GRACE_PERIOD_DAYS=${GRACE_PERIOD_DAYS:-7}
+      - AUTO_UPDATE=${AUTO_UPDATE:-false}
+    depends_on:
+      casca-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Local PostgreSQL ────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=casca
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-cascapass}
+      - POSTGRES_DB=casca
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casca"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
