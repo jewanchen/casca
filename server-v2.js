@@ -1650,6 +1650,40 @@ app.get('/health', (_req, res) => res.json({
   stripe:  !!stripe, ts: new Date().toISOString(),
 }));
 
+/**
+ * POST /api/classify — Classification only (no LLM call)
+ * Returns cx, model, rule, confidence in <20ms.
+ * Used by terminal UI to show instant routing badge before LLM responds.
+ */
+app.post('/api/classify', express.json(), (req, res) => {
+  const t0 = Date.now();
+  const { messages, uc, qualityTier } = req.body;
+  if (!Array.isArray(messages) || !messages.length)
+    return res.status(400).json({ error: '`messages` array is required.' });
+
+  const lastUser = [...messages].reverse().find(m => m.role === 'user');
+  const { promptText } = injectAttachmentContext(messages);
+  if (!promptText) return res.status(400).json({ error: 'No user message content.' });
+
+  try {
+    const result = cascaRoute(
+      promptText, uc || 'general', qualityTier || 'default', null,
+    );
+    return res.json({
+      cx:         result.cx,
+      model:      result.model,
+      rule:       result.rule,
+      confidence: result.confidence,
+      lang:       result.lang,
+      modal:      result.modal,
+      pct:        result.pct,
+      latencyMs:  Date.now() - t0,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Classification error.' });
+  }
+});
+
 // ── Prometheus metrics scrape endpoint ───────────────────────────
 // Protected: requires x-admin-secret header (same as all admin endpoints)
 // Grafana config: add custom header  x-admin-secret: <ADMIN_SECRET>

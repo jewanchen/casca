@@ -1636,35 +1636,67 @@ async function sendMessage() {
   const t0 = Date.now();
 
   try {
-    let result;
     if (cascaEnabled) {
-      result = await callCasca(messages);
+      // ── PARALLEL: classify instantly + LLM in background ──
+
+      // 1. Fire classify-only (returns in ~20ms)
+      const classifyPromise = fetch(`${CONFIG.API_BASE}/api/classify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, uc: 'general' }),
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+      // 2. Fire full chat (returns in ~2s)
+      const chatPromise = callCasca(messages);
+
+      // 3. Show classification badge as soon as it arrives
+      const classify = await classifyPromise;
+      if (classify && classify.cx) {
+        const cx = classify.cx.toUpperCase();
+        appendRoutingBadge(cx, classify.model, classify.pct);
+        updateDashboard({
+          cx:       cx,
+          model:    classify.model || CONFIG.DEFAULT_MODEL,
+          pct:      classify.pct   || 0,
+          rule:     classify.rule  || '',
+          latency:  classify.latencyMs || 0,
+          tokens:   0,
+          cost:     0,
+          cacheHit: false,
+        });
+      }
+
+      // 4. Wait for LLM response
+      const result = await chatPromise;
+      const latencyMs = Date.now() - t0;
+      removeThinking(thinkId);
+
+      const content = result.content;
+      const casca = result.casca || {};
+
+      // Update dashboard with real token/cost data from LLM response
+      if (casca.cx) {
+        updateDashboard({
+          cx:       (casca.cx || '').toUpperCase(),
+          model:    casca.model || CONFIG.DEFAULT_MODEL,
+          pct:      casca.pct   || 0,
+          rule:     casca.rule  || '',
+          latency:  latencyMs,
+          tokens:   result.tokens || 0,
+          cost:     casca.costUsd || estimateCost(casca.model, result.tokens),
+          cacheHit: casca.cacheHit || false,
+        });
+      }
+
+      messages.push({ role: 'assistant', content });
+      appendBubble('ai', content, null, casca.model, null);
+
     } else {
-      result = await callDirect(messages);
-    }
+      // ── Direct mode (no Casca Engine) ──
+      const result = await callDirect(messages);
+      const latencyMs = Date.now() - t0;
+      removeThinking(thinkId);
 
-    const latencyMs = Date.now() - t0;
-    removeThinking(thinkId);
-
-    const content = result.content;
-    const casca   = result.casca || {};
-    const cx = (casca.cx || '').toUpperCase();
-
-    // ── Step 1: Show classification IMMEDIATELY ──
-    if (cascaEnabled && cx) {
-      updateDashboard({
-        cx:       cx,
-        model:    casca.model || CONFIG.DEFAULT_MODEL,
-        pct:      casca.pct   || 0,
-        rule:     casca.rule  || '',
-        latency:  latencyMs,
-        tokens:   result.tokens || 0,
-        cost:     casca.costUsd || estimateCost(casca.model, result.tokens),
-        cacheHit: casca.cacheHit || false,
-      });
-      // Show routing badge before AI response
-      appendRoutingBadge(cx, casca.model, casca.pct);
-    } else {
       updateDashboard({
         cx:      null,
         model:   CONFIG.DEFAULT_MODEL,
@@ -1674,13 +1706,10 @@ async function sendMessage() {
         tokens:  result.tokens || 0,
         cost:    estimateCost(CONFIG.DEFAULT_MODEL, result.tokens),
       });
+
+      messages.push({ role: 'assistant', content: result.content });
+      appendBubble('ai', result.content, null, CONFIG.DEFAULT_MODEL, null);
     }
-
-    // ── Step 2: Show AI response with brief delay for visual separation ──
-    await new Promise(r => setTimeout(r, 150));
-
-    messages.push({ role: 'assistant', content });
-    appendBubble('ai', content, null, casca.model, null);
 
   } catch (err) {
     removeThinking(thinkId);
