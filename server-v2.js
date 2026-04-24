@@ -35,6 +35,7 @@ import {
   piiMask, llmJudge, runTrainingPipeline,
   getDynamicConfidence, predictMiniLM, loadRuleAccuracyCache,
 } from './casca-path-b.js';
+import { registerEnterpriseRoutes } from './casca-enterprise-api.js';
 
 // ── Load CommonJS classifier (UMD) from ESM server ──────────────
 // IMPORTANT: file MUST be .cjs so Node.js treats it as CommonJS
@@ -1816,7 +1817,7 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
   //    3. Use L2 result if available, otherwise keep L1
   let l2Result = null;
   const pathBEnabled = (process.env.PATH_B_ENABLED || '').toLowerCase() === 'true';
-  const confThreshold = parseInt(process.env.PATH_B_CONFIDENCE_THRESHOLD || '86', 10);
+  const confThreshold = parseInt(process.env.PATH_B_CONFIDENCE_THRESHOLD || '80', 10);
 
   if (pathBEnabled && classifyResult.confidence) {
     const dynConf = await getDynamicConfidence(
@@ -3094,10 +3095,7 @@ app.get('/api/admin/pathb/minilm', requireAdmin, async (req, res) => {
 app.post('/api/admin/pathb/minilm/train', requireAdmin, async (req, res) => {
   const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000); // 30s timeout for trigger (async now)
-    const r = await fetch(`${minilmUrl}/train/trigger`, { method: 'POST', signal: controller.signal });
-    clearTimeout(timer);
+    const r = await fetch(`${minilmUrl}/train/trigger`, { method: 'POST' });
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json(data);
     return res.json(data);
@@ -3113,59 +3111,12 @@ app.post('/api/admin/pathb/minilm/train', requireAdmin, async (req, res) => {
 app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) => {
   const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
-    const r = await fetch(`${minilmUrl}/train/cold-start`, { method: 'POST', signal: controller.signal });
-    clearTimeout(timer);
+    const r = await fetch(`${minilmUrl}/train/cold-start`, { method: 'POST' });
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json(data);
     return res.json(data);
   } catch (err) {
     return res.status(502).json({ error: 'MiniLM service unreachable: ' + err.message });
-  }
-});
-
-/**
- * POST /api/admin/pathb/minilm/activate
- * 將指定版本設為 active，停用其他版本，並通知 MiniLM service 載入新 checkpoint
- */
-app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
-  const { version } = req.body || {};
-  if (!version) return res.status(400).json({ error: 'Missing version' });
-
-  try {
-    const { error: deacErr } = await supabase
-      .from('minilm_versions')
-      .update({ is_active: false })
-      .neq('version', version);
-    if (deacErr) return res.status(500).json({ error: 'deactivate failed: ' + deacErr.message });
-
-    const { data: activated, error: actErr } = await supabase
-      .from('minilm_versions')
-      .update({ is_active: true })
-      .eq('version', version)
-      .select();
-    if (actErr) return res.status(500).json({ error: 'activate failed: ' + actErr.message });
-    if (!activated || activated.length === 0) {
-      return res.status(404).json({ error: 'version not found: ' + version });
-    }
-
-    // Notify MiniLM service to reload
-    const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
-    let reloaded = false;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
-      const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST', signal: controller.signal });
-      clearTimeout(timer);
-      if (r.ok) reloaded = true;
-    } catch (reloadErr) {
-      console.log(`[pathb] MiniLM reload notify failed (non-blocking): ${reloadErr.message}`);
-    }
-
-    return res.json({ ok: true, version, reloaded });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -3564,6 +3515,8 @@ async function start() {
   if (!stripe) console.warn('[casca] STRIPE_SECRET_KEY not set — billing endpoints disabled.');
   scheduleTrialExpiry();
   scheduleWeeklyReset();
+  // ── Enterprise self-hosted management routes ──
+  registerEnterpriseRoutes(app, supabase, requireAdmin);
   app.listen(PORT, () => {
     console.log(`🚀 Casca v3 API Proxy → http://localhost:${PORT}`);
     console.log(`   Providers: ${providerRegistry.size}  |  Stripe: ${!!stripe}  |  Cache TTL: ${CACHE_TTL_DAYS}d`);
