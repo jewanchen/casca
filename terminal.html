@@ -1629,82 +1629,69 @@ async function sendMessage() {
   ta.value = '';
   ta.style.height = 'auto';
 
-  // Show thinking
-  const thinkId = appendThinking();
   setLoading(true);
-
   const t0 = Date.now();
 
   try {
     if (cascaEnabled) {
-      // ── PARALLEL: classify instantly + LLM in background ──
+      // ── Create live AI bubble (shows thinking dots immediately) ──
+      const liveBubble = createLiveAiBubble();
 
-      // 1. Fire classify-only (returns in ~20ms)
+      // ── PARALLEL: classify instantly + LLM in background ──
       const classifyPromise = fetch(`${CONFIG.API_BASE}/api/classify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages, uc: 'general' }),
       }).then(r => r.ok ? r.json() : null).catch(() => null);
 
-      // 2. Fire full chat (returns in ~2s)
       const chatPromise = callCasca(messages);
 
-      // 3. Show classification badge as soon as it arrives
+      // ── Classification arrives in ~20ms → show in bubble ──
       const classify = await classifyPromise;
       if (classify && classify.cx) {
         const cx = classify.cx.toUpperCase();
-        appendRoutingBadge(cx, classify.model, classify.pct);
+        liveBubble.showClassification(cx, classify.model, classify.pct);
         updateDashboard({
-          cx:       cx,
-          model:    classify.model || CONFIG.DEFAULT_MODEL,
-          pct:      classify.pct   || 0,
-          rule:     classify.rule  || '',
-          latency:  classify.latencyMs || 0,
-          tokens:   0,
-          cost:     0,
-          cacheHit: false,
+          cx, model: classify.model || CONFIG.DEFAULT_MODEL,
+          pct: classify.pct || 0, rule: classify.rule || '',
+          latency: classify.latencyMs || 0, tokens: 0, cost: 0, cacheHit: false,
         });
       }
 
-      // 4. Wait for LLM response
+      // ── LLM response arrives in ~2s → fill in the bubble ──
       const result = await chatPromise;
       const latencyMs = Date.now() - t0;
-      removeThinking(thinkId);
-
       const content = result.content;
       const casca = result.casca || {};
 
-      // Update dashboard with real token/cost data from LLM response
+      liveBubble.showResponse(content, casca.model);
+
+      // Update dashboard with real data
       if (casca.cx) {
         updateDashboard({
-          cx:       (casca.cx || '').toUpperCase(),
-          model:    casca.model || CONFIG.DEFAULT_MODEL,
-          pct:      casca.pct   || 0,
-          rule:     casca.rule  || '',
-          latency:  latencyMs,
-          tokens:   result.tokens || 0,
-          cost:     casca.costUsd || estimateCost(casca.model, result.tokens),
+          cx: (casca.cx || '').toUpperCase(),
+          model: casca.model || CONFIG.DEFAULT_MODEL,
+          pct: casca.pct || 0, rule: casca.rule || '',
+          latency: latencyMs, tokens: result.tokens || 0,
+          cost: casca.costUsd || estimateCost(casca.model, result.tokens),
           cacheHit: casca.cacheHit || false,
         });
       }
 
       messages.push({ role: 'assistant', content });
-      appendBubble('ai', content, null, casca.model, null);
 
     } else {
       // ── Direct mode (no Casca Engine) ──
+      const thinkId = appendThinking();
       const result = await callDirect(messages);
       const latencyMs = Date.now() - t0;
       removeThinking(thinkId);
 
       updateDashboard({
-        cx:      null,
-        model:   CONFIG.DEFAULT_MODEL,
-        pct:     0,
-        rule:    'Direct mode — Casca Engine OFF',
-        latency: latencyMs,
-        tokens:  result.tokens || 0,
-        cost:    estimateCost(CONFIG.DEFAULT_MODEL, result.tokens),
+        cx: null, model: CONFIG.DEFAULT_MODEL, pct: 0,
+        rule: 'Direct mode — Casca Engine OFF',
+        latency: latencyMs, tokens: result.tokens || 0,
+        cost: estimateCost(CONFIG.DEFAULT_MODEL, result.tokens),
       });
 
       messages.push({ role: 'assistant', content: result.content });
@@ -1712,7 +1699,6 @@ async function sendMessage() {
     }
 
   } catch (err) {
-    removeThinking(thinkId);
     appendBubble('ai', `⚠ 錯誤：${err.message}`, null, null, null, true);
   }
 
@@ -1918,19 +1904,76 @@ function appendBubble(role, text, cx, model, pct, isError = false) {
 }
 
 function appendRoutingBadge(cx, model, pct) {
+  // Legacy — kept for backward compat but not used in new flow
+}
+
+/**
+ * Create a "live" AI response bubble that shows classification first,
+ * then fills in the LLM response when it arrives.
+ *
+ * Returns an object with methods:
+ *   .showClassification(cx, model, pct) — instantly shows badge + "waiting"
+ *   .showResponse(content) — replaces waiting animation with AI text
+ *   .showError(msg) — shows error state
+ *   .remove() — remove the bubble entirely
+ */
+function createLiveAiBubble() {
+  const id = 'live-ai-' + (++thinkCounter);
   const container = document.getElementById('chatMessages');
   const row = document.createElement('div');
+  row.id = id;
   row.className = 'msg-row';
-  const cfg = CX_CONFIG[cx] || {};
   row.innerHTML = `
-    <div class="msg-avatar ai-av" style="visibility:hidden">AI</div>
+    <div class="msg-avatar ai-av">AI</div>
     <div class="msg-content">
-      <div><span class="routing-badge ${cfg.rb || ''}">${cfg.icon || ''} ${cx}${pct > 0 ? ' · -' + pct + '%' : ''}${model ? ' · ' + model : ''}</span></div>
+      <div id="${id}-badge" style="margin-bottom:6px"></div>
+      <div id="${id}-body">
+        <div class="thinking">
+          <div class="thinking-dot"></div>
+          <div class="thinking-dot"></div>
+          <div class="thinking-dot"></div>
+        </div>
+      </div>
     </div>`;
   container.appendChild(row);
   container.scrollTop = container.scrollHeight;
+
+  return {
+    id,
+    showClassification(cx, model, pct) {
+      const badgeEl = document.getElementById(id + '-badge');
+      if (!badgeEl) return;
+      const cfg = CX_CONFIG[cx] || {};
+      const cxLabels = { HIGH: '偵測到高複雜任務', MED: '偵測到中等複雜任務', LOW: '偵測到簡單查詢', CACHE: '快取命中' };
+      badgeEl.innerHTML = `<span class="routing-badge ${cfg.rb || ''}">${cfg.icon || ''} ${cx}${pct > 0 ? ' · 省 ' + pct + '%' : ''}${model ? ' · ' + model : ''}</span>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">${cxLabels[cx] || ''}。AI 正在回覆中...</div>`;
+      container.scrollTop = container.scrollHeight;
+    },
+    showResponse(content, model) {
+      const bodyEl = document.getElementById(id + '-body');
+      if (!bodyEl) return;
+      // Remove "AI 正在回覆中..." text
+      const badgeEl = document.getElementById(id + '-badge');
+      if (badgeEl) {
+        const waitingText = badgeEl.querySelector('div');
+        if (waitingText) waitingText.remove();
+      }
+      bodyEl.innerHTML = `<div class="msg-text">${formatMarkdown(content)}</div>`;
+      container.scrollTop = container.scrollHeight;
+    },
+    showError(msg) {
+      const bodyEl = document.getElementById(id + '-body');
+      if (!bodyEl) return;
+      bodyEl.innerHTML = `<div class="msg-text" style="color:var(--red)">⚠ ${msg}</div>`;
+    },
+    remove() {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    },
+  };
 }
 
+// Legacy thinking functions (used by direct mode)
 function appendThinking() {
   const id        = 'think-' + (++thinkCounter);
   const container = document.getElementById('chatMessages');
