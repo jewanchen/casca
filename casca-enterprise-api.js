@@ -474,7 +474,104 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       .select('*')
       .order('published_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
-    return res.json({ releases: data });
+
+    // Enrich with deployment count per version
+    const { data: deps } = await supabase
+      .from('enterprise_deployments')
+      .select('engine_version');
+    const versionCounts = {};
+    for (const d of (deps || [])) {
+      if (d.engine_version) versionCounts[d.engine_version] = (versionCounts[d.engine_version] || 0) + 1;
+    }
+    const releases = (data || []).map(r => ({
+      ...r,
+      deployed_count: versionCounts[r.engine_version] || 0,
+    }));
+
+    return res.json({ releases });
+  });
+
+  /**
+   * POST /api/enterprise/updates/push — Push update to specific clients
+   * Body: { version, target_license_ids: [...] | "all", schedule_at? }
+   *
+   * This doesn't directly push to agents (agents pull on their schedule).
+   * Instead, it creates a targeted update record that the agent's /updates/check
+   * will pick up. For immediate push, agent check interval should be short.
+   */
+  app.post('/api/enterprise/updates/push', requireAdmin, async (req, res) => {
+    const { version, target_license_ids, schedule_at } = req.body;
+    if (!version) return res.status(400).json({ error: 'version required.' });
+
+    // Verify version exists
+    const { data: release } = await supabase
+      .from('enterprise_releases')
+      .select('*')
+      .eq('version', version)
+      .maybeSingle();
+    if (!release) return res.status(404).json({ error: `Version ${version} not found.` });
+
+    // Mark this version as current (agents will pick it up on next check)
+    await supabase.from('enterprise_releases').update({ is_current: false }).neq('version', '__none__');
+    await supabase.from('enterprise_releases').update({ is_current: true }).eq('version', version);
+
+    // Audit for each target
+    const targets = target_license_ids === 'all' ? ['all'] : (target_license_ids || []);
+    for (const t of targets) {
+      await supabase.from('enterprise_audit').insert({
+        license_id: t === 'all' ? null : t,
+        event_type: 'UPDATE_PUSH',
+        detail: { version, target: t, schedule_at: schedule_at || 'immediate' },
+        actor: 'admin',
+      });
+    }
+
+    console.log(`[enterprise] update pushed: v${version} → ${targets.length} target(s)`);
+    return res.json({
+      ok: true,
+      version,
+      targets: targets.length,
+      message: `Version ${version} set as current. Agents will pick up on next check cycle.`,
+    });
+  });
+
+  /**
+   * POST /api/enterprise/updates/rollback — Force rollback a client to previous version
+   * Body: { license_id, to_version }
+   *
+   * This records a rollback intent. The agent picks it up via a special field
+   * in the /updates/check response.
+   */
+  app.post('/api/enterprise/updates/rollback', requireAdmin, async (req, res) => {
+    const { license_id, to_version } = req.body;
+    if (!license_id || !to_version) return res.status(400).json({ error: 'license_id and to_version required.' });
+
+    // Verify target version exists
+    const { data: release } = await supabase
+      .from('enterprise_releases')
+      .select('version')
+      .eq('version', to_version)
+      .maybeSingle();
+    if (!release) return res.status(404).json({ error: `Version ${to_version} not found.` });
+
+    // Store rollback intent in deployment metadata
+    await supabase.from('enterprise_deployments')
+      .update({
+        metadata: { rollback_to: to_version, rollback_requested_at: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('license_id', license_id);
+
+    // Audit
+    await supabase.from('enterprise_audit').insert({
+      license_id,
+      event_type: 'UPDATE_ROLLBACK',
+      detail: { to_version },
+      actor: 'admin',
+    });
+
+    console.log(`[enterprise] rollback requested: license ${license_id.slice(0,8)} → v${to_version}`);
+    return res.json({ ok: true, to_version, message: 'Rollback queued. Agent will apply on next check.' });
   });
 
   console.log('[enterprise] API routes registered');
