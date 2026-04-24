@@ -15,19 +15,78 @@
  */
 
 import crypto from 'crypto';
+import fs from 'fs';
 
-// ── Offline license signing ─────────────────────────────────
-// In production, use RSA key pair stored in env vars.
-// For now, HMAC-SHA256 with ADMIN_SECRET as key.
-function signLicense(payload, secret) {
-  const data = JSON.stringify(payload);
-  const sig = crypto.createHmac('sha256', secret).update(data).digest('hex');
-  return { data: payload, signature: sig };
+// ════════════════════════════════════════════════════════════════
+//  OFFLINE LICENSE SIGNING — RSA-4096
+//  Private key: env var LICENSE_SIGNING_KEY (or file)
+//  Public key:  embedded in agent binary for verification
+// ════════════════════════════════════════════════════════════════
+
+function getSigningKey() {
+  // Try env var first, then file
+  if (process.env.LICENSE_SIGNING_KEY) return process.env.LICENSE_SIGNING_KEY;
+  try {
+    const keyPath = new URL('./casca-enterprise-build/security/license-private.pem', import.meta.url);
+    return fs.readFileSync(keyPath, 'utf-8');
+  } catch { return null; }
 }
 
-function verifyLicenseSignature(license, secret) {
-  const sig = crypto.createHmac('sha256', secret).update(JSON.stringify(license.data)).digest('hex');
-  return sig === license.signature;
+function signLicense(payload) {
+  const privateKey = getSigningKey();
+  if (!privateKey) throw new Error('LICENSE_SIGNING_KEY not configured. Run generate-keys.sh first.');
+  const data = JSON.stringify(payload);
+  const sig = crypto.createSign('SHA256').update(data).sign(privateKey, 'hex');
+  return { data: payload, signature: sig, algorithm: 'RSA-SHA256' };
+}
+
+function verifyLicenseSignature(license, publicKey) {
+  try {
+    const verify = crypto.createVerify('SHA256');
+    verify.update(JSON.stringify(license.data));
+    return verify.verify(publicKey, license.signature, 'hex');
+  } catch { return false; }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RATE LIMITING — per license_key for agent endpoints
+// ════════════════════════════════════════════════════════════════
+const agentRateLimits = new Map(); // key → { count, resetAt }
+setInterval(() => agentRateLimits.clear(), 120_000); // cleanup every 2 min
+
+function checkAgentRateLimit(licenseKey, maxPerMinute = 30) {
+  const now = Date.now();
+  const bucket = agentRateLimits.get(licenseKey) || { count: 0, resetAt: now + 60_000 };
+  if (now >= bucket.resetAt) { bucket.count = 1; bucket.resetAt = now + 60_000; }
+  else if (bucket.count >= maxPerMinute) return false;
+  else bucket.count++;
+  agentRateLimits.set(licenseKey, bucket);
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SHARED: validate license key + expiry + active
+// ════════════════════════════════════════════════════════════════
+async function validateAgentLicense(supabase, licenseKey, req) {
+  if (!licenseKey) return { valid: false, status: 400, error: 'license_key required.' };
+  if (!checkAgentRateLimit(licenseKey)) return { valid: false, status: 429, error: 'Rate limit exceeded.' };
+
+  const { data: license } = await supabase
+    .from('enterprise_licenses')
+    .select('id, is_active, expires_at, machine_id')
+    .eq('license_key', licenseKey)
+    .maybeSingle();
+
+  if (!license || !license.is_active) return { valid: false, status: 403, error: 'Invalid or revoked license.' };
+  if (new Date(license.expires_at) < new Date()) {
+    await supabase.from('enterprise_audit').insert({
+      license_id: license.id, event_type: 'LICENSE_EXPIRED',
+      detail: { expired_at: license.expires_at }, actor: 'agent', ip_address: req?.ip,
+    });
+    return { valid: false, status: 403, error: 'License expired.', expired_at: license.expires_at };
+  }
+
+  return { valid: true, license };
 }
 
 export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
@@ -171,7 +230,9 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
       version: 1,
     };
 
-    const signed = signLicense(payload, ADMIN_SECRET);
+    let signed;
+    try { signed = signLicense(payload); }
+    catch (err) { return res.status(500).json({ error: err.message }); }
 
     // Audit
     await supabase.from('enterprise_audit').insert({
@@ -249,17 +310,10 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
   app.post('/api/enterprise/heartbeat', async (req, res) => {
     const { license_key, machine_id, engine_version, minilm_version,
             agent_version, os_info, cpu_cores, ram_gb, metadata } = req.body;
-    if (!license_key) return res.status(400).json({ error: 'license_key required.' });
 
-    const { data: license } = await supabase
-      .from('enterprise_licenses')
-      .select('id, is_active')
-      .eq('license_key', license_key)
-      .maybeSingle();
-
-    if (!license || !license.is_active) {
-      return res.status(403).json({ error: 'Invalid license.' });
-    }
+    const check = await validateAgentLicense(supabase, license_key, req);
+    if (!check.valid) return res.status(check.status).json({ error: check.error });
+    const license = check.license;
 
     // Upsert deployment record
     await supabase.from('enterprise_deployments').upsert({
@@ -284,14 +338,10 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
   app.post('/api/enterprise/usage/report', async (req, res) => {
     const { license_key, period_start, period_end,
             total_tokens, request_count, breakdown } = req.body;
-    if (!license_key) return res.status(400).json({ error: 'license_key required.' });
 
-    const { data: license } = await supabase
-      .from('enterprise_licenses')
-      .select('id')
-      .eq('license_key', license_key)
-      .maybeSingle();
-    if (!license) return res.status(403).json({ error: 'Invalid license.' });
+    const check = await validateAgentLicense(supabase, license_key, req);
+    if (!check.valid) return res.status(check.status).json({ error: check.error });
+    const license = check.license;
 
     const { error } = await supabase.from('enterprise_usage').insert({
       license_id: license.id,
@@ -318,16 +368,10 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
   /** GET /api/enterprise/updates/check — Agent checks for updates */
   app.get('/api/enterprise/updates/check', async (req, res) => {
     const { license_key, current_version } = req.query;
-    if (!license_key) return res.status(400).json({ error: 'license_key required.' });
 
-    const { data: license } = await supabase
-      .from('enterprise_licenses')
-      .select('id, is_active')
-      .eq('license_key', license_key)
-      .maybeSingle();
-    if (!license || !license.is_active) {
-      return res.status(403).json({ error: 'Invalid license.' });
-    }
+    const check = await validateAgentLicense(supabase, license_key, req);
+    if (!check.valid) return res.status(check.status).json({ error: check.error });
+    const license = check.license;
 
     // Get latest current release
     const { data: latest } = await supabase
@@ -440,7 +484,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
 
     // If set_current, unmark all others
     if (set_current) {
-      await supabase.from('enterprise_releases').update({ is_current: false }).neq('version', '__none__');
+      await supabase.from('enterprise_releases').update({ is_current: false }).eq('is_current', true);
     }
 
     const { data, error } = await supabase.from('enterprise_releases').upsert({
@@ -512,7 +556,7 @@ export function registerEnterpriseRoutes(app, supabase, requireAdmin) {
     if (!release) return res.status(404).json({ error: `Version ${version} not found.` });
 
     // Mark this version as current (agents will pick it up on next check)
-    await supabase.from('enterprise_releases').update({ is_current: false }).neq('version', '__none__');
+    await supabase.from('enterprise_releases').update({ is_current: false }).eq('is_current', true);
     await supabase.from('enterprise_releases').update({ is_current: true }).eq('version', version);
 
     // Audit for each target

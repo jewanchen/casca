@@ -25,22 +25,41 @@ RUN pkg entry.cjs \
     --compress GZip
 
 # ── Production image (no source, only binary) ────────────────
+# ── Production image (no source, only binary) ────────────────
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y ca-certificates curl && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Non-root user for security
+RUN useradd -m -u 1000 -s /bin/bash casca
 
 WORKDIR /app
 
 # Copy ONLY the compiled binary (no .js source files)
-COPY --from=builder /build/casca-engine ./casca-engine
+COPY --from=builder --chown=casca:casca /build/casca-engine ./casca-engine
 RUN chmod +x casca-engine
 
 # Copy classifier as compiled asset (obfuscated in production)
-COPY --from=builder /build/casca-classifier.cjs ./casca-classifier.cjs
+COPY --from=builder --chown=casca:casca /build/casca-classifier.cjs ./casca-classifier.cjs
+
+# Agent cache directory
+RUN mkdir -p /app/.cache && chown casca:casca /app/.cache
+
+USER 1000:1000
 
 EXPOSE 3001
 
 ENV PORT=3001
 ENV NODE_ENV=production
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
+  CMD curl -f http://localhost:3001/health || exit 1
+
+LABEL maintainer="casca@vastitw.com"
+LABEL version="1.0.0"
+LABEL description="Casca Enterprise Engine — compiled binary"
 
 CMD ["./casca-engine"]

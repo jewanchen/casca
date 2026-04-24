@@ -44,15 +44,17 @@ services:
         condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3001/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
   # ── MiniLM L2 Classifier ────────────────────────────
   casca-minilm:
-    image: casca-enterprise-minilm:latest
+    build:
+      context: ../casca-minilm
+      dockerfile: Dockerfile
     expose:
       - "8000"
     environment:
@@ -61,7 +63,7 @@ services:
       - NUM_LABELS=3
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -101,6 +103,10 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+networks:
+  casca-internal:
+    driver: bridge
 
 volumes:
   pgdata:
