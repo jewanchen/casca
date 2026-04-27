@@ -943,7 +943,7 @@
       /^(什麼是|解釋(一下)?什麼是|說明一下什麼是)/.test(tl);
     if (
       !r5Explain &&
-      /分析|analyze|evaluate|評估|评估|比較|比较|root cause|風險|风险|risk assessment|預測|预测|forecast|scenario|strategy|should we|recommend|why (is|are|did|does)|採用.*困|どうすれ.*(?:採用|売上|業績|効率|改善)|财务风险|市场风险|投资组合|对冲|敞口|盘点/i.test(r5Strip) &&
+      /分析|analyze|evaluate|評估|评估|比較(?![好多大小少快慢長短高低久遠近難易])|比较(?![好多大小少快慢长短高低久远近难易])|root cause|風險|风险|risk assessment|預測|预测|forecast|scenario|strategy|should we|recommend|why (is|are|did|does)|採用.*困|どうすれ.*(?:採用|売上|業績|効率|改善)|财务风险|市场风险|投资组合|对冲|敞口|盘点/i.test(r5Strip) &&
       !(/^(what|how many|幾天|幾點|是多少)/i.test(stripped) && tok < 25)
     ) {
       return { cx: 'HIGH', rule: 'R5: 複雜分析/評估 → HIGH', confidence: 87 };
