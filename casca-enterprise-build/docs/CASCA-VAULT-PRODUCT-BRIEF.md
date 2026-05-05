@@ -156,7 +156,7 @@ Casca Vault 的分類引擎支援 **14 種語言**：
 2. 拿到 Docker Compose 部署包
 3. 5 分鐘部署 → 改一行程式碼 → 開始省錢
 
-**聯繫我們**：sales@cascaio.com · https://cascaio.com
+**聯繫我們**：casca@vastitw.com · https://cascaio.com
 
 ---
 
