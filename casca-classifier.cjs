@@ -1635,6 +1635,10 @@
       return {cx:ic.cx, rule:ic.rule, tok, modal, lang, noiseType:ic.noiseType||null, confidence:ic.confidence};
     }
     if (lang === 'KO') {
+      // KO-CLOSURE: 감사합니다 / 안녕하세요 / 수고하셨습니다 → LOW (before fragment check)
+      if (/^(감사합니다|고맙습니다|안녕하세요|안녕히 가세요|수고하셨습니다|수고하세요|알겠습니다|네|좋은 아침)[.!。？]?$/u.test(prompt.trim())) {
+        return { cx:'LOW', rule:'KO-CLOSURE: 한국어 인사/감사 → LOW', tok, modal, lang, noiseType:null, confidence:95 };
+      }
       // KO-HOW: "어떻게 작동하나요?" = MED
       if (/어떻게 .{0,10}(작동|사용|구현|설정|동작)/.test(prompt) && tok <= 12) {
         return { cx:'MED', rule:'KO-HOW: 어떻게 작동 \u2192 MED', tok, modal, lang, noiseType:null, confidence:82 };
@@ -1846,6 +1850,10 @@
     }
     // ── P0-VI: Vietnamese ─────────────────────────────────────────
     if (lang === 'VI') {
+      // VI-CLOSURE/GREETING: early exit before fragment detection
+      if (/^(xin chào|chào bạn|cảm ơn|tạm biệt|xong rồi|hiểu rồi|vâng|ok)[.!？]?$/iu.test(prompt.trim())) {
+        return { cx:'LOW', rule:'VI-CLOSURE: Vietnamese chào/cảm ơn → LOW', tok, modal, lang, noiseType:null, confidence:95 };
+      }
       const vi = processVietnamese(prompt);
       if (vi) return { cx:vi.cx, rule:vi.rule, tok, modal, lang, noiseType:null, confidence:vi.confidence };
       const vc = classifyCore(prompt, uc, tok);
@@ -1939,7 +1947,7 @@
         return { cx:'HIGH', rule:'JA-HIGH-COMP: 包括的+成果物+動詞 → HIGH', tok, modal, lang, noiseType:null, confidence:89 };
       }
       // JA-CLOSURE: 承知しました / お疲れ様 / よろしくお願いします → LOW (before fragment check)
-      if (/^(承知しました|承知いたしました|かしこまりました|お疲れ様でした|大変お疲れ様でした|お疲れ様です|よろしくお願いします|よろしくお願いいたします|宜しくお願いいたします|お世話になります|お世話になっております|ありがとうございました|ありがとうございます)[。！!]?$/u.test(workingText.trim())) {
+      if (/^(こんにちは|こんばんは|おはようございます|おはよう|承知しました|承知いたしました|かしこまりました|お疲れ様でした|大変お疲れ様でした|お疲れ様です|よろしくお願いします|よろしくお願いいたします|宜しくお願いいたします|お世話になります|お世話になっております|ありがとうございました|ありがとうございます)[。！!]?$/u.test(workingText.trim())) {
         return { cx:'LOW', rule:'JA-CLOSURE: 敬語確認/挨拶 → LOW', tok, modal, lang, noiseType:null, confidence:95 };
       }
       // Check for JA FRAGMENT phrases first (they bypass processJapanese)
@@ -2071,7 +2079,7 @@
   function calibrate(result, prompt) {
     let conf = result.confidence;
     const rule = result.rule || '';
-    const cx = result.cx;
+    let cx = result.cx;
     let calibrated = false;
     let signal = null;
 
@@ -2126,19 +2134,32 @@
       signal = 'S6:short-tok-long-text';
     }
 
-    // ── Signal 7: Boost confidence for known-reliable LOW patterns ──
-    // Prevent obvious LOW (greetings, simple facts, closures) from being
-    // sent to L2 when threshold=86 and R1 default confidence=85.
-    if (!calibrated && cx === 'LOW' && prompt.trim().length <= 12 &&
-        (rule.includes('R1') || rule.includes('CLOSURE') || rule.includes('R9'))) {
-      conf = 95;  // boost above threshold — don't waste L2 on these
+    // ── Signal 7: Boost confidence for known-reliable patterns ──
+    // Prevent obvious classifications from being sent to L2.
+
+    // 7a: Short LOW prompts (greetings, closures, simple facts)
+    if (!calibrated && cx === 'LOW' && prompt.trim().length <= 25 &&
+        (rule.includes('R1') || rule.includes('CLOSURE') || rule.includes('R9') ||
+         rule.includes('DEF') || rule.includes('LIFE-LOW'))) {
+      conf = 95;
       calibrated = true;
       signal = 'S7:reliable-low-boost';
+    }
+
+    // 7b: AMBIG/FRAGMENT that are actually greetings/closures — override to LOW 95
+    // Runs even if S4 already calibrated (S7b takes priority for known greetings)
+    if ((cx === 'AMBIG' || cx === 'LOW') && prompt.trim().length <= 20 &&
+        /^(こんにちは|こんばんは|おはよう|さようなら|감사합니다|고맙습니다|안녕하세요|안녕히|xin chào|cảm ơn|tạm biệt|xong rồi|API là gì|là gì)\b/iu.test(prompt.trim())) {
+      cx = 'LOW';
+      conf = 95;
+      calibrated = true;
+      signal = 'S7:greeting-closure-fix';
     }
 
     if (calibrated) {
       return {
         ...result,
+        cx: cx,
         confidence: conf,
         _calibrated: true,
         _signal: signal,
