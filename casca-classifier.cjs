@@ -2126,6 +2126,16 @@
       signal = 'S6:short-tok-long-text';
     }
 
+    // ── Signal 7: Boost confidence for known-reliable LOW patterns ──
+    // Prevent obvious LOW (greetings, simple facts, closures) from being
+    // sent to L2 when threshold=86 and R1 default confidence=85.
+    if (!calibrated && cx === 'LOW' && prompt.trim().length <= 12 &&
+        (rule.includes('R1') || rule.includes('CLOSURE') || rule.includes('R9'))) {
+      conf = 95;  // boost above threshold — don't waste L2 on these
+      calibrated = true;
+      signal = 'S7:reliable-low-boost';
+    }
+
     if (calibrated) {
       return {
         ...result,
