@@ -1862,15 +1862,19 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
     if (dynConf < confThreshold) {
       // L1 not confident enough → ask L2 MiniLM
       l2Result = await predictMiniLM(promptText);
-      if (l2Result && l2Result.label) {
+      const l2Conf = l2Result ? (l2Result.confidence || 0) : 0;
+      const L2_MIN_CONFIDENCE = 0.50; // L2 must be >50% confident to override L1
+      if (l2Result && l2Result.label && l2Conf >= L2_MIN_CONFIDENCE) {
         const prevCx = classifyResult.cx;
         classifyResult = {
           ...classifyResult,
           cx: l2Result.label,
           originalCx: prevCx,
-          rule: classifyResult.rule + ` [L2-override: ${prevCx}→${l2Result.label} conf=${(l2Result.confidence*100).toFixed(1)}%]`,
+          rule: classifyResult.rule + ` [L2-override: ${prevCx}→${l2Result.label} conf=${(l2Conf*100).toFixed(1)}%]`,
         };
-        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Result.confidence*100).toFixed(1)}%)`);
+        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Conf*100).toFixed(1)}%)`);
+      } else if (l2Result && l2Result.label) {
+        console.log(`[path-b] L2 skipped: ${l2Result.label} conf=${(l2Conf*100).toFixed(1)}% < ${L2_MIN_CONFIDENCE*100}% threshold — keeping L1: ${classifyResult.cx}`);
       }
     }
   }
