@@ -49,11 +49,13 @@ Casca Vault 是 Casca AI 路由引擎的**企業自建版本**。
 ```
 客戶 prompt
     ↓
-L1 規則引擎（160+ 條，14 語言）
+Casca L1 規則引擎 （1ms）→ 選擇最佳模型 → 回應客戶
     ↓ 信心不足？
-L2 MiniLM 模型（89.8% accuracy）
+Casca L2 MiniLM 模型（5ms）
     ↓
 選擇最佳模型 → 回應客戶
+
+Total up to 6ms (LLM 2000ms)
 ```
 
 品質分錯怎麼辦？最多是多花一點錢（把簡單問題送到貴的模型），**絕不會因為省錢而犧牲回答品質**。
