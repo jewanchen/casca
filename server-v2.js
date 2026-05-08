@@ -27,6 +27,7 @@ import crypto           from 'crypto';
 import Stripe           from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createRequire }  from 'module';
+import WebSocket          from 'ws';
 
 import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
 
@@ -64,6 +65,88 @@ const CORS_ORIGIN       = (() => {
 })();
 const LLM_TIMEOUT_MS    = parseInt(process.env.LLM_TIMEOUT_MS || '30000', 10);
 const FRONTEND_URL      = process.env.FRONTEND_URL            || 'http://localhost:8080';
+const RESEND_API_KEY    = process.env.RESEND_API_KEY          || '';
+const EMAIL_FROM        = process.env.EMAIL_FROM              || 'Casca <noreply@cascaio.com>';
+
+// ════════════════════════════════════════════════════════════════
+//  EMAIL (Resend REST API — no SDK required)
+// ════════════════════════════════════════════════════════════════
+async function sendEmail(to, subject, html) {
+  if (!RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY not set — skipping:', subject);
+    return;
+  }
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      console.error(`[email] Resend error (${resp.status}):`, body);
+    }
+  } catch (e) {
+    console.error('[email] send failed:', e.message);
+  }
+}
+
+function emailPauseConfirm(email, expiresAt) {
+  const expires = new Date(expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return sendEmail(email, 'Your Casca subscription has been paused',
+    `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+      <h2 style="color:#1a1a2e">Subscription Paused</h2>
+      <p>Your Casca subscription is now paused. During this time:</p>
+      <ul>
+        <li>No subscription fees will be charged</li>
+        <li>API routing is inactive (requests will return a paused status)</li>
+        <li>All settings, API keys, and dashboard data are preserved</li>
+      </ul>
+      <p><strong>Resume deadline:</strong> ${expires}</p>
+      <p>If you don't resume by then, your account will be archived. You can still reactivate at any time.</p>
+      <p><a href="https://cascaio.com/dashboard" style="display:inline-block;padding:10px 20px;background:#00B894;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Resume Subscription →</a></p>
+      <p style="color:#888;font-size:12px">— Casca Team · casca@vastitw.com</p>
+    </div>`);
+}
+
+function emailPauseExpiring(email, expiresAt) {
+  const expires = new Date(expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return sendEmail(email, 'Your Casca account will be archived in 7 days',
+    `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+      <h2 style="color:#e65100">⚠ Archive Warning</h2>
+      <p>Your paused Casca subscription will be automatically archived on <strong>${expires}</strong>.</p>
+      <p>After archiving, your account data is retained for 12 months but service remains inactive.</p>
+      <p>To keep your subscription active, resume before the deadline:</p>
+      <p><a href="https://cascaio.com/dashboard" style="display:inline-block;padding:10px 20px;background:#00B894;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Resume Now →</a></p>
+      <p style="color:#888;font-size:12px">— Casca Team · casca@vastitw.com</p>
+    </div>`);
+}
+
+function emailArchived(email) {
+  return sendEmail(email, 'Your Casca account has been archived',
+    `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+      <h2 style="color:#1a1a2e">Account Archived</h2>
+      <p>Your Casca subscription has been archived after 90 days of pause.</p>
+      <ul>
+        <li>All data is retained for 12 months</li>
+        <li>No fees are being charged</li>
+        <li>You can reactivate anytime with one click</li>
+      </ul>
+      <p><a href="https://cascaio.com/dashboard" style="display:inline-block;padding:10px 20px;background:#00B894;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Reactivate Account →</a></p>
+      <p style="color:#888;font-size:12px">— Casca Team · casca@vastitw.com</p>
+    </div>`);
+}
+
+function emailResumed(email) {
+  return sendEmail(email, 'Welcome back! Your Casca subscription is active again',
+    `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+      <h2 style="color:#00B894">Subscription Resumed ✓</h2>
+      <p>Your Casca subscription is now active. Billing restarts from today (pro-rated for this month).</p>
+      <p>All your settings, API keys, and configurations are exactly as you left them.</p>
+      <p><a href="https://cascaio.com/dashboard" style="display:inline-block;padding:10px 20px;background:#00B894;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Open Dashboard →</a></p>
+      <p style="color:#888;font-size:12px">— Casca Team · casca@vastitw.com</p>
+    </div>`);
+}
 
 
 // ════════════════════════════════════════════════════════════════
@@ -148,7 +231,10 @@ const mActiveProviders = new Gauge({
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY,
-  { auth: { persistSession: false } }
+  {
+    auth: { persistSession: false },
+    realtime: { transport: WebSocket },
+  }
 );
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -525,6 +611,7 @@ async function requireApiKey(req, res, next) {
                stripe_customer_id, stripe_sub_id, trial_ends_at, path_b_judge_enabled,
                account_type, weekly_credit_usd, weekly_credit_used_usd, quota_paused,
                overage_approved, trial_type, trial_token_limit, trial_tokens_used,
+               status, paused_at, pause_expires_at,
                subscription_plans (
                  id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
                )`)
@@ -533,6 +620,19 @@ async function requireApiKey(req, res, next) {
 
     if (!client) {
       return res.status(401).json({ error: 'Client record not found.' });
+    }
+
+    // Check if account is paused or archived
+    if (client.status === 'paused' || client.status === 'archived') {
+      return res.status(403).json({
+        error:  'Subscription is paused.',
+        code:   'ACCOUNT_PAUSED',
+        status: client.status,
+        pause_expires_at: client.pause_expires_at || null,
+        action: client.status === 'paused'
+          ? 'Resume your subscription at https://cascaio.com/dashboard to restore service.'
+          : 'Your account was archived after 90 days of pause. Visit dashboard to reactivate.',
+      });
     }
 
     // Check passthrough trial token limit
@@ -590,6 +690,7 @@ async function requireApiKey(req, res, next) {
       id, email, company_name, plan_id, balance_credits,
       quota_limit, quota_used, cycle_used_tokens, billing_cycle_start,
       stripe_customer_id, stripe_sub_id, trial_ends_at, path_b_judge_enabled,
+      status, paused_at, pause_expires_at,
       subscription_plans (
         id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
       )
@@ -598,6 +699,18 @@ async function requireApiKey(req, res, next) {
     .single();
 
   if (error || !client) return res.status(401).json({ error: 'Client not found.' });
+
+  // Check if account is paused or archived
+  if (client.status === 'paused' || client.status === 'archived') {
+    return res.status(403).json({
+      error:  'Subscription is paused.',
+      code:   'ACCOUNT_PAUSED',
+      status: client.status,
+      action: client.status === 'paused'
+        ? 'Resume your subscription at https://cascaio.com/dashboard to restore service.'
+        : 'Your account was archived after 90 days of pause. Visit dashboard to reactivate.',
+    });
+  }
 
   // Trial expiry check
   if (client.trial_ends_at) {
@@ -671,6 +784,7 @@ async function requireApiKeyOrJWT(req, res, next) {
       id, email, company_name, plan_id, balance_credits,
       quota_limit, quota_used, cycle_used_tokens, billing_cycle_start,
       stripe_customer_id, stripe_sub_id, trial_ends_at, path_b_judge_enabled,
+      status, paused_at, pause_expires_at,
       subscription_plans (
         id, name, monthly_fee_usd, included_m_tokens, overage_rate_per_1m
       )
@@ -1862,19 +1976,15 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
     if (dynConf < confThreshold) {
       // L1 not confident enough → ask L2 MiniLM
       l2Result = await predictMiniLM(promptText);
-      const l2Conf = l2Result ? (l2Result.confidence || 0) : 0;
-      const L2_MIN_CONFIDENCE = 0.50; // L2 must be >50% confident to override L1
-      if (l2Result && l2Result.label && l2Conf >= L2_MIN_CONFIDENCE) {
+      if (l2Result && l2Result.label) {
         const prevCx = classifyResult.cx;
         classifyResult = {
           ...classifyResult,
           cx: l2Result.label,
           originalCx: prevCx,
-          rule: classifyResult.rule + ` [L2-override: ${prevCx}→${l2Result.label} conf=${(l2Conf*100).toFixed(1)}%]`,
+          rule: classifyResult.rule + ` [L2-override: ${prevCx}→${l2Result.label} conf=${(l2Result.confidence*100).toFixed(1)}%]`,
         };
-        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Conf*100).toFixed(1)}%)`);
-      } else if (l2Result && l2Result.label) {
-        console.log(`[path-b] L2 skipped: ${l2Result.label} conf=${(l2Conf*100).toFixed(1)}% < ${L2_MIN_CONFIDENCE*100}% threshold — keeping L1: ${classifyResult.cx}`);
+        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Result.confidence*100).toFixed(1)}%)`);
       }
     }
   }
@@ -2202,6 +2312,109 @@ app.get('/api/billing/transactions', requireApiKey, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════
+//  PAUSE / RESUME SUBSCRIPTION
+// ════════════════════════════════════════════════════════════════
+
+/** POST /api/billing/pause — Customer pauses their subscription */
+app.post('/api/billing/pause', requireApiKeyOrJWT, async (req, res) => {
+  const client = req.client;
+  const durationMonths = Math.min(3, Math.max(1, parseInt(req.body.duration_months || '3', 10)));
+  const reason = (req.body.reason || '').slice(0, 500) || null;
+
+  // Call DB function
+  const { data, error } = await supabase.rpc('pause_subscription', {
+    p_client_id: client.id,
+    p_duration_months: durationMonths,
+    p_reason: reason,
+  });
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data?.ok) return res.status(400).json({ error: data?.error || 'Pause failed.' });
+
+  // Pause Stripe subscription if exists
+  if (stripe && client.stripe_sub_id) {
+    try {
+      await stripe.subscriptions.update(client.stripe_sub_id, {
+        pause_collection: { behavior: 'void' },
+      });
+    } catch (err) {
+      console.error('[pause] Stripe pause failed:', err.message);
+      // Non-blocking — DB state is source of truth
+    }
+  }
+
+  // Log to audit
+  await supabase.from('transactions').insert({
+    client_id:   client.id,
+    amount_usd:  0,
+    type:        'pause',
+    status:      'completed',
+    description: `Subscription paused for ${durationMonths} month(s). Expires: ${data.pause_expires_at}`,
+  }).then(() => {});
+
+  console.log(`[pause] ${client.email} paused for ${durationMonths}mo → expires ${data.pause_expires_at}`);
+  emailPauseConfirm(client.email, data.pause_expires_at);
+  return res.json({
+    ok: true,
+    paused_at: data.paused_at,
+    pause_expires_at: data.pause_expires_at,
+    message: `Subscription paused. Resume anytime before ${new Date(data.pause_expires_at).toLocaleDateString()}.`,
+  });
+});
+
+/** POST /api/billing/resume — Customer resumes their paused subscription */
+app.post('/api/billing/resume', requireApiKeyOrJWT, async (req, res) => {
+  const client = req.client;
+
+  // Call DB function
+  const { data, error } = await supabase.rpc('resume_subscription', {
+    p_client_id: client.id,
+  });
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data?.ok) return res.status(400).json({ error: data?.error || 'Resume failed.' });
+
+  // Resume Stripe subscription if exists
+  if (stripe && client.stripe_sub_id) {
+    try {
+      await stripe.subscriptions.update(client.stripe_sub_id, {
+        pause_collection: '',  // Remove pause
+      });
+    } catch (err) {
+      console.error('[resume] Stripe resume failed:', err.message);
+    }
+  }
+
+  // Log to audit
+  await supabase.from('transactions').insert({
+    client_id:   client.id,
+    amount_usd:  0,
+    type:        'resume',
+    status:      'completed',
+    description: 'Subscription resumed.',
+  }).then(() => {});
+
+  console.log(`[resume] ${client.email} resumed subscription`);
+  emailResumed(client.email);
+  return res.json({
+    ok: true,
+    resumed_at: data.resumed_at,
+    message: 'Subscription resumed. Billing restarts from today.',
+  });
+});
+
+/** GET /api/billing/pause-status — Check current pause state */
+app.get('/api/billing/pause-status', requireApiKeyOrJWT, async (req, res) => {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('status, paused_at, pause_expires_at, pause_reason')
+    .eq('id', req.client.id)
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data);
+});
+
+// ════════════════════════════════════════════════════════════════
 //  API KEY MANAGEMENT
 // ════════════════════════════════════════════════════════════════
 function hashKey(raw) { return sha256(raw); }
@@ -2288,6 +2501,10 @@ app.get('/api/dashboard/me', requireApiKeyOrJWT, async (req, res) => {
     weekly_reset_at:        client.weekly_reset_at ?? null,
     quota_paused:           client.quota_paused ?? false,
     overage_approved:       client.overage_approved ?? false,
+    // ── Subscription status / pause ──
+    status:              client.status ?? 'active',
+    paused_at:           client.paused_at ?? null,
+    pause_expires_at:    client.pause_expires_at ?? null,
     // ── Trial ──
     trial_type:          client.trial_type ?? null,
     trial_token_limit:   client.trial_token_limit ?? 0,
@@ -3538,6 +3755,58 @@ function scheduleWeeklyReset() {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  PAUSE AUTO-ARCHIVE CRON
+// ════════════════════════════════════════════════════════════════
+function schedulePauseArchive() {
+  const CHECK_MS = 60 * 60 * 1000; // hourly
+
+  const runArchive = async () => {
+    try {
+      // 1. Send 7-day warning emails to accounts expiring within 7 days
+      const sevenDaysFromNow = new Date(Date.now() + 7 * 86_400_000).toISOString();
+      const sixDaysFromNow   = new Date(Date.now() + 6 * 86_400_000).toISOString();
+      const { data: expiring } = await supabase
+        .from('clients')
+        .select('email, pause_expires_at')
+        .eq('status', 'paused')
+        .lte('pause_expires_at', sevenDaysFromNow)
+        .gte('pause_expires_at', sixDaysFromNow); // ~1 day window to avoid repeat emails
+      if (expiring?.length) {
+        for (const c of expiring) {
+          emailPauseExpiring(c.email, c.pause_expires_at);
+        }
+        console.log(`[pause-cron] sent ${expiring.length} expiry warning email(s)`);
+      }
+
+      // 2. Archive expired pauses
+      // First get the accounts that will be archived (for email)
+      const { data: toArchive } = await supabase
+        .from('clients')
+        .select('email')
+        .eq('status', 'paused')
+        .lte('pause_expires_at', new Date().toISOString());
+
+      const { data: count, error } = await supabase.rpc('archive_expired_pauses');
+      if (error) {
+        console.error('[pause-cron] archive error:', error.message);
+      } else if (count > 0) {
+        console.log(`[pause-cron] ${count} account(s) auto-archived (90-day pause expired)`);
+        // Send archive notification emails
+        for (const c of (toArchive || [])) {
+          emailArchived(c.email);
+        }
+      }
+    } catch (err) {
+      console.error('[pause-cron] unexpected error:', err.message);
+    }
+  };
+
+  runArchive(); // Check on startup
+  setInterval(runArchive, CHECK_MS);
+  console.log('[pause-cron] scheduled — checks every hour for expired pauses');
+}
+
+// ════════════════════════════════════════════════════════════════
 //  BOOT
 // ════════════════════════════════════════════════════════════════
 async function start() {
@@ -3553,6 +3822,7 @@ async function start() {
   if (!stripe) console.warn('[casca] STRIPE_SECRET_KEY not set — billing endpoints disabled.');
   scheduleTrialExpiry();
   scheduleWeeklyReset();
+  schedulePauseArchive();
   // ── Enterprise self-hosted management routes ──
   registerEnterpriseRoutes(app, supabase, requireAdmin);
   app.listen(PORT, () => {

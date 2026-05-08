@@ -1186,6 +1186,18 @@ print(data['cx'], data['model'], data['costUsd'])</pre>
       </div>
     </div>
 
+    <!-- Subscription Paused Banner -->
+    <div id="bill-sub-paused-banner" style="display:none;background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:1px solid #ffb74d;border-radius:var(--r8);padding:16px 18px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div>
+          <div style="font-weight:600;color:#e65100;margin-bottom:4px">⏸ Subscription Paused</div>
+          <div style="font-size:11px;color:#4e342e;line-height:1.6" id="bill-sub-paused-msg">Your subscription is paused. All settings and data are preserved.</div>
+          <div style="font-size:10px;color:#795548;margin-top:4px" id="bill-sub-paused-expires"></div>
+        </div>
+        <button class="btn btn-primary" onclick="resumeSubscription()" style="font-size:11px;padding:8px 16px;flex-shrink:0">▶ Resume Now</button>
+      </div>
+    </div>
+
     <!-- Account Mode -->
     <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
       <div class="mc mc-accent-teal">
@@ -1253,6 +1265,29 @@ print(data['cx'], data['model'], data['costUsd'])</pre>
           <button class="btn btn-primary" id="topup-btn" onclick="topupCredits()">💳 Top Up via Stripe</button>
         </div>
         <div style="font-size:10px;color:var(--t4);margin-top:8px">Minimum $5 · Maximum $10,000 · Credits never expire</div>
+      </div>
+    </div>
+
+    <!-- Pause Subscription -->
+    <div class="card" style="margin-bottom:12px" id="bill-pause-card">
+      <div class="card-header"><div class="card-title">Pause Subscription</div><div class="card-sub">暫停 1-3 個月，期間不收費，所有設定保留</div></div>
+      <div class="card-body" id="bill-pause-body">
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+          <div>
+            <label class="field-label">Duration</label>
+            <select id="pause-duration" style="padding:6px 10px;border:1px solid var(--b2);border-radius:var(--r5);font-size:12px;background:var(--bg1);color:var(--t1)">
+              <option value="1">1 month</option>
+              <option value="2">2 months</option>
+              <option value="3" selected>3 months</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:150px">
+            <label class="field-label">Reason (optional)</label>
+            <input type="text" id="pause-reason" placeholder="e.g. seasonal, budget review…" style="width:100%">
+          </div>
+          <button class="btn" onclick="pauseSubscription()" style="font-size:11px;padding:6px 14px;background:var(--amber);color:#fff;border:none">⏸ Pause</button>
+        </div>
+        <div style="font-size:10px;color:var(--t4);margin-top:8px">Resume anytime within 90 days. After 90 days the account is archived (reactivation still available).</div>
       </div>
     </div>
 
@@ -2497,6 +2532,32 @@ async function loadBillingAccount() {
         banner.style.display = 'none';
       }
     }
+
+    // Subscription paused banner + pause card visibility
+    const subBanner = document.getElementById('bill-sub-paused-banner');
+    const pauseCard = document.getElementById('bill-pause-card');
+    if (d.status === 'paused' || d.status === 'archived') {
+      if (subBanner) {
+        subBanner.style.display = 'block';
+        const msg = document.getElementById('bill-sub-paused-msg');
+        const exp = document.getElementById('bill-sub-paused-expires');
+        if (d.status === 'archived') {
+          if (msg) msg.textContent = 'Your account has been archived (90-day pause expired). Click Resume to reactivate.';
+          if (exp) exp.textContent = '';
+        } else {
+          if (msg) msg.textContent = 'Your subscription is paused. All settings, API keys, and data are preserved.';
+          if (exp) exp.textContent = d.pause_expires_at
+            ? `Auto-archive on ${new Date(d.pause_expires_at).toLocaleDateString()} if not resumed.`
+            : '';
+        }
+      }
+      // Hide pause card (already paused)
+      if (pauseCard) pauseCard.style.display = 'none';
+    } else {
+      if (subBanner) subBanner.style.display = 'none';
+      // Show pause card only for paid plans (not Free)
+      if (pauseCard) pauseCard.style.display = d.plan_id ? '' : 'none';
+    }
   } catch (e) { console.error('[billing] account:', e); }
 }
 
@@ -2508,6 +2569,44 @@ async function approveOverage() {
   } else {
     alert('❌ 操作失敗');
   }
+}
+
+async function pauseSubscription() {
+  const duration = document.getElementById('pause-duration').value;
+  const reason = document.getElementById('pause-reason').value.trim();
+  if (!confirm(`確定要暫停訂閱 ${duration} 個月嗎？期間 API 將停止服務。`)) return;
+  try {
+    const res = await _authedFetch('/api/billing/pause', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ duration_months: parseInt(duration), reason: reason || undefined }),
+    });
+    if (res && res.ok) {
+      const d = await res.json();
+      alert(`✅ 訂閱已暫停。恢復期限：${new Date(d.pause_expires_at).toLocaleDateString()}`);
+      loadBillingPage();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert('❌ ' + (err.error || '暫停失敗'));
+    }
+  } catch (e) { alert('❌ ' + e.message); }
+}
+
+async function resumeSubscription() {
+  if (!confirm('確定要恢復訂閱嗎？計費將從今天重新開始。')) return;
+  try {
+    const res = await _authedFetch('/api/billing/resume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res && res.ok) {
+      alert('✅ 訂閱已恢復！');
+      loadBillingPage();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert('❌ ' + (err.error || '恢復失敗'));
+    }
+  } catch (e) { alert('❌ ' + e.message); }
 }
 
 async function loadBillingPlans() {
