@@ -2421,11 +2421,11 @@ footer {
     <div class="footer-col">
       <h5>Legal &amp; Trust</h5>
       <ul>
-        <li><a href="#">Privacy Policy</a></li>
-        <li><a href="#">Terms of Service</a></li>
+        <li><a href="mailto:casca@vastitw.com?subject=Privacy%20Policy%20request">Privacy Policy</a></li>
+        <li><a href="mailto:casca@vastitw.com?subject=Terms%20of%20Service%20request">Terms of Service</a></li>
         <li><a href="mailto:casca@vastitw.com?subject=DPA%20request">DPA Request</a></li>
         <li><a href="#faq">SOC 2 Roadmap</a></li>
-        <li><a href="#">Status</a></li>
+        <li><a href="https://casca-production.up.railway.app/health" target="_blank">Status</a></li>
       </ul>
     </div>
   </div>
@@ -2513,14 +2513,13 @@ function toggleFaq(i){
 }
 
 /* ═══ CTA SUBMIT ═══ */
-const WEBHOOK_URL='https://hooks.zapier.com/hooks/catch/YOUR_HOOK_ID/';
 async function submitCTA(){
   const emailEl=document.getElementById('cta-email');
   const email=emailEl.value.trim();
   if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){emailEl.style.borderColor='var(--red)';emailEl.focus();return;}
   emailEl.style.borderColor='';
   try{
-    await fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,source:'landing_cta',timestamp:new Date().toISOString()})});
+    await fetch('https://casca-production.up.railway.app/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,source:'landing_cta_en'})});
   }catch(e){}
   document.querySelector('.cta-form').innerHTML='<div style="padding:16px 28px;background:var(--green-dim);border:1px solid var(--green-mid);border-radius:10px;color:var(--green);font-family:var(--mono);font-size:14px;text-align:center;width:100%">✓ Received. Your free bill analysis report will arrive within 24 hours.</div>';
 }

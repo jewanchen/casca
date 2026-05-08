@@ -2423,11 +2423,11 @@ footer {
     <div class="footer-col">
       <h5>法務 &amp; 信任</h5>
       <ul>
-        <li><a href="#">隱私權政策</a></li>
-        <li><a href="#">服務條款</a></li>
+        <li><a href="mailto:casca@vastitw.com?subject=%E9%9A%B1%E7%A7%81%E6%AC%8A%E6%94%BF%E7%AD%96">隱私權政策</a></li>
+        <li><a href="mailto:casca@vastitw.com?subject=%E6%9C%8D%E5%8B%99%E6%A2%9D%E6%AC%BE">服務條款</a></li>
         <li><a href="mailto:casca@vastitw.com?subject=DPA%20%E7%94%B3%E8%AB%8B">DPA 申請</a></li>
         <li><a href="#faq">SOC 2 進度</a></li>
-        <li><a href="#">服務狀態</a></li>
+        <li><a href="https://casca-production.up.railway.app/health" target="_blank">服務狀態</a></li>
       </ul>
     </div>
   </div>
@@ -2442,7 +2442,7 @@ footer {
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ═══ LIVE ROUTING DEMO ═══ */
 const DEMO_REQUESTS=[
   {cx:'LOW',model:'Gemini Flash',prompt:'我們的退貨政策是？',saving:'-97%'},
@@ -2515,14 +2515,13 @@ function toggleFaq(i){
 }
 
 /* ═══ CTA SUBMIT ═══ */
-const WEBHOOK_URL='https://hooks.zapier.com/hooks/catch/YOUR_HOOK_ID/';
 async function submitCTA(){
   const emailEl=document.getElementById('cta-email');
   const email=emailEl.value.trim();
   if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){emailEl.style.borderColor='var(--red)';emailEl.focus();return;}
   emailEl.style.borderColor='';
   try{
-    await fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,source:'landing_cta',timestamp:new Date().toISOString()})});
+    await fetch('https://casca-production.up.railway.app/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,source:'landing_cta_tw'})});
   }catch(e){}
   document.querySelector('.cta-form').innerHTML='<div style="padding:16px 28px;background:var(--green-dim);border:1px solid var(--green-mid);border-radius:10px;color:var(--green);font-family:var(--mono);font-size:14px;text-align:center;width:100%">✓ 已收到。免費省費分析報告 24 小時內送達。</div>';
 }

@@ -2415,6 +2415,33 @@ app.get('/api/billing/pause-status', requireApiKeyOrJWT, async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════════════
+//  LEAD CAPTURE (Landing page CTA)
+// ════════════════════════════════════════════════════════════════
+
+/** POST /api/lead — Capture email from landing page CTA (no auth required) */
+app.post('/api/lead', async (req, res) => {
+  const email = (req.body.email || '').trim().toLowerCase();
+  const source = (req.body.source || 'landing_cta').slice(0, 100);
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Valid email is required.' });
+  }
+
+  const { error } = await supabase.from('leads').upsert(
+    { email, source, updated_at: new Date().toISOString() },
+    { onConflict: 'email' }
+  );
+
+  if (error) {
+    console.error('[lead] insert error:', error.message);
+    return res.status(500).json({ error: 'Failed to save.' });
+  }
+
+  console.log(`[lead] captured: ${email} (${source})`);
+  return res.json({ ok: true });
+});
+
+// ════════════════════════════════════════════════════════════════
 //  API KEY MANAGEMENT
 // ════════════════════════════════════════════════════════════════
 function hashKey(raw) { return sha256(raw); }
