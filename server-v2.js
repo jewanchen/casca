@@ -3403,6 +3403,75 @@ app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) =>
 });
 
 /**
+ * POST /api/admin/pathb/minilm/activate
+ * Body: { version: string }
+ *
+ * 1. Verify the version exists in minilm_versions
+ * 2. Flip is_active: set all other rows false, set target row true
+ * 3. Best-effort hot-reload by POSTing to MINILM_SERVICE_URL/model/reload
+ *    (if minilm service unreachable, SQL flip still persists — next restart loads it)
+ *
+ * Returns: { ok, version, active_version, reloaded }
+ *   - reloaded:false means SQL flip succeeded but model service didn't hot-swap
+ *     (admin UI surfaces this as "下次重啟生效")
+ *
+ * Note: Supabase JS has no transaction support. Two updates run sequentially —
+ * a sub-second window exists where zero rows may be is_active=true. App.py
+ * lifespan falls back to base model in that case, so a cold start during this
+ * window is degraded but not broken.
+ */
+app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
+  const { version } = req.body || {};
+  if (!version || typeof version !== 'string') {
+    return res.status(400).json({ error: 'version (string) required in body' });
+  }
+
+  // 1. Verify version exists
+  const { data: row, error: lookupErr } = await supabase
+    .from('minilm_versions')
+    .select('version')
+    .eq('version', version)
+    .maybeSingle();
+  if (lookupErr) return res.status(500).json({ error: 'DB lookup failed: ' + lookupErr.message });
+  if (!row) return res.status(404).json({ error: `Version not found: ${version}` });
+
+  // 2. Deactivate all others, then activate target
+  const { error: deactErr } = await supabase
+    .from('minilm_versions')
+    .update({ is_active: false })
+    .neq('version', version);
+  if (deactErr) return res.status(500).json({ error: 'Deactivate-others failed: ' + deactErr.message });
+
+  const { error: actErr } = await supabase
+    .from('minilm_versions')
+    .update({ is_active: true })
+    .eq('version', version);
+  if (actErr) return res.status(500).json({ error: 'Activate target failed: ' + actErr.message });
+
+  // 3. Best-effort hot reload
+  const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+  let reloaded = false;
+  let active_version = version;
+  try {
+    const controller = new AbortController();
+    // Generous timeout: lifespan-style cold load includes ~30s Storage download (127MB / 4 parts)
+    const timer = setTimeout(() => controller.abort(), 60000);
+    const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST', signal: controller.signal });
+    clearTimeout(timer);
+    if (r.ok) {
+      const d = await r.json();
+      reloaded = !!d.ok;
+      active_version = d.active_version || version;
+    }
+  } catch (_) {
+    // minilm service unreachable / timed out — SQL flip persists, will load on next restart
+  }
+
+  console.log(`[pathb/minilm/activate] version=${version} reloaded=${reloaded}`);
+  return res.json({ ok: true, version, active_version, reloaded });
+});
+
+/**
  * POST /api/admin/pathb/upload
  * 批量上傳 JSONL
  *
