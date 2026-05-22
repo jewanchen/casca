@@ -3472,6 +3472,77 @@ app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) =>
 });
 
 /**
+ * POST /api/admin/pathb/minilm/predict_batch
+ * Admin-only batch L2 predict for offline evaluation. Bypasses L1 entirely —
+ * calls MiniLM /predict directly per row. Used by admin "L2 純測試" tool to
+ * gauge raw L2 quality independent of L1+Calibrator coupling.
+ *
+ * Body: { prompts: [{prompt, label?, lang?, context_prompt?, turn_count?, domain?}, ...] }
+ * Returns: { results: [{...echoed_input_fields, got, confidence, probabilities, correct, error?}, ...] }
+ *
+ * Limits: max 200 prompts per batch (frontend chunks). Backend processes with
+ * concurrency 8 over MiniLM internal URL.
+ */
+app.post('/api/admin/pathb/minilm/predict_batch', requireAdmin, express.json({ limit: '50mb' }), async (req, res) => {
+  const { prompts } = req.body || {};
+  if (!Array.isArray(prompts) || prompts.length === 0) {
+    return res.status(400).json({ error: 'prompts (array) required' });
+  }
+  if (prompts.length > 200) {
+    return res.status(400).json({ error: `batch size ${prompts.length} > 200; chunk on frontend` });
+  }
+
+  const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
+  const CONCURRENCY = 8;
+  const results = new Array(prompts.length);
+  let cursor = 0;
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= prompts.length) break;
+      const p = prompts[idx];
+      const echo = {
+        prompt: p.prompt,
+        label: p.label,
+        lang: p.lang,
+        turn_count: p.turn_count,
+        domain: p.domain,
+      };
+      try {
+        const body = { prompt: p.prompt };
+        if (p.context_prompt && typeof p.context_prompt === 'string' && p.context_prompt.trim()) {
+          body.context_prompt = p.context_prompt;
+        }
+        const r = await fetch(`${minilmUrl}/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) {
+          results[idx] = { ...echo, error: `HTTP ${r.status}` };
+        } else {
+          const data = await r.json();
+          const got = data.label;
+          const correct = (p.label && ['HIGH','MED','LOW'].includes(p.label)) ? (got === p.label) : null;
+          results[idx] = {
+            ...echo,
+            got,
+            confidence: data.confidence,
+            probabilities: data.probabilities,
+            correct,
+          };
+        }
+      } catch (e) {
+        results[idx] = { ...echo, error: e.message };
+      }
+    }
+  }));
+
+  return res.json({ results });
+});
+
+/**
  * POST /api/admin/pathb/upload
  * 批量上傳 JSONL
  *
