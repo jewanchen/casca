@@ -42,9 +42,24 @@ def load_model(checkpoint_path: str | None = None):
     return True
 
 
-def predict(prompt: str) -> dict:
+# Token budget when context_prompt is supplied. Tokenizer pair encoding will
+# truncate the longer-of-the-two when total exceeds max_length=256; we further
+# cap context_prompt at CONTEXT_MAX_TOKENS to keep ≥175 tokens for the current
+# prompt. See contract 2026-05-19_l2-multi-turn-context.md §schema_assumptions.
+CONTEXT_MAX_TOKENS = 80
+
+
+def predict(prompt: str, context_prompt: str | None = None) -> dict:
     """
-    Classify a single prompt.
+    Classify a single prompt (optionally with previous-turn context).
+
+    When ``context_prompt`` is provided and non-empty, the tokenizer encodes
+    the input as a (context, prompt) pair so the model sees the previous
+    turn followed by ``[SEP]`` then the current turn. Empty / None ⇒ behaves
+    identically to the legacy single-input path.
+
+    L2 receives raw previous-turn text only. Structured session metadata
+    (lastTier, convMode, fragmentStreak, …) is consumed by L1.
 
     Returns:
         {
@@ -56,13 +71,35 @@ def predict(prompt: str) -> dict:
     if _model is None or _tokenizer is None:
         raise RuntimeError("Model not loaded. Call load_model() first.")
 
-    inputs = _tokenizer(
-        prompt,
-        return_tensors="pt",
-        truncation=True,
-        max_length=256,
-        padding="max_length",
-    )
+    has_context = isinstance(context_prompt, str) and context_prompt.strip()
+
+    if has_context:
+        # Pre-truncate context_prompt from the LEFT so the most-recent
+        # tokens (closest to the [SEP]) are preserved — those are the ones
+        # the current prompt is responding to.
+        ctx_ids = _tokenizer.encode(
+            context_prompt,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=CONTEXT_MAX_TOKENS,
+        )
+        ctx_text = _tokenizer.decode(ctx_ids, skip_special_tokens=True)
+        inputs = _tokenizer(
+            ctx_text,
+            prompt,
+            return_tensors="pt",
+            truncation="only_second",  # if total > 256, truncate the current prompt, not context
+            max_length=256,
+            padding="max_length",
+        )
+    else:
+        inputs = _tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=256,
+            padding="max_length",
+        )
     inputs = {k: v.to(_device) for k, v in inputs.items()}
 
     with torch.no_grad():

@@ -259,17 +259,31 @@ const MINILM_URL = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railwa
 
 /**
  * Call MiniLM service for classification.
+ *
+ * @param {string} prompt          — current turn raw text
+ * @param {string} [contextPrompt] — previous turn raw text (optional). When
+ *                                   present and non-empty, MiniLM tokenizes
+ *                                   as a (context, prompt) pair for context-
+ *                                   aware classification. Architectural
+ *                                   division: L2 consumes raw previous-turn
+ *                                   text; L1 consumes the structured
+ *                                   conversationContext object directly.
  * Returns: { label: 'HIGH'|'MED'|'LOW', confidence: 0.0-1.0 } or null on error.
  */
-export async function predictMiniLM(prompt) {
+export async function predictMiniLM(prompt, contextPrompt) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
+    const body = { prompt };
+    if (contextPrompt && typeof contextPrompt === 'string' && contextPrompt.trim()) {
+      body.context_prompt = contextPrompt;
+    }
+
     const res = await fetch(`${MINILM_URL}/predict`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -295,7 +309,7 @@ export async function predictMiniLM(prompt) {
  * Run the full Path B training pipeline for one request.
  *
  * @param {object} params
- * @param {string} params.promptText     — raw prompt text
+ * @param {string} params.promptText     — raw prompt text (current turn)
  * @param {object} params.classifyResult — L1 result { cx, rule, confidence, lang }
  * @param {object} params.l2Result       — L2 result { label, confidence } or null
  * @param {string} params.servingLabel   — final label actually used for routing
@@ -303,10 +317,15 @@ export async function predictMiniLM(prompt) {
  * @param {boolean} params.judgeEnabled  — per-client flag (default: true)
  * @param {object} params.supabase       — Supabase client
  * @param {object} params.providerRegistry — provider map (for LLM Judge)
+ * @param {string} [params.contextPrompt] — previous turn raw text (optional)
+ * @param {number} [params.turnCount]    — 1-indexed turn position in conversation
+ * @param {string} [params.convId]       — caller-maintained conversation id
+ * @param {string} [params.lastTier]     — previous turn's tier (HIGH/MED/LOW)
  */
 export async function runTrainingPipeline({
   promptText, classifyResult, l2Result, servingLabel,
   clientId, judgeEnabled = true, supabase, providerRegistry,
+  contextPrompt, turnCount, convId, lastTier,
 }) {
   const enabled = (process.env.PATH_B_ENABLED || '').toLowerCase() === 'true';
   if (!enabled) return;
@@ -320,7 +339,13 @@ export async function runTrainingPipeline({
 
   try {
     // ── 1. PII Masking ──────────────────────────────────────────
+    // Mask both current prompt and previous-turn context (if present).
+    // Phase 1: judge still receives only the current prompt; context is
+    // persisted for training but not yet fed to judge (see contract §3).
     const { masked: promptMasked, piiCount } = piiMask(promptText);
+    const contextMasked = contextPrompt
+      ? piiMask(contextPrompt).masked
+      : null;
 
     // ── 2. LLM Judge ────────────────────────────────────────────
     const judgeModel = process.env.PATH_B_JUDGE_MODEL || 'gpt-4o-mini';
@@ -352,6 +377,11 @@ export async function runTrainingPipeline({
       lang:            classifyResult.lang || null,
       source:          'live',
       client_id:       clientId || null,
+      // Multi-turn context (nullable; defaults to single-turn when caller omits)
+      context_prompt:  contextMasked,
+      turn_count:      Number.isInteger(turnCount) && turnCount > 0 ? turnCount : 1,
+      conv_id:         convId || null,
+      last_tier:       lastTier && ['HIGH','MED','LOW'].includes(lastTier) ? lastTier : null,
     });
 
     if (insertErr) {

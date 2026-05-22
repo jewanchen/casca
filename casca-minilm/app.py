@@ -121,6 +121,11 @@ app = FastAPI(title="Casca MiniLM Service", version="1.0.0", lifespan=lifespan)
 
 class PredictRequest(BaseModel):
     prompt: str
+    # Optional previous-turn raw text. Tokenizer pair-encodes (ctx, prompt)
+    # so the model sees context [SEP] current. Backward compat: omit ⇒
+    # single-input behavior identical to legacy callers.
+    # See contract 2026-05-19_l2-multi-turn-context.md §cross_module_contract.
+    context_prompt: str | None = None
 
 class PredictResponse(BaseModel):
     label: str
@@ -155,9 +160,13 @@ class ModelStatus(BaseModel):
 
 @app.post("/predict", response_model=PredictResponse)
 async def api_predict(req: PredictRequest):
-    """Classify a prompt using the active MiniLM model."""
+    """Classify a prompt using the active MiniLM model.
+
+    If ``context_prompt`` is supplied, the model pair-encodes (context, prompt)
+    for context-aware classification. Otherwise behaves as legacy single-input.
+    """
     try:
-        result = predict(req.prompt)
+        result = predict(req.prompt, req.context_prompt)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

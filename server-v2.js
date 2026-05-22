@@ -378,6 +378,59 @@ const cacheExpiry = () => {
 // ════════════════════════════════════════════════════════════════
 
 /**
+ * extractContextPrompt(messages)
+ *
+ * Picks the raw text of the conversation turn immediately preceding the
+ * current (last) user message — used as L2 MiniLM context input and
+ * persisted on training_samples for context-aware retraining.
+ *
+ * Selection rule:
+ *   1. Find the index of the last `role==='user'` message.
+ *   2. Look backwards for the closest message with role 'assistant' or
+ *      'user' (ignoring 'system', 'tool', 'function').
+ *   3. Return that message's string content; '' if none / not a string.
+ *
+ * Architectural note: L2 receives raw text of the previous turn only.
+ * Structured session metadata (lastTier, convMode, fragmentStreak, etc.)
+ * is consumed by L1 through the `conversationContext` parameter — L2 is
+ * intentionally text-only because that matches its transformer reasoning
+ * mode (see contract 2026-05-19_l2-multi-turn-context.md §schema_assumptions).
+ *
+ * Also returns turnCount = number of role==='user' messages, for the
+ * training_samples.turn_count column.
+ */
+function extractContextPrompt(messages) {
+  if (!Array.isArray(messages) || !messages.length) {
+    return { contextPrompt: '', turnCount: 1 };
+  }
+  const userCount = messages.filter(m => m && m.role === 'user').length;
+  const lastUserIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.role === 'user') return i;
+    }
+    return -1;
+  })();
+  if (lastUserIdx < 1) {
+    return { contextPrompt: '', turnCount: userCount || 1 };
+  }
+  for (let i = lastUserIdx - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m || (m.role !== 'assistant' && m.role !== 'user')) continue;
+    if (typeof m.content === 'string' && m.content.trim()) {
+      return { contextPrompt: m.content, turnCount: userCount || 1 };
+    }
+    // Vision/multipart: take the text part if present.
+    if (Array.isArray(m.content)) {
+      const textPart = m.content.find(c => c?.type === 'text');
+      if (textPart?.text?.trim()) {
+        return { contextPrompt: textPart.text, turnCount: userCount || 1 };
+      }
+    }
+  }
+  return { contextPrompt: '', turnCount: userCount || 1 };
+}
+
+/**
  * injectAttachmentContext(messages)
  *
  * Extracts the last user message from the OpenAI-format messages array.
@@ -1877,6 +1930,14 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
   if (!promptText || typeof promptText !== 'string')
     return res.status(400).json({ error: 'No user message content.' });
 
+  // Multi-turn context derivation for L2 + Path B (see contract
+  // 2026-05-19_l2-multi-turn-context.md). conversationContext caller-supplied
+  // metadata feeds L1; the raw previous-turn text feeds L2 and persists
+  // on training_samples.context_prompt.
+  const { contextPrompt, turnCount } = extractContextPrompt(messages);
+  const convId   = conversationContext?.convId   || null;
+  const lastTier = conversationContext?.lastTier || null;
+
   const normalized = normalizePrompt(promptText);
   const promptHash = sha256(normalized);
 
@@ -1974,8 +2035,11 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
     classifyResult = { ...classifyResult, dynamicConfidence: dynConf };
 
     if (dynConf < confThreshold) {
-      // L1 not confident enough → ask L2 MiniLM
-      l2Result = await predictMiniLM(promptText);
+      // L1 not confident enough → ask L2 MiniLM.
+      // Forward previous-turn raw text (if any) so L2 can disambiguate
+      // tokens like "好的" / "OK" / "continue" that are LOW-closure vs
+      // MED-confirmation only by context.
+      l2Result = await predictMiniLM(promptText, contextPrompt);
       if (l2Result && l2Result.label) {
         const prevCx = classifyResult.cx;
         classifyResult = {
@@ -1984,7 +2048,8 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
           originalCx: prevCx,
           rule: classifyResult.rule + ` [L2-override: ${prevCx}→${l2Result.label} conf=${(l2Result.confidence*100).toFixed(1)}%]`,
         };
-        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Result.confidence*100).toFixed(1)}%)`);
+        const ctxFlag = contextPrompt ? ' ctx=Y' : '';
+        console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Result.confidence*100).toFixed(1)}%${ctxFlag})`);
       }
     }
   }
@@ -2170,6 +2235,10 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
       judgeEnabled: client.path_b_judge_enabled !== false,
       supabase,
       providerRegistry,
+      contextPrompt,
+      turnCount,
+      convId,
+      lastTier,
     }).catch(err => console.error('[path-b] pipeline error:', err.message));
   }
 });
@@ -3403,75 +3472,6 @@ app.post('/api/admin/pathb/minilm/cold-start', requireAdmin, async (req, res) =>
 });
 
 /**
- * POST /api/admin/pathb/minilm/activate
- * Body: { version: string }
- *
- * 1. Verify the version exists in minilm_versions
- * 2. Flip is_active: set all other rows false, set target row true
- * 3. Best-effort hot-reload by POSTing to MINILM_SERVICE_URL/model/reload
- *    (if minilm service unreachable, SQL flip still persists — next restart loads it)
- *
- * Returns: { ok, version, active_version, reloaded }
- *   - reloaded:false means SQL flip succeeded but model service didn't hot-swap
- *     (admin UI surfaces this as "下次重啟生效")
- *
- * Note: Supabase JS has no transaction support. Two updates run sequentially —
- * a sub-second window exists where zero rows may be is_active=true. App.py
- * lifespan falls back to base model in that case, so a cold start during this
- * window is degraded but not broken.
- */
-app.post('/api/admin/pathb/minilm/activate', requireAdmin, async (req, res) => {
-  const { version } = req.body || {};
-  if (!version || typeof version !== 'string') {
-    return res.status(400).json({ error: 'version (string) required in body' });
-  }
-
-  // 1. Verify version exists
-  const { data: row, error: lookupErr } = await supabase
-    .from('minilm_versions')
-    .select('version')
-    .eq('version', version)
-    .maybeSingle();
-  if (lookupErr) return res.status(500).json({ error: 'DB lookup failed: ' + lookupErr.message });
-  if (!row) return res.status(404).json({ error: `Version not found: ${version}` });
-
-  // 2. Deactivate all others, then activate target
-  const { error: deactErr } = await supabase
-    .from('minilm_versions')
-    .update({ is_active: false })
-    .neq('version', version);
-  if (deactErr) return res.status(500).json({ error: 'Deactivate-others failed: ' + deactErr.message });
-
-  const { error: actErr } = await supabase
-    .from('minilm_versions')
-    .update({ is_active: true })
-    .eq('version', version);
-  if (actErr) return res.status(500).json({ error: 'Activate target failed: ' + actErr.message });
-
-  // 3. Best-effort hot reload
-  const minilmUrl = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railway.internal:8000';
-  let reloaded = false;
-  let active_version = version;
-  try {
-    const controller = new AbortController();
-    // Generous timeout: lifespan-style cold load includes ~30s Storage download (127MB / 4 parts)
-    const timer = setTimeout(() => controller.abort(), 60000);
-    const r = await fetch(`${minilmUrl}/model/reload`, { method: 'POST', signal: controller.signal });
-    clearTimeout(timer);
-    if (r.ok) {
-      const d = await r.json();
-      reloaded = !!d.ok;
-      active_version = d.active_version || version;
-    }
-  } catch (_) {
-    // minilm service unreachable / timed out — SQL flip persists, will load on next restart
-  }
-
-  console.log(`[pathb/minilm/activate] version=${version} reloaded=${reloaded}`);
-  return res.json({ ok: true, version, active_version, reloaded });
-});
-
-/**
  * POST /api/admin/pathb/upload
  * 批量上傳 JSONL
  *
@@ -3498,6 +3498,12 @@ app.post('/api/admin/pathb/upload', requireAdmin, express.raw({ type: '*/*', lim
             errors.push({ line: i+1, reason: 'missing prompt or invalid label' });
             continue;
           }
+          // Multi-turn fields from linguist JSONL (turn_count / context_prompt /
+          // conv_id / last_tier). Re-uploading prior batches will now preserve
+          // these — previously they were silently dropped at ingest.
+          // See contract 2026-05-19_l2-multi-turn-context.md.
+          const turnCountRaw = Number.isInteger(r.turn_count) && r.turn_count > 0 ? r.turn_count : 1;
+          const lastTierRaw  = r.last_tier && ['HIGH','MED','LOW'].includes(r.last_tier) ? r.last_tier : null;
           rows.push({
             prompt_masked:   r.prompt,
             l1_label:        r.label,
@@ -3512,6 +3518,10 @@ app.post('/api/admin/pathb/upload', requireAdmin, express.raw({ type: '*/*', lim
             domain:          r.domain || null,
             source:          'batch',
             used_for_training: false,                  // 等待下次訓練
+            context_prompt:  (typeof r.context_prompt === 'string' && r.context_prompt.trim()) ? r.context_prompt : null,
+            turn_count:      turnCountRaw,
+            conv_id:         r.conv_id || null,
+            last_tier:       lastTierRaw,
           });
         } catch (e) {
           errors.push({ line: i+1, reason: 'JSON parse error: ' + e.message });
