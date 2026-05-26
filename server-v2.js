@@ -3023,6 +3023,12 @@ app.post('/api/admin/providers', requireAdmin, async (req, res) => {
 });
 
 app.patch('/api/admin/providers/:id', requireAdmin, async (req, res) => {
+  // Validate UUID format to avoid PG-level 500 on garbage input.
+  // Same pattern should eventually go on every /:id admin endpoint;
+  // doing only providers here per current contract scope.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid provider id (expected UUID).' });
+  }
   const allowed = ['api_key_enc','cost_per_1m_tokens','tier_capability',
                    'is_active','priority','display_name','supports_vision'];
   const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
