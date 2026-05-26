@@ -9,7 +9,7 @@ import os
 import time
 import torch
 import numpy as np
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, BertTokenizerFast
 
 LABEL_MAP = {0: "HIGH", 1: "MED", 2: "LOW"}
 LABEL_TO_ID = {"HIGH": 0, "MED": 1, "LOW": 2}
@@ -30,10 +30,11 @@ def load_model(checkpoint_path: str | None = None):
 
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # use_fast=True picks the Rust tokenizer (PreTrainedTokenizerFast subclass)
-    # when tokenizer.json is present, ~5-10× faster than the Python BertTokenizer
-    # that AutoTokenizer was silently falling back to on Railway.
-    _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    # Force the Rust tokenizer. AutoTokenizer.from_pretrained(..., use_fast=True)
+    # was not upgrading because tokenizer_config.json hard-codes
+    # `"tokenizer_class": "BertTokenizer"`. Bypass class resolution by using
+    # BertTokenizerFast directly — MiniLM is BERT-family so this is safe.
+    _tokenizer = BertTokenizerFast.from_pretrained(model_name)
     _model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         num_labels=num_labels,

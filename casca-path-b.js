@@ -273,7 +273,11 @@ const MINILM_URL = process.env.MINILM_SERVICE_URL || 'http://casca-minilm.railwa
 export async function predictMiniLM(prompt, contextPrompt) {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    // 2s timeout: post-fix L2 fwd is ~34ms (2026-05-26 thread-quota fix),
+    // so 2s = ~60× headroom for network + slow-case inference. Customer
+    // experience target was "L2 should never make a request wait >2s before
+    // we give up and fall back to L1".
+    const timer = setTimeout(() => controller.abort(), 2000);
 
     const body = { prompt };
     if (contextPrompt && typeof contextPrompt === 'string' && contextPrompt.trim()) {
