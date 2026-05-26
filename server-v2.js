@@ -148,6 +148,22 @@ function emailResumed(email) {
     </div>`);
 }
 
+// Verification email for new registrations. verifyUrl comes from
+// supabase.auth.admin.generateLink({ type: 'signup' }) — Supabase-controlled,
+// HTML-safe. Email body intentionally does not embed user-supplied strings
+// (company_name etc.) to keep it XSS-safe like the other helpers.
+function emailVerification(email, verifyUrl) {
+  return sendEmail(email, 'Verify your Casca account',
+    `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+      <h2 style="color:#1a1a2e">Welcome to Casca</h2>
+      <p>Thanks for signing up. Please confirm your email to activate your 30-day trial:</p>
+      <p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#0066ff;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Verify your account →</a></p>
+      <p style="font-size:12px;color:#666">Or copy this link into your browser:<br><span style="word-break:break-all">${verifyUrl}</span></p>
+      <p style="font-size:12px;color:#888">If you didn't sign up for Casca, you can safely ignore this email.</p>
+      <p style="color:#888;font-size:12px">— Casca Team · casca@vastitw.com</p>
+    </div>`);
+}
+
 
 // ════════════════════════════════════════════════════════════════
 //  PROMETHEUS METRICS
@@ -1631,18 +1647,28 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
   try {
-    // Use public signUp() so Supabase automatically sends confirmation email.
-    // admin.createUser() does NOT send email even with email_confirm: false.
-    const { data: authData, error: authErr } = await supabase.auth.signUp({
+    // ── Step 1: create the auth user via admin API ──
+    // supabase.auth.signUp() with a service-role client returns data.user=null
+    // (Supabase anti-enumeration behavior for admin-level callers), which is
+    // why the previous signUp-based flow always 500'd. admin.createUser() is
+    // the supported path for server-side user provisioning and always returns
+    // a user object on success. Trade-off: it doesn't auto-send the verify
+    // email — we generate the link + send via Resend below.
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        emailRedirectTo: (process.env.FRONTEND_URL || 'https://cascaio.com') + '/dashboard',
-        data: { company_name: company_name || null },
-      },
+      email_confirm: false,                     // require user to click verify link
+      user_metadata: { company_name: company_name || null },
     });
     if (authErr) {
-      if (authErr.message.includes('already registered') || authErr.message.includes('already exists')) {
+      const msg = (authErr.message || '').toLowerCase();
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('already been registered') ||
+        authErr.status === 422 ||
+        authErr.code === 'email_exists'
+      ) {
         return res.status(409).json({ error: 'This email is already registered. Please log in.' });
       }
       return res.status(400).json({ error: authErr.message });
@@ -1650,32 +1676,61 @@ app.post('/api/auth/register', async (req, res) => {
 
     const userId = authData.user?.id;
     if (!userId) {
-      return res.status(500).json({ error: 'Sign-up failed: no user returned.' });
+      // Should be unreachable with admin.createUser (always returns user on success).
+      return res.status(500).json({ error: 'Sign-up failed: no user id returned.' });
     }
 
+    // ── Step 2: generate the email-verification link ──
+    const redirectTo = (process.env.FRONTEND_URL || 'https://cascaio.com') + '/dashboard';
+    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      password,                                 // required when type='signup' even though user already created
+      options: { redirectTo },
+    });
+
+    // ── Step 3: send the verification email via Resend ──
+    // If link generation or email send fails, do NOT fail the whole request —
+    // the auth user already exists, so a 5xx here would mislead the client
+    // (the account IS created). Log and continue; the user can request a
+    // resend later. Surface a degraded message in that case.
+    let verifyEmailSent = false;
+    if (linkErr || !linkData?.properties?.action_link) {
+      console.error('[register] generateLink failed:', linkErr?.message || 'no action_link');
+    } else {
+      try {
+        await emailVerification(email, linkData.properties.action_link);
+        verifyEmailSent = true;
+      } catch (mailErr) {
+        console.error('[register] emailVerification send failed:', mailErr.message);
+      }
+    }
+
+    // ── Step 4: upsert the clients row (Passthrough Free by default) ──
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 30);
     const trialEndIso = trialEnd.toISOString();
 
-    // Upsert clients record — default to Passthrough Free
     await supabase.from('clients').upsert({
       id:             userId,
       email,
       company_name:   company_name || null,
-      account_type:   'passthrough',           // default: passthrough free member
+      account_type:   'passthrough',
       trial_ends_at:  trialEndIso,
-      path_b_judge_enabled: false,             // trial/free users: judge off by default
+      path_b_judge_enabled: false,
       status:         'active',
       updated_at:     new Date().toISOString(),
     }, { onConflict: 'id' });
 
-    console.log(`[register] new user ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} → ${userId.slice(0, 8)}, trial until ${trialEndIso}, verification email sent`);
+    console.log(`[register] new user ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} → ${userId.slice(0, 8)}, trial until ${trialEndIso}, verify_email_sent=${verifyEmailSent}`);
 
     return res.status(201).json({
       ok:            true,
       user_id:       userId,
       trial_ends_at: trialEndIso,
-      message:       'Account created. Please check your email to verify your account, then log in to activate your trial and get your API key.',
+      message: verifyEmailSent
+        ? 'Account created. Please check your email to verify your account, then log in to activate your trial and get your API key.'
+        : 'Account created. Verification email could not be sent automatically — please use the "resend verification" option on the login page.',
     });
   } catch (err) {
     console.error('[register] error:', err.message);
