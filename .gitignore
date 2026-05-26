@@ -1,1 +1,28 @@
+# Credentials — never commit
 CREDENTIALS-DO-NOT-SHARE.md
+*.env
+.env.*
+!.env.example
+
+# Node
+**/node_modules/
+**/npm-debug.log*
+**/yarn-error.log
+
+# Python (casca-minilm)
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+# Local model checkpoints (downloaded at runtime from Supabase Storage)
+casca-minilm/model/checkpoints/*
+!casca-minilm/model/checkpoints/.gitkeep
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
