@@ -33,6 +33,21 @@ from model.train import (
 from storage import upload_checkpoint, download_checkpoint, storage_path_for
 
 
+# ── Env diagnostics (one-shot at import) ─────────────────────────
+# Surfaces Railway CPU quota + PyTorch threading config so we can tell
+# whether L2 latency is hardware-bound vs config-bound. Single startup
+# log, no per-request overhead.
+import torch
+try:
+    _cgroup_quota = open('/sys/fs/cgroup/cpu.max').read().strip()
+except Exception:
+    _cgroup_quota = 'n/a'
+print(
+    f"[env] nproc={os.cpu_count()} torch.threads={torch.get_num_threads()} "
+    f"mkldnn={torch.backends.mkldnn.is_available()} cgroup.cpu.max={_cgroup_quota}",
+    flush=True,
+)
+
 # ── Supabase client ──────────────────────────────────────────────
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")

@@ -6,6 +6,7 @@ Provides predict(prompt) → { label, confidence, probabilities }.
 """
 
 import os
+import time
 import torch
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -38,7 +39,11 @@ def load_model(checkpoint_path: str | None = None):
     _model.to(_device)
     _model.eval()
 
-    print(f"[minilm] Model loaded: {model_name} → {_device}")
+    print(
+        f"[minilm] Model loaded: {model_name} → {_device} "
+        f"tokenizer={type(_tokenizer).__name__}",
+        flush=True,
+    )
     return True
 
 
@@ -71,6 +76,7 @@ def predict(prompt: str, context_prompt: str | None = None) -> dict:
     if _model is None or _tokenizer is None:
         raise RuntimeError("Model not loaded. Call load_model() first.")
 
+    _t0 = time.perf_counter()
     has_context = isinstance(context_prompt, str) and context_prompt.strip()
 
     if has_context:
@@ -101,17 +107,31 @@ def predict(prompt: str, context_prompt: str | None = None) -> dict:
             padding="max_length",
         )
     inputs = {k: v.to(_device) for k, v in inputs.items()}
+    _t1 = time.perf_counter()
 
     with torch.no_grad():
         outputs = _model(**inputs)
         logits = outputs.logits[0]
         probs = torch.softmax(logits, dim=-1).cpu().numpy()
+    _t2 = time.perf_counter()
 
     top_idx = int(np.argmax(probs))
     label = LABEL_MAP[top_idx]
     confidence = float(probs[top_idx])
 
     probabilities = {LABEL_MAP[i]: float(probs[i]) for i in range(len(probs))}
+    _t3 = time.perf_counter()
+
+    # Latency breakdown — single log line per /predict call.
+    # tok = tokenizer encode + device move
+    # fwd = torch forward + softmax + .cpu() (the heavy part)
+    # post = argmax + dict build
+    print(
+        f"[predict] tok={(_t1-_t0)*1000:.0f}ms fwd={(_t2-_t1)*1000:.0f}ms "
+        f"post={(_t3-_t2)*1000:.0f}ms total={(_t3-_t0)*1000:.0f}ms "
+        f"ctx={'Y' if has_context else 'N'} lbl={label}",
+        flush=True,
+    )
 
     return {
         "label": label,
