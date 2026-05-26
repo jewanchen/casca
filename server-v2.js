@@ -1871,8 +1871,14 @@ app.get('/metrics', (req, res, next) => {
 
 // ════════════════════════════════════════════════════════════════
 //  CORE ENDPOINT: POST /api/v1/chat/completions
+//
+//  Handler extracted as a named function so /api/route (legacy alias)
+//  can invoke the same logic directly. Express 5 no longer guarantees
+//  app._router.handle() re-dispatches after req.url rewrite, so the
+//  prior "set req.url + re-route" pattern broke. Calling the function
+//  directly is the supported approach.
 // ════════════════════════════════════════════════════════════════
-app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_CHAT), async (req, res) => {
+async function chatCompletionHandler(req, res) {
   const t0 = Date.now();
   const { messages, uc, qualityTier, conversationContext } = req.body;
   const client   = req.client;
@@ -2241,15 +2247,30 @@ app.post('/api/v1/chat/completions', requireApiKey, rateLimit('chat', RATE_MAX_C
       lastTier,
     }).catch(err => console.error('[path-b] pipeline error:', err.message));
   }
-});
+}
+
+app.post(
+  '/api/v1/chat/completions',
+  requireApiKey,
+  rateLimit('chat', RATE_MAX_CHAT),
+  chatCompletionHandler,
+);
 
 // ── /api/route — backward-compatible alias ────────────────────────
-app.post('/api/route', requireApiKey, async (req, res, next) => {
-  if (!req.body.messages && req.body.prompt)
-    req.body.messages = [{ role: 'user', content: req.body.prompt }];
-  req.url = '/api/v1/chat/completions';
-  app._router.handle(req, res, next);
-});
+// Accepts legacy { prompt } shape and forwards to the same handler.
+// Same middleware chain as /api/v1/chat/completions so rate limiting
+// applies identically (same 'chat' bucket).
+app.post(
+  '/api/route',
+  requireApiKey,
+  rateLimit('chat', RATE_MAX_CHAT),
+  async (req, res) => {
+    if (!req.body.messages && req.body.prompt) {
+      req.body.messages = [{ role: 'user', content: req.body.prompt }];
+    }
+    return chatCompletionHandler(req, res);
+  },
+);
 
 // ════════════════════════════════════════════════════════════════
 //  BILLING ENDPOINTS
