@@ -33,18 +33,61 @@ from model.train import (
 from storage import upload_checkpoint, download_checkpoint, storage_path_for
 
 
-# ── Env diagnostics (one-shot at import) ─────────────────────────
-# Surfaces Railway CPU quota + PyTorch threading config so we can tell
-# whether L2 latency is hardware-bound vs config-bound. Single startup
-# log, no per-request overhead.
+# ── CPU threading: match torch threads to cgroup quota ──────────
+# Hosts expose all physical cores via os.cpu_count() (e.g. 48 on Railway),
+# but containerized workloads get a smaller cgroup CPU quota. PyTorch
+# defaults to os.cpu_count() threads, so 48 PyTorch threads compete for
+# 8 vCPU slots → context-switching dominates and forward pass is 50×
+# slower than expected (observed 11s vs 200ms target on 2026-05-26).
+#
+# Detect cgroup quota and size threads accordingly. Falls back gracefully
+# to os.cpu_count() on non-cgroup hosts (e.g. bare metal, local dev).
 import torch
+
+
+def _detect_cpu_quota() -> int:
+    """Effective CPU count respecting cgroup limits (v2 then v1)."""
+    # cgroup v2: /sys/fs/cgroup/cpu.max → "<quota> <period>" or "max <period>"
+    try:
+        with open('/sys/fs/cgroup/cpu.max') as f:
+            parts = f.read().split()
+            if len(parts) == 2 and parts[0] != 'max':
+                n = int(parts[0]) // int(parts[1])
+                if n >= 1:
+                    return n
+    except Exception:
+        pass
+    # cgroup v1
+    try:
+        with open('/sys/fs/cgroup/cpu/cpu.cfs_quota_us') as f:
+            q = int(f.read().strip())
+        with open('/sys/fs/cgroup/cpu/cpu.cfs_period_us') as f:
+            p = int(f.read().strip())
+        if q > 0 and p > 0:
+            return max(1, q // p)
+    except Exception:
+        pass
+    return os.cpu_count() or 1
+
+
+_cpu_quota = _detect_cpu_quota()
+torch.set_num_threads(_cpu_quota)
+try:
+    # interop threads at 1 minimizes coordination overhead for single-sample
+    # inference. Must be set before any torch op; harmless if already set.
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass
+
+# ── Env diagnostics (one-shot at import) ─────────────────────────
 try:
     _cgroup_quota = open('/sys/fs/cgroup/cpu.max').read().strip()
 except Exception:
     _cgroup_quota = 'n/a'
 print(
     f"[env] nproc={os.cpu_count()} torch.threads={torch.get_num_threads()} "
-    f"mkldnn={torch.backends.mkldnn.is_available()} cgroup.cpu.max={_cgroup_quota}",
+    f"interop={torch.get_num_interop_threads()} mkldnn={torch.backends.mkldnn.is_available()} "
+    f"cgroup.cpu.max={_cgroup_quota} → using {_cpu_quota} threads",
     flush=True,
 )
 

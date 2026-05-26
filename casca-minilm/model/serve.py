@@ -30,7 +30,10 @@ def load_model(checkpoint_path: str | None = None):
 
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    _tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # use_fast=True picks the Rust tokenizer (PreTrainedTokenizerFast subclass)
+    # when tokenizer.json is present, ~5-10× faster than the Python BertTokenizer
+    # that AutoTokenizer was silently falling back to on Railway.
+    _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     _model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         num_labels=num_labels,
