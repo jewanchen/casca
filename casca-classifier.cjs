@@ -2888,6 +2888,11 @@ function route(prompt, uc, qualityTier, conversationContext) {
     /** Detect if a prompt references previous conversation output */
     detectBackreference,
 
+    /** Multi-turn tier floor: HIGH→MED, MED→MED, LOW/null→no-op.
+     *  Idempotent. Used internally by route(), exposed for serving-layer
+     *  safety-net (see ADR 2026-05-27 classifier_serving-tier-floor). */
+    contextFloor,
+
     /** Classification only (no model/cost) */
     classify,
 

@@ -46,6 +46,12 @@ const _classifier = _require('./casca-classifier.cjs');
 console.log('[casca] classifier v' + (_classifier.VERSION || '?') +
             ' loaded — ' + Object.keys(_classifier).length + ' exports');
 const cascaRoute  = _classifier.route;
+// Serving-layer safety-net floor (see ADR 2026-05-27_classifier_serving-tier-floor).
+// Idempotent — L1 path no-op (L1 already floored internally), L2 path effective.
+// Fallback to no-op if classifier doesn't export it (very old build).
+const contextFloor = typeof _classifier.contextFloor === 'function'
+                       ? _classifier.contextFloor
+                       : (cx, _lastTier) => cx;
 const setConfig   = typeof _classifier.setConfig === 'function'
                       ? _classifier.setConfig
                       : () => {};
@@ -2112,6 +2118,24 @@ async function chatCompletionHandler(req, res) {
         const ctxFlag = contextPrompt ? ' ctx=Y' : '';
         console.log(`[path-b] L2 override: ${prevCx}→${l2Result.label} (L1 dynConf=${dynConf}, L2 conf=${(l2Result.confidence*100).toFixed(1)}%${ctxFlag})`);
       }
+    }
+  }
+
+  // ── Serving-layer multi-turn safety-net floor ────────────────────
+  // Per ADR 2026-05-27_classifier_serving-tier-floor.
+  // L1 internally applies contextFloor in many places (line ~2538, 2567 +
+  // 200 LOC of per-language multi-turn rules). L2 override path bypasses
+  // all of that — L2 only sees (prompt, contextPrompt), not lastTier.
+  // Apply contextFloor here as a safety-net for the L2 case. Idempotent:
+  // for L1 path (already floored), this is a no-op; for L2 path, it lifts
+  // LOW → MED when lastTier ≥ MED.
+  // Skip AMBIG (let downstream AMBIG→MED mapping handle).
+  // Log only on change (avoid noise from idempotent no-ops on L1 path).
+  if (lastTier && classifyResult.cx && classifyResult.cx !== 'AMBIG') {
+    const flooredCx = contextFloor(classifyResult.cx, lastTier);
+    if (flooredCx !== classifyResult.cx) {
+      console.log(`[contextFloor] ${classifyResult.cx} → ${flooredCx} (lastTier=${lastTier}, L2_invoked=${!!l2Result})`);
+      classifyResult = { ...classifyResult, cx: flooredCx };
     }
   }
 
