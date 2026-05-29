@@ -4090,6 +4090,164 @@ function schedulePauseArchive() {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  APPEXCHANGE SYNC — Webhook receiver + path filter
+//  Per ADR 2026-05-29_appex_sync-workflow + contract
+//  2026-05-29_appex_sync-workflow. Phase 1: receive GitHub push,
+//  filter by relevant paths, record to appex_sync_commits as
+//  status='pending'. Skip / agree / cron / UI in later phases.
+// ════════════════════════════════════════════════════════════════
+
+// Files whose changes affect either stability OR product precision.
+// Anchored to repo root; tested with .test() against commit.added/modified/removed.
+// See ADR §decision §1 for full justification per pattern.
+const APPEX_RELEVANT_PATHS = [
+  // Stability
+  /^server-v2\.js$/,
+  /^casca-path-b\.js$/,
+  /^casca-enterprise-api\.js$/,
+  /^package\.json$/,
+  /^functions\/api\/.*\.js$/,
+  // Precision
+  /^casca-classifier\.cjs$/,
+  /^casca-minilm\/app\.py$/,
+  /^casca-minilm\/model\/serve\.py$/,
+  /^casca-minilm\/model\/train\.py$/,
+  /^casca-minilm\/storage\.py$/,
+  // Schema
+  /^casca-schema-.*\.sql$/,
+  /^casca-migration-.*\.sql$/,
+  // Deployment
+  /^\.env\.example$/,
+  /^casca-minilm\/Dockerfile$/,
+  /^casca-minilm\/requirements\.txt$/,
+  /^casca-minilm\/railway\.toml$/,
+];
+
+function appexMatchRelevantPaths(files) {
+  const matched = [];
+  for (const f of files) {
+    if (APPEX_RELEVANT_PATHS.some(re => re.test(f))) matched.push(f);
+  }
+  return matched;
+}
+
+/**
+ * POST /api/admin/appex/webhook — GitHub push event receiver.
+ *
+ * No requireAdmin (GitHub is the caller). Authentication via
+ * x-hub-signature-256 HMAC-SHA256 against GITHUB_WEBHOOK_SECRET.
+ *
+ * Uses express.raw to capture exact bytes for signature verification
+ * (express.json would re-serialize and break the HMAC). After verify,
+ * we parse the JSON manually.
+ */
+app.post('/api/admin/appex/webhook', express.raw({ type: '*/*', limit: '5mb' }), async (req, res) => {
+  const signature = req.headers['x-hub-signature-256'];
+  const secret    = process.env.GITHUB_WEBHOOK_SECRET || '';
+
+  if (!secret) {
+    console.error('[appex/webhook] GITHUB_WEBHOOK_SECRET not set — rejecting');
+    return res.status(503).json({ error: 'Webhook handler not configured.' });
+  }
+  if (!signature || typeof signature !== 'string') {
+    return res.status(401).json({ error: 'Missing signature.' });
+  }
+
+  // Compute expected signature over RAW bytes.
+  const rawBody  = req.body; // Buffer because of express.raw
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+
+  let valid = false;
+  try {
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expected);
+    valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (_e) {
+    valid = false;
+  }
+  if (!valid) {
+    console.warn('[appex/webhook] signature mismatch');
+    return res.status(401).json({ error: 'Invalid signature.' });
+  }
+
+  // Parse JSON only after signature verified.
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString('utf8'));
+  } catch (_e) {
+    return res.status(400).json({ error: 'Invalid JSON body.' });
+  }
+
+  // Filter event type. Respond 2xx to ping / non-push to avoid GitHub retries.
+  const event = req.headers['x-github-event'];
+  if (event === 'ping') return res.json({ ok: true, pong: true });
+  if (event !== 'push') return res.json({ ok: true, ignored_event: event });
+
+  // Only main branch matters (GitHub UI hooks tend to fire on every branch).
+  if (payload.ref !== 'refs/heads/main') {
+    return res.json({ ok: true, ignored_branch: payload.ref });
+  }
+
+  // For each commit, filter against relevant paths.
+  const commits = Array.isArray(payload.commits) ? payload.commits : [];
+  const toInsert = [];
+  for (const c of commits) {
+    const all = [
+      ...(Array.isArray(c.added)    ? c.added    : []),
+      ...(Array.isArray(c.modified) ? c.modified : []),
+      ...(Array.isArray(c.removed)  ? c.removed  : []),
+    ];
+    const relevant = appexMatchRelevantPaths(all);
+    if (relevant.length === 0) continue;
+    if (!c.id || typeof c.id !== 'string') continue;
+    toInsert.push({
+      commit_hash:   c.id.substring(0, 7),
+      full_hash:     c.id,
+      author:        c.author?.email || c.author?.name || c.committer?.email || 'unknown',
+      message:       (c.message || '').split('\n')[0].slice(0, 500),
+      committed_at:  c.timestamp || null,
+      files_changed: relevant,
+      status:        'pending',
+    });
+  }
+
+  if (toInsert.length > 0) {
+    const { error } = await supabase
+      .from('appex_sync_commits')
+      .upsert(toInsert, { onConflict: 'commit_hash', ignoreDuplicates: true });
+    if (error) {
+      console.error('[appex/webhook] DB upsert failed:', error.message);
+      return res.status(500).json({ error: 'DB write failed.' });
+    }
+    console.log(`[appex/webhook] recorded ${toInsert.length} of ${commits.length} commits as pending`);
+  } else if (commits.length > 0) {
+    console.log(`[appex/webhook] ${commits.length} commits in push, 0 relevant`);
+  }
+
+  return res.json({ ok: true, recorded: toInsert.length, total_in_push: commits.length });
+});
+
+/**
+ * GET /api/admin/appex/_debug/commits
+ * Phase 1 sanity check endpoint — list recent commits in the table.
+ * Will be replaced by the proper /api/admin/appex/commits in Phase 2.
+ */
+app.get('/api/admin/appex/_debug/commits', requireAdmin, async (req, res) => {
+  const status = req.query.status; // optional filter
+  let query = supabase
+    .from('appex_sync_commits')
+    .select('commit_hash, message, author, status, committed_at, files_changed, created_at')
+    .order('committed_at', { ascending: false })
+    .limit(30);
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  const counts = {};
+  for (const r of data) counts[r.status] = (counts[r.status] || 0) + 1;
+  return res.json({ counts_in_returned: counts, commits: data });
+});
+
+// ════════════════════════════════════════════════════════════════
 //  BOOT
 // ════════════════════════════════════════════════════════════════
 async function start() {
