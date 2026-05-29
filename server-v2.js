@@ -1282,7 +1282,13 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
 });
 
 // ── JSON body parser (after webhook route) ─────────────────────
-app.use(express.json({ limit: '4mb' }));
+// verify callback captures raw bytes for HMAC verification on signed
+// webhooks (e.g. /api/admin/appex/webhook). Negligible memory overhead;
+// req.rawBody is a Buffer holding the original payload.
+app.use(express.json({
+  limit: '4mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 
 // ── Rate limiting (in-memory, per API key) ─────────────────────
 const RATE_MAX_CHAT  = 120;   // 120 chat requests/min per key
@@ -4142,7 +4148,7 @@ function appexMatchRelevantPaths(files) {
  * (express.json would re-serialize and break the HMAC). After verify,
  * we parse the JSON manually.
  */
-app.post('/api/admin/appex/webhook', express.raw({ type: '*/*', limit: '5mb' }), async (req, res) => {
+app.post('/api/admin/appex/webhook', async (req, res) => {
   const signature = req.headers['x-hub-signature-256'];
   const secret    = process.env.GITHUB_WEBHOOK_SECRET || '';
 
@@ -4153,11 +4159,14 @@ app.post('/api/admin/appex/webhook', express.raw({ type: '*/*', limit: '5mb' }),
   if (!signature || typeof signature !== 'string') {
     return res.status(401).json({ error: 'Missing signature.' });
   }
+  // Raw bytes captured by global express.json verify callback (see line ~1285).
+  const rawBody = req.rawBody;
+  if (!rawBody) {
+    console.error('[appex/webhook] req.rawBody not captured — verify callback missing?');
+    return res.status(500).json({ error: 'Raw body not available for signature check.' });
+  }
 
-  // Compute expected signature over RAW bytes.
-  const rawBody  = req.body; // Buffer because of express.raw
   const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-
   let valid = false;
   try {
     const a = Buffer.from(signature);
@@ -4171,11 +4180,9 @@ app.post('/api/admin/appex/webhook', express.raw({ type: '*/*', limit: '5mb' }),
     return res.status(401).json({ error: 'Invalid signature.' });
   }
 
-  // Parse JSON only after signature verified.
-  let payload;
-  try {
-    payload = JSON.parse(rawBody.toString('utf8'));
-  } catch (_e) {
+  // Use the already-parsed JSON (global express.json did this).
+  const payload = req.body;
+  if (!payload || typeof payload !== 'object') {
     return res.status(400).json({ error: 'Invalid JSON body.' });
   }
 
