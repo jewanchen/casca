@@ -4227,13 +4227,293 @@ app.post('/api/admin/appex/webhook', express.raw({ type: '*/*', limit: '5mb' }),
   return res.json({ ok: true, recorded: toInsert.length, total_in_push: commits.length });
 });
 
+// ── Phase 2: Admin endpoints ────────────────────────────────────
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+  );
+}
+
+function buildAppexDigestHtml(commits) {
+  const rows = commits.map(c => `
+    <tr>
+      <td style="font-family:monospace">${escapeHtml(c.commit_hash)}</td>
+      <td>${escapeHtml(c.author || '')}</td>
+      <td>${escapeHtml(c.message || '')}</td>
+      <td style="text-align:center">${(c.files_changed || []).length}</td>
+    </tr>`).join('');
+  return `<div style="font-family:sans-serif;max-width:680px;margin:0 auto">
+      <h2 style="color:#1a1a2e">Casca AppExchange Sync — Weekly Digest</h2>
+      <p>You have <strong>${commits.length} pending commits</strong> from prod awaiting your decision (Skip or Agree-to-sync).</p>
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:13px;width:100%">
+        <thead><tr style="background:#f0f0f0;text-align:left">
+          <th>Hash</th><th>Author</th><th>Message</th><th>#Files</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top:24px"><a href="https://casca-admin.cascaio.com/appex/sync"
+         style="display:inline-block;padding:10px 20px;background:#0066ff;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+         Review in Admin →</a></p>
+      <p style="color:#888;font-size:12px">— Casca AppExchange Sync</p>
+    </div>`;
+}
+
+/**
+ * GET /api/admin/appex/commits — list with status filter + pagination
+ */
+app.get('/api/admin/appex/commits', requireAdmin, async (req, res) => {
+  const status = req.query.status;
+  const limit  = Math.min(parseInt(req.query.limit  || '50', 10), 200);
+  const offset = parseInt(req.query.offset || '0', 10);
+
+  let query = supabase
+    .from('appex_sync_commits')
+    .select('*', { count: 'exact' })
+    .order('committed_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (status) query = query.eq('status', status);
+
+  const { data, count, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Summary across all statuses (parallel head=true counts)
+  const STATUSES = ['pending', 'skipped', 'syncing', 'synced', 'failed', 'baseline'];
+  const cs = await Promise.all(STATUSES.map(s =>
+    supabase.from('appex_sync_commits').select('*', { count: 'exact', head: true }).eq('status', s)
+  ));
+  const summary = Object.fromEntries(STATUSES.map((s, i) => [s, cs[i].count || 0]));
+
+  return res.json({ commits: data, total: count, summary });
+});
+
+/**
+ * POST /api/admin/appex/commits/:hash/skip — admin decides not to sync this one
+ * Body: { notes?: string }
+ */
+app.post('/api/admin/appex/commits/:hash/skip', requireAdmin, async (req, res) => {
+  const hash = req.params.hash;
+  if (!/^[0-9a-f]{7}$/i.test(hash)) {
+    return res.status(400).json({ error: 'Invalid commit hash format (expected 7-char hex).' });
+  }
+  const notes = req.body?.notes ? String(req.body.notes).slice(0, 500) : null;
+
+  const { data, error } = await supabase
+    .from('appex_sync_commits')
+    .update({
+      status: 'skipped',
+      decided_at: new Date().toISOString(),
+      decided_by: 'admin',
+      decision_notes: notes,
+    })
+    .eq('commit_hash', hash)
+    .eq('status', 'pending')
+    .select()
+    .single();
+
+  if (error && error.code === 'PGRST116') {
+    return res.status(404).json({ error: 'Commit not found or not in pending status.' });
+  }
+  if (error) return res.status(500).json({ error: error.message });
+
+  console.log(`[appex] commit ${hash} skipped${notes ? ' (notes: ' + notes.slice(0,60) + ')' : ''}`);
+  return res.json({ commit: data });
+});
+
+/**
+ * POST /api/admin/appex/commits/:hash/sync — admin agrees, trigger workflow
+ */
+app.post('/api/admin/appex/commits/:hash/sync', requireAdmin, async (req, res) => {
+  const hash = req.params.hash;
+  if (!/^[0-9a-f]{7}$/i.test(hash)) {
+    return res.status(400).json({ error: 'Invalid commit hash format.' });
+  }
+
+  const { data: commit, error: getErr } = await supabase
+    .from('appex_sync_commits')
+    .select('*')
+    .eq('commit_hash', hash)
+    .single();
+  if (getErr || !commit) return res.status(404).json({ error: 'Commit not found.' });
+  if (commit.status !== 'pending') {
+    return res.status(409).json({ error: `Cannot sync commit in status: ${commit.status}` });
+  }
+
+  const pat = process.env.GITHUB_PAT;
+  if (!pat) return res.status(503).json({ error: 'GITHUB_PAT not configured.' });
+
+  const dispatchUrl = 'https://api.github.com/repos/jewanchen/casca-appexchange/actions/workflows/sync.yml/dispatches';
+  try {
+    const r = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${pat}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: 'main',
+        inputs: {
+          source_commit: commit.full_hash,
+          source_short:  commit.commit_hash,
+          source_message: (commit.message || '').slice(0, 200),
+        },
+      }),
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error(`[appex] workflow_dispatch failed ${r.status}: ${errText.slice(0,200)}`);
+      return res.status(502).json({ error: 'GitHub workflow_dispatch failed.', detail: `HTTP ${r.status}` });
+    }
+  } catch (e) {
+    console.error('[appex] workflow_dispatch network error:', e.message);
+    return res.status(502).json({ error: 'GitHub API unreachable.' });
+  }
+
+  const { data: updated, error: updErr } = await supabase
+    .from('appex_sync_commits')
+    .update({
+      status: 'syncing',
+      decided_at: new Date().toISOString(),
+      decided_by: 'admin',
+    })
+    .eq('commit_hash', hash)
+    .select()
+    .single();
+  if (updErr) console.error('[appex] DB update after dispatch:', updErr.message);
+
+  console.log(`[appex] commit ${hash} sync triggered (workflow_dispatch fired)`);
+  return res.json({
+    commit: updated || commit,
+    message: 'Sync workflow triggered. PR will open in casca-appexchange shortly.',
+  });
+});
+
+/**
+ * POST /api/admin/appex/commits/:hash/sync-callback
+ * Called by GitHub Action (NOT admin). Authenticated via callback secret header.
+ * Body: { event: 'pr_opened' | 'pr_merged' | 'failed', pr_url?, pr_merged_at?, sync_error? }
+ */
+app.post('/api/admin/appex/commits/:hash/sync-callback', express.json(), async (req, res) => {
+  const expectedSecret = process.env.GITHUB_APPEX_CALLBACK_SECRET || '';
+  const providedSecret = req.headers['x-casca-callback-secret'];
+
+  if (!expectedSecret) {
+    console.error('[appex/callback] GITHUB_APPEX_CALLBACK_SECRET not set');
+    return res.status(503).json({ error: 'Callback handler not configured.' });
+  }
+  if (!providedSecret || typeof providedSecret !== 'string') {
+    return res.status(401).json({ error: 'Missing callback secret.' });
+  }
+  let valid = false;
+  try {
+    const a = Buffer.from(providedSecret);
+    const b = Buffer.from(expectedSecret);
+    valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (_e) { valid = false; }
+  if (!valid) return res.status(401).json({ error: 'Invalid callback secret.' });
+
+  const hash = req.params.hash;
+  if (!/^[0-9a-f]{7}$/i.test(hash)) {
+    return res.status(400).json({ error: 'Invalid commit hash format.' });
+  }
+
+  const { event, pr_url, pr_merged_at, sync_error } = req.body || {};
+  let patch = {};
+  if (event === 'pr_opened') {
+    patch = { pr_url: pr_url || null };
+  } else if (event === 'pr_merged') {
+    patch = {
+      pr_merged_at: pr_merged_at || new Date().toISOString(),
+      synced_at: new Date().toISOString(),
+      status: 'synced',
+    };
+  } else if (event === 'failed') {
+    patch = { status: 'failed', sync_error: (sync_error || 'unknown').toString().slice(0, 500) };
+  } else {
+    return res.status(400).json({ error: `Unknown event type: ${event}` });
+  }
+
+  const { error } = await supabase
+    .from('appex_sync_commits')
+    .update(patch)
+    .eq('commit_hash', hash);
+  if (error) {
+    console.error('[appex/callback] DB update:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+
+  console.log(`[appex/callback] commit ${hash} event=${event}`);
+  return res.json({ ok: true });
+});
+
+// ── Phase 2: Weekly digest cron ─────────────────────────────────
+
+// Runs hourly, sends digest only Mondays 09:xx UTC. Uses notification_sent_at
+// flag so re-running same hour is no-op. Won't re-notify already-handled.
+function scheduleAppexDigest() {
+  const CHECK_MS = 60 * 60 * 1000;
+
+  async function runDigest() {
+    const now = new Date();
+    if (now.getUTCDay() !== 1) return;     // Monday only (UTC)
+    if (now.getUTCHours() !== 9) return;   // 09:xx UTC only
+
+    const { data: pending, error } = await supabase
+      .from('appex_sync_commits')
+      .select('commit_hash, message, author, committed_at, files_changed')
+      .eq('status', 'pending')
+      .is('notification_sent_at', null)
+      .order('committed_at', { ascending: true })
+      .limit(100);
+
+    if (error) {
+      console.error('[appex-cron] query error:', error.message);
+      return;
+    }
+    if (!pending || pending.length === 0) {
+      console.log('[appex-cron] Monday 09:xx UTC — no pending commits without notification');
+      return;
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL || 'casca@vastitw.com';
+    const subject = `Casca AppExchange Sync — ${pending.length} pending commit${pending.length === 1 ? '' : 's'} ready for review`;
+    const html = buildAppexDigestHtml(pending);
+
+    try {
+      await sendEmail(adminEmail, subject, html);
+    } catch (e) {
+      console.error('[appex-cron] sendEmail error:', e.message);
+      return;
+    }
+
+    const hashes = pending.map(p => p.commit_hash);
+    const { error: upErr } = await supabase
+      .from('appex_sync_commits')
+      .update({ notification_sent_at: new Date().toISOString() })
+      .in('commit_hash', hashes);
+    if (upErr) {
+      console.error('[appex-cron] mark notified error:', upErr.message);
+    }
+
+    console.log(`[appex-cron] digest sent to ${adminEmail}: ${pending.length} commits`);
+  }
+
+  setInterval(() => {
+    runDigest().catch(e => console.error('[appex-cron] uncaught:', e.message));
+  }, CHECK_MS);
+
+  console.log('[appex-cron] scheduled — checks hourly, sends Mondays 09:00 UTC');
+}
+
 /**
  * GET /api/admin/appex/_debug/commits
- * Phase 1 sanity check endpoint — list recent commits in the table.
- * Will be replaced by the proper /api/admin/appex/commits in Phase 2.
+ * Phase 1 sanity check endpoint. Kept for backwards-compat. Use the
+ * proper /api/admin/appex/commits (Phase 2) for new clients.
  */
 app.get('/api/admin/appex/_debug/commits', requireAdmin, async (req, res) => {
-  const status = req.query.status; // optional filter
+  const status = req.query.status;
   let query = supabase
     .from('appex_sync_commits')
     .select('commit_hash, message, author, status, committed_at, files_changed, created_at')
@@ -4264,6 +4544,7 @@ async function start() {
   scheduleTrialExpiry();
   scheduleWeeklyReset();
   schedulePauseArchive();
+  scheduleAppexDigest();
   // ── Enterprise self-hosted management routes ──
   registerEnterpriseRoutes(app, supabase, requireAdmin);
   app.listen(PORT, () => {
