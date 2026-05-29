@@ -4437,7 +4437,9 @@ app.post('/api/admin/appex/commits/:hash/sync-callback', express.json(), async (
       pr_merged_at: pr_merged_at || new Date().toISOString(),
       synced_at: new Date().toISOString(),
       status: 'synced',
+      sync_error: null,
     };
+    if (pr_url) patch.pr_url = pr_url;
   } else if (event === 'failed') {
     patch = { status: 'failed', sync_error: (sync_error || 'unknown').toString().slice(0, 500) };
   } else {
