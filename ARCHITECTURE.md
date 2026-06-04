@@ -2,21 +2,22 @@
 
 > **Domain**: cascaio.com · **API**: api.cascaio.com · **Admin**: casca-admin.cascaio.com
 > **Version**: v3.2 · Engine v2.6.2 · Path B enabled
-> **Last updated**: 2026-04-14
+> **Last updated**: 2026-06-05
 
 ---
 
 ## 1. Product Overview
 
-**Casca** 是一套 AI LLM 智慧路由引擎 + API Proxy 聚合器。
+**Casca** = AI Routing Infrastructure for Salesforce + 通用 LLM 路由 API。
 
-根據 prompt 的**複雜度**（LOW / MED / HIGH）自動把請求路由到成本最適的 LLM，聲稱可降低 LLM 帳單 **30–60%**，同時維持品質 SLA。
+根據 prompt 的**複雜度**（LOW / MED / HIGH）自動把請求路由到成本最適的 LLM，**實際省下多少由客戶 Dashboard per-request 算給看**（不做 unverifiable 百分比 claim — 見 [[decisions/2026-06-04_brand-positioning]] §3 honesty rule）。
 
 **核心賣點**：
 - **一行改動**：`base_url` 改為 `https://api.cascaio.com/v1`，Bearer token 帶 `csk_...`
 - **三種模式**：客戶用自己的 LLM Key (passthrough) 或用 Casca 管理 Key (managed)
 - **自我改善**：Path B 訓練管線讓分類精準度持續提升
 - **全球語言**：classifier 支援 14 種語言（繁/簡中、英、日、法、德、西、義、韓、印地、阿、泰、越、印尼）
+- **不被 LLM 廠商鎖住**：Named Credential URL 一行改動即可切換 OpenAI / Anthropic / Google
 
 ---
 
@@ -90,6 +91,9 @@
 |---|---|
 | `jewanchen/casca` | **主專案**：server-v2.js, classifier, landing, dashboard, MiniLM service |
 | `jewanchen/casca-admin` | Admin 後台（private，`casca-admin.cascaio.com`） |
+| `jewanchen/casca-apex-sdk` | **Salesforce Apex SDK**：6 Apex class + 3 LWC（AppExchange Managed Package 來源）|
+| `jewanchen/casca-appexchange` | **AppExchange 提交 repo**：mirror prod 後端 + 送審 docs + listing copy + 視覺資產（auto-sync via [[decisions/2026-05-29_appex_sync-workflow]]）|
+| `jewanchen/casca-zapier` | Zapier integration v1.0.2（published） |
 
 ### Railway Services (project: casca)
 
@@ -113,12 +117,12 @@ server-v2 ──Redis──→ redis://...railway.internal:6379
 - RLS enabled on all public tables
 - Service key 用於 server-v2 繞過 RLS
 
-### Cloudflare
+### Cloudflare / Netlify
 
-- **Domain**: cascaio.com（DNS + SSL）
-- **Pages**: `cascaio.com` 主站 + `casca-admin.cascaio.com`
-- **Email Routing**: 收信（`smartroute@cascaio.com` 等）
-- **Workers Function**: `functions/api/[[path]].js` proxy → Railway
+- **Domain**: cascaio.com（DNS + SSL via Cloudflare）
+- **Static hosting**: **Netlify** (current — `netlify.toml` + `_redirects` at prod repo root); legacy Cloudflare Pages config (`functions/`) remains in repo for reference
+- **Email Routing**: 收信（`smartroute@cascaio.com` 等，Cloudflare Email Routing）
+- **API proxy**: Netlify `_redirects` proxies `/api/*` → Railway server-v2
 
 ### Third-party
 
@@ -205,6 +209,7 @@ Client POST /api/v1/chat/completions
 | `subscription_plans` | Stripe plan 定義 |
 | `transactions` | Stripe 交易紀錄 |
 | `client_llm_keys` | 客戶自帶 LLM Key（passthrough mode） |
+| `leads` | Landing page lead capture（增 2026-05-26）|
 
 ### Path B Tables
 
@@ -213,6 +218,35 @@ Client POST /api/v1/chat/completions
 | `training_samples` | 每筆請求的 L1 / L2 / LLM Judge 三方比對 |
 | `rule_accuracy_stats` | per-rule 正確率統計（dynamic confidence 來源） |
 | `minilm_versions` | MiniLM 訓練版本紀錄 |
+
+### Multi-turn Tables (新增 2026-05 — 對應 [[invariants]] I-4 contextFloor 邏輯)
+
+| Table | Purpose |
+|---|---|
+| `conversations` / `conversation_turns` | Server-side conversation state（opt-in），追蹤 lastTier、convMode |
+
+### Billing v2 (新增 2026-05)
+
+| Function | Purpose |
+|---|---|
+| `reset_weekly_credits()` | Free 方案每週額度重設 |
+| `check_and_deduct_weekly_credit()` | 週額度扣減（per-request RPC）|
+
+### Enterprise Tables (新增 2026-05 — Casca Vault 自建版)
+
+| Table | Purpose |
+|---|---|
+| `enterprise_licenses` | 自建版授權 key 管理 |
+| `enterprise_deployments` | 客戶端 deployment 狀態 + heartbeat |
+| `enterprise_usage` | 自建版用量回報 |
+| `enterprise_audit` | 自建版 audit log |
+| `enterprise_releases` | OTA update 版本管理 |
+
+### AppExchange Sync (新增 2026-05-29 — [[decisions/2026-05-29_appex_sync-workflow]])
+
+| Table | Purpose |
+|---|---|
+| `appex_sync_commits` | Prod → casca-appexchange repo 同步紀錄；admin gate 在這 UI 操作 |
 
 ### Key RPC Functions
 
@@ -227,14 +261,21 @@ Client POST /api/v1/chat/completions
 | `expire_trials()` / `extend_trial()` | 試用期管理 |
 | `topup_balance()` / `reset_billing_cycle()` | Stripe webhook RPC |
 
-### SQL Migrations
+### SQL Migrations (applied order)
 
 ```
-casca-schema-v2.sql                  → 7 核心表 + 5 函式
-casca-migration-v2-to-v3.sql         → subscription + billing + trial
-casca-schema-v5-client-keys.sql      → client_llm_keys + routing_mode
-casca-schema-path-b.sql              → Path B 3 表 + 2 函式
-casca-schema-path-b-client-flag.sql  → clients.path_b_judge_enabled
+casca-schema-v2.sql                       → 7 核心表 + 5 函式
+casca-migration-v2-to-v3.sql              → subscription + billing + trial
+casca-schema-v5-client-keys.sql           → client_llm_keys + routing_mode
+casca-schema-path-b.sql                   → Path B 3 表 + 2 函式
+casca-schema-path-b-client-flag.sql       → clients.path_b_judge_enabled
+casca-schema-billing-v2.sql               → 週額度 RPC (reset_weekly_credits + check_and_deduct)
+casca-schema-enterprise.sql               → Casca Vault 5 表 + 2 函式
+casca-schema-leads.sql                    → leads 表（landing capture）
+casca-schema-multi-turn.sql               → conversations / conversation_turns
+casca-schema-pause.sql                    → pause_subscription / resume / archive RPC
+casca-schema-2026-05-26-bugfixes.sql      → 5 endpoint bug fix (register / leads / plans schema / route alias / uuid)
+casca-schema-2026-05-29-appex-sync.sql    → appex_sync_commits + RLS
 ```
 
 ---
@@ -291,6 +332,10 @@ Dynamic Confidence
 
 ### MiniLM Service (`casca-minilm/`)
 
+- **Base model**: `microsoft/MiniLM-L6-H384-uncased`（fallback default）
+- **Active fine-tune**: **MiniLM-L12-v2**（per [[domains/classifier]] §L2）— 訓練後跑 inference 用的版本
+- **單 replica，CPU only**（Railway 8 vCPU 配額）
+
 | Endpoint | Purpose |
 |---|---|
 | `POST /predict` | Inference: { prompt } → { label, confidence, probabilities } |
@@ -315,7 +360,7 @@ Dynamic Confidence
 ## 8. Server Source Layout
 
 ```
-server-v2.js (~2900 lines)
+server-v2.js (~4,567 lines as of 2026-06-05)
 ├── Config + Prometheus metrics
 ├── Supabase / Stripe / Redis clients
 ├── Provider registry (loadProviders + hot reload)
@@ -331,18 +376,22 @@ server-v2.js (~2900 lines)
 ├── Endpoints:
 │    • POST /api/v1/chat/completions       ← core
 │    • POST /api/route                      ← legacy alias
+│    • POST /api/classify                   ← classification-only (no LLM call, <20ms)
 │    • POST /api/auth/register              ← signUp flow
 │    • POST /api/trial/apply
 │    • GET  /api/trial/status
-│    • /api/zapier/*                        ← Zapier integration
+│    • /api/zapier/*                        ← Zapier integration (incl. zapier/classify)
 │    • /api/dashboard/me|keys|logs|cache    ← client dashboard
 │    • /api/billing/subscribe|topup|webhook ← Stripe
+│    • /api/enterprise/*                    ← Casca Vault license + audit
 │    • /api/admin/*                         ← admin CRUD
 │    • /api/admin/pathb/*                   ← Path B (mismatches, stats,
 │                                            minilm, upload, clients)
+│    • /api/admin/appex/*                   ← AppExchange sync gate + webhook + callback
 └── Boot: loadProviders + initRedis + loadRuleAccuracyCache + scheduleTrialExpiry
+         + scheduleAppexDigest (weekly Mon 09:00 UTC)
 
-casca-path-b.js (~360 lines)
+casca-path-b.js (~412 lines)
 ├── piiMask(text)
 ├── llmJudge(prompt, providerRegistry, model)
 ├── loadRuleAccuracyCache(supabase)
@@ -350,13 +399,20 @@ casca-path-b.js (~360 lines)
 ├── predictMiniLM(prompt)                   ← calls FastAPI service
 └── runTrainingPipeline(...)                ← async orchestration
 
-casca-classifier.cjs (~2800 lines, CommonJS UMD)
+casca-classifier.cjs (~3,011 lines, CommonJS UMD)
 ├── 14 language detection + preprocessing pipelines
 ├── 160 regex rules across tiers LOW/MED/HIGH/AMBIG
 ├── Modal detection (video/image/chart/doc/medical/legal)
 ├── Conversation mode detection (15 modes)
 ├── AMBIG resolution via context + noise type
+├── contextFloor multi-turn protection ([[invariants]] I-4)
 └── Exports: route(), classify(), detectLanguage(), setConfig()
+
+casca-enterprise-api.js
+├── License key generation + verification
+├── Heartbeat + usage reporting endpoints
+├── OTA release management
+└── Audit log writers
 ```
 
 ---
@@ -479,11 +535,18 @@ Rolling restart (~1-2 min)
 
 Manual via Supabase SQL Editor:
 ```
-1. casca-schema-v2.sql           (one-time, done)
-2. casca-migration-v2-to-v3.sql  (one-time, done)
-3. casca-schema-v5-client-keys.sql (one-time, done)
-4. casca-schema-path-b.sql        (one-time, done)
-5. casca-schema-path-b-client-flag.sql (one-time, done)
+1.  casca-schema-v2.sql                       (one-time, done)
+2.  casca-migration-v2-to-v3.sql              (one-time, done)
+3.  casca-schema-v5-client-keys.sql           (one-time, done)
+4.  casca-schema-path-b.sql                   (one-time, done)
+5.  casca-schema-path-b-client-flag.sql       (one-time, done)
+6.  casca-schema-billing-v2.sql               (one-time, done)
+7.  casca-schema-enterprise.sql               (one-time, done)
+8.  casca-schema-leads.sql                    (one-time, done)
+9.  casca-schema-multi-turn.sql               (one-time, done)
+10. casca-schema-pause.sql                    (one-time, done)
+11. casca-schema-2026-05-26-bugfixes.sql      (2026-05-26)
+12. casca-schema-2026-05-29-appex-sync.sql    (2026-05-29)
 ```
 
 ---
@@ -530,6 +593,12 @@ Webhook → Supabase RPC:
 
 ### Salesforce Apex SDK (AppExchange-ready)
 
+- Source: `jewanchen/casca-apex-sdk` repo (separate from prod `casca`)
+- Submission artifact: `jewanchen/casca-appexchange` repo (auto-synced via [[decisions/2026-05-29_appex_sync-workflow]])
+- Current submission status: see `C:\casca\casca-appexchange-target\STATUS.md`
+- Brand positioning for AppExchange listing: [[decisions/2026-06-04_brand-positioning]]
+
+Components:
 - `CascaClient.cls` — chat / SOQL-gen / summarizeCase / enrichField
 - `CascaAsync.cls` — Queueable for trigger/batch
 - `CascaFlowActions.cls` — Flow Builder invocable
@@ -565,12 +634,14 @@ Exposed at `/metrics` (protected by `x-admin-secret`):
 
 ## 15. Known Path B TODOs
 
-(Maintained in `memory/casca_pathb_todo.md`)
+(See current memory: `project_casca_minilm`, `project_classifier_todo`, `project_casca_l2_capacity`)
 
 - Path B Dashboard 總覽面板（L1/L2/serving accuracy 整合圖）
 - L1 Rule Health 詳細表格（per-rule accuracy/status/sample trends）
 - LLM Judge 呼叫統計（每日成本、per-client 圖表）
 - 規則建議自動產生（根據 mismatch pattern 產出 regex 候選）
+- L1 R1/R4 token fallback fix（61.9% stress test accuracy — see `project_classifier_todo`）
+- L2 capacity hard cap ~1-2 req/sec（minilm 單 CPU + L12）— P0 fetch timeout + circuit breaker 必修
 
 ---
 
@@ -596,9 +667,10 @@ casca/
 ├── MIGRATION-GUIDE.md
 ├── .env.example
 │
-├── server-v2.js              ← Express API gateway
-├── casca-path-b.js           ← Path B training pipeline
-├── casca-classifier.cjs      ← L1 classifier engine v2.6.2
+├── server-v2.js              ← Express API gateway (4,567 lines)
+├── casca-path-b.js           ← Path B training pipeline (412 lines)
+├── casca-classifier.cjs      ← L1 classifier engine v2.6.2 (3,011 lines)
+├── casca-enterprise-api.js   ← Casca Vault license + audit endpoints
 ├── package.json
 │
 ├── index.html                ← Landing (EN)
@@ -614,9 +686,16 @@ casca/
 ├── casca-schema-v5-client-keys.sql
 ├── casca-schema-path-b.sql
 ├── casca-schema-path-b-client-flag.sql
+├── casca-schema-billing-v2.sql                  ← weekly credits RPC
+├── casca-schema-enterprise.sql                  ← Casca Vault (5 tables + 2 funcs)
+├── casca-schema-leads.sql                       ← landing capture
+├── casca-schema-multi-turn.sql                  ← conversations + turns
+├── casca-schema-pause.sql                       ← subscription pause RPC
+├── casca-schema-2026-05-26-bugfixes.sql         ← 5 endpoint bug fixes
+├── casca-schema-2026-05-29-appex-sync.sql       ← appex_sync_commits
 │
-├── functions/                ← Cloudflare Pages Workers
-│   ├── api/[[path]].js       ← API proxy to Railway
+├── functions/                ← (legacy Cloudflare Pages Workers)
+│   ├── api/[[path]].js       ← legacy API proxy
 │   └── health.js
 │
 ├── casca-minilm/             ← MiniLM Python service
@@ -624,21 +703,25 @@ casca/
 │   ├── Dockerfile
 │   ├── railway.toml
 │   ├── requirements.txt
+│   ├── storage.py            ← Supabase Storage checkpoint loader (2-format support)
 │   ├── model/
 │   │   ├── serve.py          ← inference
 │   │   ├── train.py          ← fine-tune
 │   │   └── checkpoints/
 │   └── data/
-│       ├── train.jsonl       ← 386 samples
-│       ├── val.jsonl         ← 59 samples
-│       └── test.jsonl        ← 40 samples
+│       ├── train.jsonl       ← cold-start seed (485 samples)
+│       ├── val.jsonl
+│       └── test.jsonl
 │
-├── casca-zapier/             ← Zapier integration
+├── casca-zapier/             ← Zapier integration v1.0.2 (published)
 │   ├── index.js
 │   ├── authentication.js
 │   ├── actions/   (6 files)
 │   ├── triggers/  (3 files)
 │   └── searches/  (1 file)
+│
+├── docs/
+│   └── CASCA-USER-GUIDE.md   ← user-facing product guide
 │
 └── _headers, _redirects, netlify.toml, robots.txt, sitemap.xml
 ```
