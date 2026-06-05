@@ -58,8 +58,9 @@
 │ Supabase│                   │ Railway —    │     │ Railway — Redis│
 │ Postgres│                   │ casca-minilm │     │ (async queue)  │
 │ + Auth  │                   │ FastAPI      │     └────────────────┘
-│ + RLS   │                   │ MiniLM-L6-v2 │
-└─────────┘                   └──────────────┘
+│ + RLS   │                   │ L12 fine-tune│
+└─────────┘                   │ (L6 base)    │
+                              └──────────────┘
 ```
 
 ---
@@ -501,23 +502,28 @@ MINILM_SERVICE_URL=http://loyal-illumination.railway.internal:8000
 SUPABASE_URL=...
 SUPABASE_SERVICE_KEY=...
 PORT=8000
-MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+MODEL_NAME=microsoft/MiniLM-L6-H384-uncased   # base / fallback only (app.py:default)
+ACTIVE_CHECKPOINT=v_L12_20260518_042247        # 實際載入的 fine-tune (read from minilm_versions.is_active)
 NUM_LABELS=3
 ```
+
+> `MODEL_NAME` 只在 ACTIVE_CHECKPOINT / minilm_versions.is_active 都讀不到時當 cold-start fallback。production serving 跑的是 L12 fine-tune（見 [[domains/classifier]] §L2）。
 
 ---
 
 ## 11. Deployment Workflow
 
-### Frontend (Cloudflare Pages)
+### Frontend (Netlify)
 
 ```
 Push to jewanchen/casca (main) or jewanchen/casca-admin (main)
   ↓
-Cloudflare Pages auto-build
+Netlify auto-build (per netlify.toml + _redirects)
   ↓
 Deploy to cascaio.com / casca-admin.cascaio.com (~30-60s)
 ```
+
+> 註：`functions/api/[[path]].js` (Cloudflare Pages Workers) 為 legacy 設定保留在 repo，當前不 active。API proxy 透過 Netlify `_redirects` 轉發到 Railway。
 
 ### Backend (Railway)
 
@@ -632,20 +638,129 @@ Exposed at `/metrics` (protected by `x-admin-secret`):
 
 ---
 
-## 15. Known Path B TODOs
+## 15. Known TODOs / open status
 
-(See current memory: `project_casca_minilm`, `project_classifier_todo`, `project_casca_l2_capacity`)
+(See current memory: `project_casca_minilm`, `project_classifier_todo`, `project_casca_l2_capacity`, `project_casca_endpoint_bugs`)
 
-- Path B Dashboard 總覽面板（L1/L2/serving accuracy 整合圖）
-- L1 Rule Health 詳細表格（per-rule accuracy/status/sample trends）
-- LLM Judge 呼叫統計（每日成本、per-client 圖表）
-- 規則建議自動產生（根據 mismatch pattern 產出 regex 候選）
-- L1 R1/R4 token fallback fix（61.9% stress test accuracy — see `project_classifier_todo`）
-- L2 capacity hard cap ~1-2 req/sec（minilm 單 CPU + L12）— P0 fetch timeout + circuit breaker 必修
+### Path B / Classifier （未完成）
+- ⏳ Path B Dashboard 總覽面板（L1/L2/serving accuracy 整合圖）
+- ⏳ L1 Rule Health 詳細表格（per-rule accuracy/status/sample trends）
+- ⏳ LLM Judge 呼叫統計（每日成本、per-client 圖表）
+- ⏳ 規則建議自動產生（根據 mismatch pattern 產出 regex 候選）
+- ⏳ L1 R1/R4 token fallback fix（61.9% stress test accuracy — see `project_classifier_todo`）
+
+### L2 / casca-minilm capacity 待修 — 仍未 land
+| Priority | Item | Status |
+|---|---|---|
+| **P0** | server-v2 `/predict_batch` fetch 加 AbortController + timeout | ⏳ pending |
+| **P0** | server-v2 對 minilm 加 circuit breaker（minilm 真掛掉 fail-fast）| ⏳ pending |
+| P1 | `PATH_B_SAMPLE_RATE` 從 1.0 降到 0.05-0.1（量起來才痛） | ⏳ pending — gate: 客戶量 >50 時做 |
+| P1 | casca-minilm 升 2-3 replicas + LB（避免單點故障）| ⏳ pending — gate: enterprise PoC 前必做 |
+
+> 容量重估（2026-05-26 thread fix 後）：理論 ~100-150 req/sec sustained，當前流量遠低於此，**死亡螺旋風險基本解除**。P0 仍要修為了 fail-fast 行為。
+
+### Endpoint bugs 待修
+5 個 pre-existing bug pending（per `project_casca_endpoint_bugs`）：
+- ⏳ register flow / leads endpoint / plans schema / route alias / uuid validation
+
+### Multi-turn continuity gap — RESOLVED 2026-05-28
+- ✅ Server-layer safety-net contextFloor 已 ship（commit `33d938d`，per [[decisions/2026-05-27_classifier_serving-tier-floor]]）
+- Floor policy：max-drop-1-tier (HIGH→MED)。嚴格 HIGH→HIGH 繼承明示拒絕
+- 仍未處理（不在 α 範圍）：`conversationContext` opt-in fragility、L2 retrain 帶 tier history、`_casca.tierFloored` metadata、Railway logs 跨日觸發率觀察
 
 ---
 
-## 16. Security Notes
+## 16. Infra Migration Plan — Railway → Hetzner + R2
+
+> Status: **P0** — triggered by 5-day Railway incident streak 2026-05-18→05-20 (4 separate incidents, 24+ hours of lost ship capability). See memory `project_infra_migration`.
+>
+> ⚠️ **未 executed**（截至 2026-06-05）。當前 prod 仍全部跑在 Railway。
+
+### 為何 P0
+
+單 provider 失效已驗證為實際風險（不是理論）。Railway 跑在 GCP 上 → Google 鎖 Railway 的 GCP 帳號 = Casca 100% blast radius。Migration 後 Hetzner（獨立 datacenter）+ R2（Cloudflare）= 獨立 failure domains。
+
+### Target Architecture（migration 後）
+
+| 元件 | 從 | 到 | 預期月費 |
+|---|---|---|---|
+| `server-v2` | Railway | 留 Railway 或遷 Fly.io | ~$5/mo (Fly.io) |
+| `casca-minilm` | Railway | **Hetzner VPS CX22**（2vCPU/4GB，persistent disk）| €4.5/mo |
+| Checkpoint storage | Supabase Storage (50MB cap，逼出 4-part split bug) | **Cloudflare R2** (free 10GB, no per-file limit) | free |
+| DB | Supabase | Supabase（不動）| 不變 |
+| Training | Colab | Colab（不動）| 不變 |
+
+### Migration steps（執行時用）
+
+1. Hetzner VPS provisioned, casca-minilm deployed（~2hr）
+2. Cloudflare R2 set up, swap checkpoint upload/download paths（~half day）— 同時解掉 `storage.py` 4-part split bug
+3. server-v2 `MINILM_SERVICE_URL` 切到 VPS（5min）
+4. Verify `/predict`, `/model/status`, `/model/reload` round-trip（1hr）
+5. Shut down Railway casca-minilm（1min）
+
+預估 2 天 window（1 天執行 + 1 天 soak）。
+
+### What blocks execution
+
+排隊在 training items 之後（per `project_railway_backup_plan` §status，user 2026-05-20 priority：「等 railway 恢復，我要先把之前訓練的事搞定」）：
+- Item #1 ✅ activate `v_L12_20260518_042247`（已 done）
+- Item #2 ✅ multi-turn fix（commit `33d938d` done）
+- Item #3 ⏳ L1 v2.6.3 improvement
+
+---
+
+## 17. Backup / Redundancy Plan — 三階段
+
+> Status: **待排期** — 排在 Item #3 ship 之後啟動。See memory `project_railway_backup_plan`.
+> 跟 §16 互補：§16 = 換 vendor（避開 Railway-specific 風險）；§17 = 加第二 vendor（撐住任何 single-vendor outage，包括 Hetzner 本身）
+
+### Phase A（~1 個週末，+$0）
+
+1. **R2 取代 Supabase Storage** for checkpoints — 跟 §16 migration step 2 重疊；做為 Phase A 把 storage 從 single-vendor decouple
+2. **`C:\casca\DISASTER_RECOVERY.md`** 手寫 playbook：env vars 清單 + credentials cross-ref + 手動重建步驟（Railway → Fly.io / Hetzner）+ 每步 RTO + DNS cutover sequence
+3. **Cloudflare Workers Function** 加 `BACKUP_BACKEND_URL` env var + primary→fallback retry logic 在 `functions/api/[[path]].js`（initial: undefined）
+
+### Phase B（~1 週，+$5-10/mo）
+
+1. **Fly.io warm spare for server-v2** — 同 GitHub repo 加 `fly.toml`，最小規格（shared-cpu-1x, 256MB），default stopped (~$0.15/mo storage only)，`fly machine start` ~10s 喚醒。同 Supabase URL，無需 DB duplication
+2. **casca-minilm → Hetzner CX22**（per §16 migration）
+3. **Activate Cloudflare Workers Function fallback** — `BACKUP_BACKEND_URL=https://casca.fly.dev`，monthly DR drill（手動 Railway pause → 量 RTO）
+
+> MiniLM warm spare 不在 Phase B（L2 失效已 graceful-degrade 到 L1-only via `predictMiniLM` returns null — `casca-path-b.js:283-286`）。L2 redundancy = Phase C。
+
+### Phase C（customer SLA 要求才做）
+
+1. **Cloudflare Load Balancer** health-check 自動 Railway↔Fly.io failover（$5/mo, RTO ~60s）
+2. **Second Hetzner VPS** for casca-minilm 不同 region（Falkenstein + Helsinki, +€4.5/mo）
+3. **Provider failover strengthening** — 加 Anthropic + Google managed keys + priority ranking
+
+### Cost trajectory
+
+| Stage | Monthly cost |
+|---|---|
+| Today (Railway only) | $10-20 |
+| Phase A done | +$0 |
+| Phase B done | $20-30 |
+| Phase C done | $35-50 |
+
+### What stays SPOF after the plan
+
+- Supabase（DB + Auth + Storage for non-checkpoint）— managed service 自有 redundancy，本計畫不處理
+- Cloudflare（DNS + Pages + Workers）— 同上
+
+如要 eliminate 這兩個，是另一個「data tier redundancy」計畫，不是現在的優先。
+
+### Already-in-place graceful degradation
+
+- L2 down → L1 only（`predictMiniLM` returns null）
+- LLM provider down → other provider in registry（managed mode）
+- Cache hit serves response even if backend brief issues
+
+§17 plan **layers on top** these existing safeguards。
+
+---
+
+## 18. Security Notes
 
 - **API keys** stored as SHA-256 hash only (raw key shown once to user)
 - **PII masking** before any data leaves the org (client-side Apex + server-side `piiMask()`)
