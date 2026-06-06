@@ -1887,6 +1887,121 @@ app.get('/health', (_req, res) => res.json({
 }));
 
 /**
+ * Internal helper — runs the same L1 → dyn_conf → L2 → safety-net floor
+ * pipeline as chatCompletionHandler, but stops before LLM call and returns
+ * the cx at all three baseline points. Used by /api/admin/diag/classify-full.
+ *
+ * INVARIANTS (per contract 2026-06-06_full-stack-stress-test.md):
+ *   I-1: never calls LLM
+ *   I-2: never writes DB / cache / training_samples
+ *   I-3: single L2 inference reused across all 3 baselines
+ *
+ * NOTE: This intentionally does NOT replace the inline classification
+ * code in chatCompletionHandler. Per contract I-4, this helper is
+ * diagnostic-only — production serving path is untouched.
+ */
+async function computeClassificationBaselines({ promptText, lastTier, convMode, contextPrompt, uc, qualityTier }) {
+  const conversationContext = lastTier
+    ? { lastTier, convMode: convMode || 'PROFESSIONAL', turnCount: 2 }
+    : null;
+
+  // ── L1 (with internal contextFloor if conversationContext present) ──
+  const l1Out = cascaRoute(
+    promptText, uc || 'general', qualityTier || 'default', conversationContext,
+  );
+
+  // ── dyn_conf + L2 invocation (mirror chatCompletionHandler lines 2097-2130) ──
+  const pathBEnabled  = (process.env.PATH_B_ENABLED || '').toLowerCase() === 'true';
+  const confThreshold = parseInt(process.env.PATH_B_CONFIDENCE_THRESHOLD || '80', 10);
+  let   dynConf       = null;
+  let   l2Result      = null;
+  let   cxL1L2        = l1Out.cx;
+
+  if (pathBEnabled && l1Out.confidence) {
+    dynConf = await getDynamicConfidence(l1Out.rule, l1Out.confidence, supabase);
+    if (dynConf < confThreshold) {
+      l2Result = await predictMiniLM(promptText, contextPrompt || null);
+      if (l2Result && l2Result.label) {
+        cxL1L2 = l2Result.label;
+      }
+    }
+  }
+
+  // ── Serving-layer safety-net floor (mirror lines 2132-2148) ──
+  let cxL1L2Floor      = cxL1L2;
+  let floorTriggered   = false;
+  if (lastTier && cxL1L2 && cxL1L2 !== 'AMBIG') {
+    const flooredCx = contextFloor(cxL1L2, lastTier);
+    if (flooredCx !== cxL1L2) {
+      cxL1L2Floor    = flooredCx;
+      floorTriggered = true;
+    }
+  }
+
+  return {
+    l1: {
+      cx:          l1Out.cx,
+      rule:        l1Out.rule,
+      static_conf: l1Out.confidence,
+      lang:        l1Out.lang,
+      modal:       l1Out.modal,
+    },
+    dyn_conf: {
+      value:        dynConf,
+      threshold:    confThreshold,
+      triggers_l2:  dynConf !== null && dynConf < confThreshold,
+      path_b_enabled: pathBEnabled,
+    },
+    l2: l2Result
+      ? { invoked: true,  cx: l2Result.label, confidence: l2Result.confidence }
+      : { invoked: false, cx: null,           confidence: null },
+    serving_layer_floor: {
+      input_cx:    cxL1L2,
+      output_cx:   cxL1L2Floor,
+      triggered:   floorTriggered,
+      policy:      'max-drop-1-tier',
+      lastTier:    lastTier || null,
+    },
+    final_cx_baselines: {
+      l1_only:                l1Out.cx,
+      l1_plus_l2:             cxL1L2,
+      l1_plus_l2_plus_floor:  cxL1L2Floor,
+    },
+  };
+}
+
+/**
+ * POST /api/admin/diag/classify-full
+ * Admin-only diagnostic endpoint. Runs L1 → dyn_conf → L2 → safety-net
+ * floor pipeline against a single prompt and returns all three cx baselines.
+ * No LLM call, no DB writes.
+ *
+ * Used by /c/casca/stress_test_v3.cjs.
+ * See contract: contracts/2026-06-06_full-stack-stress-test.md
+ */
+app.post('/api/admin/diag/classify-full', requireAdmin, express.json(), async (req, res) => {
+  const t0 = Date.now();
+  const { prompt, lastTier, convMode, contextPrompt, uc, qualityTier } = req.body || {};
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: '`prompt` string is required.' });
+  }
+  try {
+    const result = await computeClassificationBaselines({
+      promptText: prompt,
+      lastTier:    lastTier    || null,
+      convMode:    convMode    || null,
+      contextPrompt: contextPrompt || null,
+      uc, qualityTier,
+    });
+    result.latency_ms = Date.now() - t0;
+    return res.json(result);
+  } catch (err) {
+    console.error('[diag/classify-full]', err.message);
+    return res.status(500).json({ error: 'Classification diagnostic error.', detail: err.message });
+  }
+});
+
+/**
  * POST /api/classify — Classification only (no LLM call)
  * Returns cx, model, rule, confidence in <20ms.
  * Used by terminal UI to show instant routing badge before LLM responds.
