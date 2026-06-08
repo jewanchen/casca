@@ -1169,6 +1169,23 @@ async function postProcess({
 const app = express();
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 
+// ── Security headers (per ZAP scan 2026-06-08) ───────────────────
+// All responses get these headers. api.cascaio.com is JSON-only so
+// 'default-src none' is safe (no resources to load). frame-ancestors
+// + form-action are explicit because they do NOT fallback to default-src
+// (CWE-693). Removes X-Powered-By: Express to avoid framework
+// fingerprinting (CWE-497). HSTS is explicit here — relying on
+// Cloudflare was confirmed unreliable for the api subdomain by ZAP.
+// Netlify _headers file covers the frontend (cascaio.com) separately.
+app.disable('x-powered-by');
+app.use((_req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; form-action 'none'");
+  next();
+});
+
 // ── Stripe webhook (raw body) — BEFORE express.json() ────────────
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   if (!stripe) return res.status(503).json({ error: 'Stripe not configured.' });

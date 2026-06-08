@@ -768,7 +768,9 @@ Exposed at `/metrics` (protected by `x-admin-secret`):
 - **Training samples** use PII-masked prompts only
 - **RLS** on all tenant data (`clients`, `api_logs`, `tenant_cache_pool`, `transactions`, `api_keys`)
 - **Service role key** only used server-side (never exposed to client)
-- **CSP headers** + **X-Frame-Options: DENY** on all frontend pages
+- **Frontend security headers** (Netlify `_headers`): CSP + X-Frame-Options: DENY + X-Content-Type-Options + Referrer-Policy + Permissions-Policy. Scope: `cascaio.com` static pages.
+- **API security headers** (server-v2.js Express middleware, since 2026-06-08): `Strict-Transport-Security` + `X-Content-Type-Options: nosniff` + `X-Frame-Options: DENY` + `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; form-action 'none'`. Scope: `api.cascaio.com` JSON-only responses. `X-Powered-By` disabled.
+  - ⚠️ Previously the doc claimed HSTS was auto-set by Cloudflare for api subdomain — 2026-06-08 ZAP scan disproved this; HSTS is now explicit in Express layer.
 - **Zero data retention** promise: no response caching across tenants; opt-in shared semantic cache only
 
 ---
