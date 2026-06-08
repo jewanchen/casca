@@ -4690,6 +4690,17 @@ async function start() {
   scheduleAppexDigest();
   // ── Enterprise self-hosted management routes ──
   registerEnterpriseRoutes(app, supabase, requireAdmin);
+
+  // ── 404 handler — MUST be after all routes registered ──────────
+  // Without this, Express's default finalhandler returns an HTML 404
+  // and overrides our Content-Security-Policy header with its own
+  // minimal "default-src 'none'" (missing frame-ancestors/form-action).
+  // ZAP 2026-06-08 scan caught this on /robots.txt and /sitemap.xml.
+  // Returning JSON 404 keeps the security middleware headers intact.
+  app.use((_req, res) => {
+    res.status(404).json({ error: 'Not found.' });
+  });
+
   app.listen(PORT, () => {
     console.log(`🚀 Casca v3 API Proxy → http://localhost:${PORT}`);
     console.log(`   Providers: ${providerRegistry.size}  |  Stripe: ${!!stripe}  |  Cache TTL: ${CACHE_TTL_DAYS}d`);
