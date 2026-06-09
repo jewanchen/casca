@@ -2,7 +2,7 @@
 
 > **Domain**: cascaio.com · **API**: api.cascaio.com · **Admin**: casca-admin.cascaio.com
 > **Version**: v3.2 · Engine v2.6.2 · Path B enabled
-> **Last updated**: 2026-06-05
+> **Last updated**: 2026-06-09
 
 ---
 
@@ -656,6 +656,20 @@ Exposed at `/metrics` (protected by `x-admin-secret`):
 | **P0** | server-v2 對 minilm 加 circuit breaker（minilm 真掛掉 fail-fast）| ⏳ pending |
 | P1 | `PATH_B_SAMPLE_RATE` 從 1.0 降到 0.05-0.1（量起來才痛） | ⏳ pending — gate: 客戶量 >50 時做 |
 | P1 | casca-minilm 升 2-3 replicas + LB（避免單點故障）| ⏳ pending — gate: enterprise PoC 前必做 |
+
+### L2 corpus augmentation — pre-condition done 2026-06-09
+| Item | Status |
+|---|---|
+| Cold-start corpus augmentation (150 JSONL samples JA/AR/IT) | ✅ delivered 2026-06-09, awaiting Salesforce approval to trigger retrain. See memory `project_l2_retrain_pending`. |
+| Target post-retrain accuracy | JA 72% → ≥85% · AR 74% → ≥85% · IT 88% → ≥92% |
+| Files | `/c/casca/stress_test_results/lm_2026_06/augmentation_2026_06_{JA,AR,IT}.jsonl` |
+
+### L1 HIGH-marker augmentation — pre-condition done 2026-06-09
+| Item | Status |
+|---|---|
+| L1 keyword dictionary v2 (119 keywords for JA/AR/IT) | ✅ delivered 2026-06-09, 100% cross-check vs HIGH samples. See ADR `2026-06-08_l1-high-marker-augmentation.md`. |
+| Implementation Wave 1 (5 new HIGH-COMP rules) | ⏳ pending until Salesforce approval. Contract `contracts/2026-06-08_l1-high-marker-augmentation.md` |
+| Files | `/c/casca/stress_test_results/l1_keywords_2026_06.yml` |
 
 > 容量重估（2026-05-26 thread fix 後）：理論 ~100-150 req/sec sustained，當前流量遠低於此，**死亡螺旋風險基本解除**。P0 仍要修為了 fail-fast 行為。
 
