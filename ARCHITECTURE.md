@@ -377,7 +377,9 @@ server-v2.js (~4,567 lines as of 2026-06-05)
 ├── Endpoints:
 │    • POST /api/v1/chat/completions       ← core
 │    • POST /api/route                      ← legacy alias
-│    • POST /api/classify                   ← classification-only (no LLM call, <20ms)
+│    • POST /api/classify                   ← real-routing cx (no LLM call, ~50ms p50)
+│                                            via computeClassificationBaselines helper
+│                                            (L1+L2+floor; ADR 2026-06-10)
 │    • POST /api/auth/register              ← signUp flow
 │    • POST /api/trial/apply
 │    • GET  /api/trial/status

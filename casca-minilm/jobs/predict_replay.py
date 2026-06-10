@@ -1,30 +1,37 @@
 #!/usr/bin/env python3
 """
-predict_replay.py — Feed linguist JSONL prompts to /api/classify and compare
-returned cx to ground-truth label.
+predict_replay.py — Feed linguist JSONL prompts to /api/admin/diag/classify-full
+and compare returned baselines to ground-truth label.
 
 Purpose:
   Item #1 audit Follow-up + Item #3 L1 improvement evidence. Gives per-rule,
   per-lang, per-turn-count accuracy WITHOUT needing thin live traffic and
-  WITHOUT incurring LLM cost (classify-only endpoint).
+  WITHOUT incurring LLM cost (diag endpoint runs L1+L2+floor, no LLM call).
+
+Endpoint migrated 2026-06-10 per ADR `2026-06-10_classify-endpoint-honest-routing`:
+  /api/classify now returns real-routing cx (post-L2, post-floor) for honesty.
+  Offline L1-rule evaluation needs the L1-only baseline, which lives at
+  /api/admin/diag/classify-full (returns all three baselines in one call).
 
 Usage:
   cd c:/casca/casca-minilm
-  python jobs/predict_replay.py                                  # full replay (~30 min @ concurrency 4)
-  python jobs/predict_replay.py --limit 100                      # smoke test
+  export CASCA_ADMIN_SECRET=...                            # required for admin endpoint
+  python jobs/predict_replay.py                            # full replay (~30 min @ concurrency 4)
+  python jobs/predict_replay.py --limit 100                # smoke test
   python jobs/predict_replay.py --file data/en_L12_batch_2.jsonl # one file
-  python jobs/predict_replay.py --api http://localhost:3001/api/classify  # local server
-  python jobs/predict_replay.py --concurrency 8                  # faster, polite
+  python jobs/predict_replay.py --api http://localhost:3001/api/admin/diag/classify-full
+  python jobs/predict_replay.py --concurrency 8            # faster, polite
+  python jobs/predict_replay.py --baseline l1_plus_l2_plus_floor  # default: l1_only
 
 Output: data/reports/PREDICT_REPLAY_<date>.md
         + data/reports/PREDICT_REPLAY_<date>.csv  (raw per-row results)
 
 Notes:
-  - /api/classify is single-turn (server-v2.js:1837 passes conversationContext=null).
-    Multi-turn rows (turn_count>1) are still evaluated single-turn here; flag
-    `turn_count` in report so analysis can exclude them when needed.
-  - L2 override appears in returned rule as ` [L2-override: X→Y conf=N%]`.
-    Aggregated separately as L2 invoke rate per L1 rule.
+  - Diag endpoint returns {l1, dyn_conf, l2, serving_layer_floor, final_cx_baselines}.
+    Default --baseline=l1_only matches the original semantic of this job.
+  - Multi-turn rows (turn_count>1) are still evaluated single-turn (no lastTier passed);
+    flag `turn_count` in report so analysis can exclude them when needed.
+  - L2 invoke rate computed from `dyn_conf.triggers_l2` field.
   - Uses stdlib only (no requirements.txt change).
 """
 
@@ -41,9 +48,13 @@ import time
 import urllib.request
 import urllib.error
 
-DEFAULT_API = "https://api.cascaio.com/api/classify"
+DEFAULT_API = "https://api.cascaio.com/api/admin/diag/classify-full"
 ACCEPTED_LABELS = {"HIGH", "MED", "LOW"}
 LABEL_NORMALIZE = {"HIGH": "HIGH", "MED": "MED", "LOW": "LOW", "AMBIG": "MED"}
+# Which baseline to evaluate against ground truth.
+# Default `l1_only` matches the historical semantic of this job (L1-rule audit).
+# Use `l1_plus_l2_plus_floor` to evaluate the serving-path cx.
+VALID_BASELINES = {"l1_only", "l1_plus_l2", "l1_plus_l2_plus_floor"}
 
 
 def discover_files(directory):
@@ -80,21 +91,41 @@ def load_jsonl(path):
     return rows
 
 
-def classify_one(api, prompt, timeout):
-    body = json.dumps({"messages": [{"role": "user", "content": prompt}]}).encode("utf-8")
-    req = urllib.request.Request(
-        api,
-        data=body,
-        headers={"Content-Type": "application/json; charset=utf-8"},
-        method="POST",
-    )
+def classify_one(api, prompt, timeout, admin_secret, baseline):
+    """
+    Calls /api/admin/diag/classify-full and flattens response to legacy shape
+    {cx, rule, lang, modal, l2_invoked} so the rest of the pipeline is unchanged.
+    """
+    body = json.dumps({"prompt": prompt}).encode("utf-8")
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if admin_secret:
+        headers["x-admin-secret"] = admin_secret
+    req = urllib.request.Request(api, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            raw = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         return {"error": f"HTTP {e.code}: {e.read().decode('utf-8', errors='replace')[:200]}"}
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         return {"error": f"{type(e).__name__}: {e}"}
+
+    # Diag response shape: {l1, dyn_conf, l2, serving_layer_floor, final_cx_baselines, ...}
+    l1          = raw.get("l1") or {}
+    l2          = raw.get("l2") or {}
+    baselines   = raw.get("final_cx_baselines") or {}
+    cx          = baselines.get(baseline) or l1.get("cx")
+    rule        = l1.get("rule") or "?"
+    # Annotate rule with L2-override marker so downstream aggregation
+    # (l2_invoked detection at aggregate()) keeps working.
+    if l2.get("invoked") and l2.get("cx") and l2.get("cx") != l1.get("cx"):
+        conf_pct = (l2.get("confidence") or 0) * 100
+        rule = f"{rule} [L2-override: {l1.get('cx')}→{l2.get('cx')} conf={conf_pct:.1f}%]"
+    return {
+        "cx":    cx,
+        "rule":  rule,
+        "lang":  l1.get("lang"),
+        "modal": l1.get("modal"),
+    }
 
 
 def replay(args, all_rows):
@@ -106,7 +137,9 @@ def replay(args, all_rows):
     errors_count = 0
 
     def task(row):
-        return row, classify_one(args.api, row["prompt"], args.timeout)
+        return row, classify_one(
+            args.api, row["prompt"], args.timeout, args.admin_secret, args.baseline,
+        )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as ex:
         for i, (row, result) in enumerate(ex.map(task, all_rows), 1):
@@ -334,7 +367,16 @@ def main():
     ap.add_argument("--limit", type=int, help="Cap rows for testing")
     ap.add_argument("--concurrency", type=int, default=4, help="Parallel requests (default 4)")
     ap.add_argument("--timeout", type=float, default=10.0)
+    ap.add_argument("--admin-secret", default=os.environ.get("CASCA_ADMIN_SECRET", ""),
+                    help="x-admin-secret header (default: $CASCA_ADMIN_SECRET)")
+    ap.add_argument("--baseline", default="l1_only", choices=sorted(VALID_BASELINES),
+                    help="Which baseline cx to evaluate against ground truth (default: l1_only)")
     args = ap.parse_args()
+
+    if "diag/classify-full" in args.api and not args.admin_secret:
+        print("ERROR: --admin-secret (or $CASCA_ADMIN_SECRET) required for diag endpoint.",
+              file=sys.stderr)
+        sys.exit(2)
 
     # Discover input
     if args.file:

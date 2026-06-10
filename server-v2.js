@@ -58,6 +58,13 @@ const setConfig   = typeof _classifier.setConfig === 'function'
                       ? _classifier.setConfig
                       : () => {};
 
+// Tier→model + model→cost maps — exported from classifier (single source of truth).
+// Used by computeClassificationBaselines to re-derive model+pct after L2 override.
+// See ADR 2026-06-10_classify-endpoint-honest-routing §I-4.
+const TIER_MODELS  = _classifier.TIER_MODELS  || {};
+const MODEL_COSTS  = _classifier.MODEL_COSTS  || {};
+const MODAL_MODELS = _classifier.MODAL_MODELS || {};
+
 // ════════════════════════════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════════════════════════════
@@ -1955,6 +1962,37 @@ async function computeClassificationBaselines({ promptText, lastTier, convMode, 
     }
   }
 
+  // ── Re-derive serving model + savings pct for the FINAL cx ──
+  // Per ADR 2026-06-10_classify-endpoint-honest-routing: public cx must match
+  // routing, so model + pct must also reflect the post-L2-override / floored cx.
+  // L1's original model/pct were computed for L1's cx and become stale after override.
+  // selectModel logic mirrors casca-classifier.cjs:2183 (NOT exported).
+  const finalCx        = cxL1L2Floor;
+  const finalModal     = l1Out.modal || 'text';
+  const _modalModel    = finalModal !== 'text' && MODAL_MODELS[finalModal];
+  const _tierMap       = TIER_MODELS[finalCx] || TIER_MODELS.MED || {};
+  const _selModel      = _modalModel
+                       || (qualityTier === 'high' ? _tierMap.high_q
+                       :   qualityTier === 'low'  ? _tierMap.low_q
+                       :   _tierMap.default);
+  const servingModel   = typeof _selModel === 'string'
+                       ? _selModel
+                       : (_selModel && (_selModel.default || _selModel)) || 'GPT-4o-mini';
+  const _modelCost     = MODEL_COSTS[servingModel] || 0.15;
+  const _baselineCost  = MODEL_COSTS['GPT-4o']     || 5.0;
+  const servingPct     = _baselineCost > 0
+                       ? Math.round((1 - _modelCost / _baselineCost) * 100)
+                       : 0;
+
+  // Annotate rule with L2-override marker for honest display (mirrors chatHandler line 2124)
+  let displayRule = l1Out.rule;
+  if (l2Result && l2Result.label && l2Result.label !== l1Out.cx) {
+    displayRule += ` [L2-override: ${l1Out.cx}→${l2Result.label} conf=${(l2Result.confidence*100).toFixed(1)}%]`;
+  }
+  if (floorTriggered) {
+    displayRule += ` [floor: ${cxL1L2}→${cxL1L2Floor} lastTier=${lastTier}]`;
+  }
+
   return {
     l1: {
       cx:          l1Out.cx,
@@ -1983,6 +2021,16 @@ async function computeClassificationBaselines({ promptText, lastTier, convMode, 
       l1_only:                l1Out.cx,
       l1_plus_l2:             cxL1L2,
       l1_plus_l2_plus_floor:  cxL1L2Floor,
+    },
+    // ── Routing-accurate fields (per ADR 2026-06-10) ──
+    serving: {
+      cx:         finalCx,
+      model:      servingModel,
+      pct:        servingPct,
+      rule:       displayRule,
+      confidence: l1Out.confidence,
+      lang:       l1Out.lang,
+      modal:      l1Out.modal,
     },
   };
 }
@@ -2019,35 +2067,49 @@ app.post('/api/admin/diag/classify-full', requireAdmin, express.json(), async (r
 });
 
 /**
- * POST /api/classify — Classification only (no LLM call)
- * Returns cx, model, rule, confidence in <20ms.
- * Used by terminal UI to show instant routing badge before LLM responds.
+ * POST /api/classify — Real-routing cx (no LLM call)
+ *
+ * Per ADR 2026-06-10_classify-endpoint-honest-routing:
+ *   This endpoint returns the SAME cx that chatCompletionHandler would
+ *   route to (L1 + dyn_conf → L2 → safety-net floor). Previously it
+ *   returned L1-only cx, which caused the demo 2026-06-10 bug where
+ *   terminal badge showed LOW while chat actually routed to MED.
+ *
+ *   Latency budget per ADR §3: p50 ~50ms, p95 ~80ms (was 1ms L1-only).
+ *
+ *   Response shape preserved 1:1 with previous implementation —
+ *   existing terminal call (terminal.html:1642) needs zero modification.
  */
-app.post('/api/classify', express.json(), (req, res) => {
+app.post('/api/classify', express.json(), async (req, res) => {
   const t0 = Date.now();
   const { messages, uc, qualityTier } = req.body;
   if (!Array.isArray(messages) || !messages.length)
     return res.status(400).json({ error: '`messages` array is required.' });
 
-  const lastUser = [...messages].reverse().find(m => m.role === 'user');
   const { promptText } = injectAttachmentContext(messages);
   if (!promptText) return res.status(400).json({ error: 'No user message content.' });
 
   try {
-    const result = cascaRoute(
-      promptText, uc || 'general', qualityTier || 'default', null,
-    );
+    const result = await computeClassificationBaselines({
+      promptText,
+      lastTier:      null,           // /api/classify is single-turn (no multi-turn context)
+      convMode:      null,
+      contextPrompt: null,
+      uc,
+      qualityTier,
+    });
     return res.json({
-      cx:         result.cx,
-      model:      result.model,
-      rule:       result.rule,
-      confidence: result.confidence,
-      lang:       result.lang,
-      modal:      result.modal,
-      pct:        result.pct,
+      cx:         result.serving.cx,
+      model:      result.serving.model,
+      rule:       result.serving.rule,
+      confidence: result.serving.confidence,
+      lang:       result.serving.lang,
+      modal:      result.serving.modal,
+      pct:        result.serving.pct,
       latencyMs:  Date.now() - t0,
     });
   } catch (err) {
+    console.error('[api/classify]', err.message);
     return res.status(500).json({ error: 'Classification error.' });
   }
 });

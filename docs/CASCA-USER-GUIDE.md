@@ -312,7 +312,7 @@ Base URL: `https://api.cascaio.com`
 | Method | Path | Auth | 說明 |
 |---|---|---|---|
 | POST | `/api/v1/chat/completions` | API Key | **主端點**（OpenAI 相容） |
-| POST | `/api/classify` | 無 | 分類-only（不呼叫 LLM，<20ms） |
+| POST | `/api/classify` | 無 | 真實路由 cx（L1+L2+floor，不呼叫 LLM，~50ms p50） |
 | POST | `/api/route` | API Key | 向後相容 alias |
 | POST | `/api/zapier/classify` | API Key | Zapier 專用 classification |
 
