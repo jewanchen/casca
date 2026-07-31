@@ -1,5 +1,5 @@
 /* Casca Gate SDK — bundles the REAL product classifier + PEP. Judgment = product code. */
-/* build: 2026-07-30 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
+/* build: 2026-07-31 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();          // Node.js / CommonJS
@@ -3556,7 +3556,13 @@ var LEXICON={
   passport: ['護照','护照','passport'],
   policy_no:['保單號','保單','保单号','保单','policy no','policy number','policy'],
   medical:  ['病歷號','病歷','病历号','病历','病例','medical record','mrn'],
+  // 中文姓名語境錨點(NAME_ZH):前置身分詞 / 後置稱謂
+  name_prefix:['用戶','用户','客戶','客户','會員','会员','申請人','申请人','持卡人','受益人','被保險人','被保险人','貴賓','贵宾','來電者','来电者','姓名'],
+  name_suffix:['先生','小姐','女士','經理','经理','襄理','專員','专员','課長','课长','副理'],
 };
+// 百家姓(常見子集)——NAME_ZH 偵測用;偏精確:必須有語境錨點才觸發
+var SURNAMES='王李張劉陳楊黃趙周吳徐孫朱高林何郭馬羅梁宋鄭謝韓唐馮于董蕭程曹袁鄧許傅沈曾彭呂蘇盧蔣蔡賈丁魏薛葉閻余潘杜戴夏鍾汪田任姜范方石姚譚廖鄒熊金陸郝孔白崔康毛邱秦江史顧侯邵孟龍萬段雷錢湯尹黎易常武喬賀賴龔文';
+var NAME_CORE='['+SURNAMES+'][\\u4e00-\\u9fa5]{1,2}';   // 姓 + 1-2 字名
 // 由 lexicon 錨點 + 值格式組出 context regex source(一個 capture group = 值)
 function ctx(concept, valuePat){
   var anchors=LEXICON[concept].map(escRe).join('|');
@@ -3574,6 +3580,9 @@ var DETECTORS=[
   { type:'PASSPORT', label:'護照', context:new RegExp(ctx('passport','[A-Z0-9]{8,9}'),'gi') },
   { type:'POLICY_NO', label:'保單號', context:new RegExp(ctx('policy_no','[A-Z0-9][A-Z0-9\\-]{5,19}'),'gi') },
   { type:'MEDICAL', label:'病歷號', context:new RegExp(ctx('medical','[A-Z0-9][A-Z0-9\\-]{3,19}'),'gi') },
+  // 中文姓名(NAME_ZH):偏精確,必須語境錨定(前置身分詞 或 後置稱謂)。裸名 = 本地 NER roadmap。
+  { type:'NAME_ZH', label:'姓名', context:new RegExp('(?:'+LEXICON.name_prefix.map(escRe).join('|')+')('+NAME_CORE+')','g') },
+  { type:'NAME_ZH', label:'姓名', context:new RegExp('('+NAME_CORE+')(?='+LEXICON.name_suffix.map(escRe).join('|')+')','g') },
   // ── TW pack ──
   { type:'TW_ID', label:'身分證', jur:'TW', re:/[A-Za-z][ \-]?[12](?:[ \-]?\d){8}/g, validate:function(v){return twIdValid(v.replace(/[ \-]/g,'').toUpperCase());} },
   { type:'TW_BIZ', label:'統一編號', jur:'TW', re:/\d(?:[ \-]?\d){7}/g, validate:function(v){return twBizValid(v.replace(/[ \-]/g,''));} },
@@ -3652,11 +3661,11 @@ var TYPES=DETECTORS.map(function(d){return {type:d.type,label:d.label,jur:d.jur|
 var JURISDICTIONS=[{code:'TW',name:'台灣'},{code:'SG',name:'新加坡'},{code:'HK',name:'香港'}];
 // 產業預設(勾了產業 = 預選這組型別)
 var INDUSTRY={
-  general: { name:'通用', types:['EMAIL','TW_ID','PHONE_TW','CREDIT_CARD'] },
-  bank:    { name:'銀行', types:['TW_ID','CREDIT_CARD','BANK_ACCT','TW_BIZ','PHONE_TW','EMAIL','SG_NRIC','HK_HKID'] },
-  insurance:{name:'保險', types:['TW_ID','PHONE_TW','BANK_ACCT','EMAIL','PASSPORT','TW_BIZ','POLICY_NO','MEDICAL'] },
-  legal:   { name:'法律', types:['TW_ID','TW_BIZ','BANK_ACCT','PASSPORT','EMAIL','CUSTOM'] },
-  securities:{name:'證券',types:['TW_ID','TW_BIZ','BANK_ACCT','CREDIT_CARD','PHONE_TW','EMAIL'] },
+  general: { name:'通用', types:['EMAIL','TW_ID','PHONE_TW','CREDIT_CARD','NAME_ZH'] },
+  bank:    { name:'銀行', types:['TW_ID','CREDIT_CARD','BANK_ACCT','TW_BIZ','PHONE_TW','EMAIL','SG_NRIC','HK_HKID','NAME_ZH'] },
+  insurance:{name:'保險', types:['TW_ID','PHONE_TW','BANK_ACCT','EMAIL','PASSPORT','TW_BIZ','POLICY_NO','MEDICAL','NAME_ZH'] },
+  legal:   { name:'法律', types:['TW_ID','TW_BIZ','BANK_ACCT','PASSPORT','EMAIL','CUSTOM','NAME_ZH'] },
+  securities:{name:'證券',types:['TW_ID','TW_BIZ','BANK_ACCT','CREDIT_CARD','PHONE_TW','EMAIL','NAME_ZH'] },
 };
 
 if(typeof window!=='undefined'){window.__CascaPEP={applyPolicy:applyPolicy,restore:restore,normalize:normalize,TYPES:TYPES,INDUSTRY:INDUSTRY,JURISDICTIONS:JURISDICTIONS};}

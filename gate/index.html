@@ -287,9 +287,10 @@
     document.getElementById('docn').textContent=total;
     document.getElementById('docfile').textContent=(name||'貼上內容')+' · '+Array.from(text).length+' 字';
     var hr=document.getElementById('dochits'); hr.innerHTML='';
-    var order=['TW_ID','CREDIT_CARD','PHONE_TW','EMAIL'], lbl={TW_ID:'身分證',CREDIT_CARD:'信用卡',PHONE_TW:'電話',EMAIL:'Email'};
-    if(total){order.forEach(function(t){if(r.counts[t]){var b=document.createElement('span');b.className='hb';b.textContent=lbl[t]+' ×'+r.counts[t];hr.appendChild(b);}});}
-    else{var n=document.createElement('span');n.className='none';n.textContent='未掃到結構化個資';hr.appendChild(n);}
+    // 型別標籤動態取自 SDK(涵蓋所有偵測器:轄區 pack/姓名/保單…),與聊天卡一致
+    var lbl={}; ((window.CascaGate&&window.CascaGate.types)||[]).forEach(function(t){lbl[t.type]=t.label;});
+    if(total){Object.keys(r.counts).forEach(function(t){var b=document.createElement('span');b.className='hb';b.textContent=(lbl[t]||t)+' ×'+r.counts[t];hr.appendChild(b);});}
+    else{var n=document.createElement('span');n.className='none';n.textContent='未掃到個資';hr.appendChild(n);}
     document.getElementById('docmask').innerHTML=hl(r.masked)||'&nbsp;';
   }
   function readFile(file){
