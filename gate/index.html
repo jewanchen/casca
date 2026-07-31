@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casca Gate — 讓 AI 進得了銀行,先讓它進得了稽核</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#0E2233;--ink2:#33475a;--paper:#F2EFE8;--paper2:#EAE6DC;--surf:#FBFAF6;--surf2:#F4F1E9;
+    --line:#D8D2C4;--line2:#C3BBA8;--mut:#5C6773;--mut2:#7d8894;
+    --seal:#B5342A;--seal-t:#f3ddd8;--low:#2f6f5e;--low-t:#dcebe4;--med:#9a6a12;--med-t:#f2e6cb;--high:#B5342A;--high-t:#f3ddd8;
+    --disp:"Songti TC","Noto Serif TC",Georgia,serif;--body:"PingFang TC","Noto Sans TC",system-ui,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;
+    --sh:0 1px 0 rgba(14,34,51,.04),0 18px 40px -28px rgba(14,34,51,.45);
+  }
+  @media(prefers-color-scheme:dark){:root{--ink:#EAE6DA;--ink2:#c4cdd6;--paper:#0B1B29;--paper2:#0E2233;--surf:#13293C;--surf2:#16324A;--line:#264257;--line2:#33566f;--mut:#94A5B4;--mut2:#7d8f9e;--seal:#E86B5F;--seal-t:#3a1f1c;--low:#5fbfa3;--low-t:#173029;--med:#d9a441;--med-t:#302713;--high:#E86B5F;--high-t:#3a1f1c;--sh:0 1px 0 rgba(0,0,0,.2),0 22px 46px -30px rgba(0,0,0,.8);}}
+  :root[data-theme="dark"]{--ink:#EAE6DA;--ink2:#c4cdd6;--paper:#0B1B29;--paper2:#0E2233;--surf:#13293C;--surf2:#16324A;--line:#264257;--line2:#33566f;--mut:#94A5B4;--mut2:#7d8f9e;--seal:#E86B5F;--seal-t:#3a1f1c;--low:#5fbfa3;--low-t:#173029;--med:#d9a441;--med-t:#302713;--high:#E86B5F;--high-t:#3a1f1c;--sh:0 1px 0 rgba(0,0,0,.2),0 22px 46px -30px rgba(0,0,0,.8);}
+  :root[data-theme="light"]{--ink:#0E2233;--paper:#F2EFE8;--surf:#FBFAF6;--surf2:#F4F1E9;--line:#D8D2C4;--seal:#B5342A;--seal-t:#f3ddd8;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--body);color:var(--ink);background:var(--paper);line-height:1.65;
+    background-image:radial-gradient(1100px 520px at 88% -8%,color-mix(in srgb,var(--seal) 7%,transparent),transparent 60%),linear-gradient(180deg,var(--paper2),var(--paper) 22%);}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+  h1,h2,h3{font-family:var(--disp);font-weight:600;letter-spacing:.02em;margin:0;text-wrap:balance}
+  a{color:inherit}.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  /* top */
+  .top{border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surf) 72%,transparent);backdrop-filter:blur(6px)}
+  .top .wrap{display:flex;align-items:center;gap:14px;height:60px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--disp);font-size:17px;letter-spacing:.06em}
+  .seal{width:34px;height:34px;display:grid;place-items:center;border:1.6px solid var(--seal);color:var(--seal);border-radius:5px;font-family:var(--disp);font-weight:700;font-size:19px;box-shadow:inset 0 0 0 2.4px color-mix(in srgb,var(--seal) 16%,transparent);transform:rotate(-1.5deg)}
+  .brand small{display:block;font-family:var(--body);font-size:11px;letter-spacing:.14em;color:var(--mut);margin-top:2px}
+  .top .sp{flex:1}.dom{font-family:var(--mono);font-size:12px;color:var(--mut)}
+  .tog{font:inherit;font-size:13px;cursor:pointer;color:var(--ink2);background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:7px 13px}
+  /* hero */
+  .hero{padding:40px 0 8px}
+  .eb{display:inline-flex;gap:9px;font-size:12.5px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase;margin-bottom:16px;border:1px solid var(--line);border-radius:999px;padding:6px 13px;background:var(--surf)}
+  .eb b{color:var(--seal)}
+  .hero h1{font-size:clamp(30px,6vw,52px);line-height:1.14;margin:0 0 14px;max-width:15ch}
+  .hero h1 .u{background:linear-gradient(transparent 62%,color-mix(in srgb,var(--seal) 26%,transparent) 0)}
+  .lede{font-size:clamp(16px,2.2vw,18.5px);color:var(--ink2);max-width:56ch}
+  .lede .em{color:var(--seal);font-weight:600}
+  /* console */
+  .console{margin:26px 0;background:var(--surf);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--sh);overflow:hidden}
+  .chead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surf2)}
+  .cdot{width:9px;height:9px;border-radius:50%;background:var(--low);box-shadow:0 0 0 3px color-mix(in srgb,var(--low) 20%,transparent)}
+  .ctitle{font-family:var(--disp);font-size:16px}.chead .sub{font-size:12.5px;color:var(--mut);font-family:var(--mono)}.chead .g{flex:1}
+  .sdkpill{display:inline-flex;gap:7px;font-size:12px;color:var(--seal);border:1px solid color-mix(in srgb,var(--seal) 40%,var(--line));background:var(--seal-t);border-radius:999px;padding:5px 11px;font-family:var(--mono);font-weight:600}
+  .cbody{padding:20px}
+  label.f{display:block;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:8px}
+  .inrow{display:flex;gap:10px}
+  textarea{flex:1;resize:vertical;min-height:56px;font-family:var(--body);font-size:16px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line2);border-radius:11px;padding:13px 14px}
+  textarea:focus{outline:none;border-color:var(--seal);box-shadow:0 0 0 3px color-mix(in srgb,var(--seal) 20%,transparent)}
+  .run{flex:0 0 auto;font:inherit;font-weight:600;font-size:15px;cursor:pointer;color:#fff;background:var(--ink);border:1px solid var(--ink);border-radius:11px;padding:0 22px;letter-spacing:.06em}
+  .run:hover{background:var(--seal);border-color:var(--seal)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+  .chips .l{font-size:12px;color:var(--mut);align-self:center}
+  .chip{font:inherit;font-size:13px;cursor:pointer;color:var(--ink2);background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-family:var(--mono)}
+  .chip:hover{border-color:var(--seal);color:var(--seal)} .chip .r{color:var(--seal);font-weight:700}
+  .results{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+  .rc{border:1px solid var(--line);border-radius:13px;background:var(--paper);overflow:hidden}
+  .rch{display:flex;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);background:var(--surf2);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+  .rch .n{font-family:var(--disp);font-size:15px;color:var(--seal);font-weight:700}
+  .rcb{padding:15px}
+  .bl{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);margin:0 0 6px}
+  .pt{font-family:var(--mono);font-size:13.5px;line-height:1.7;word-break:break-word;white-space:pre-wrap;background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin:0}
+  .pt.m{margin-top:12px} .pt .tok{color:#fff;background:var(--seal);border-radius:4px;padding:1px 6px;font-weight:700} .pt .hit{background:var(--seal-t);color:var(--seal);border-radius:4px;padding:1px 4px}
+  .hits{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.hits .none{font-size:13px;color:var(--low);font-weight:600}
+  .hb{font-family:var(--mono);font-size:12px;background:var(--seal-t);color:var(--seal);border:1px solid color-mix(in srgb,var(--seal) 40%,transparent);border-radius:6px;padding:3px 8px;font-weight:600}
+  .nn{font-size:12px;color:var(--med);margin-top:11px}
+  .th{display:flex;align-items:center;gap:13px;margin-bottom:14px;flex-wrap:wrap}
+  .tb{font-family:var(--disp);font-weight:700;font-size:24px;padding:11px 16px;border-radius:11px;border:1.5px solid;min-width:92px;text-align:center}
+  .tb.LOW{color:var(--low);background:var(--low-t);border-color:color-mix(in srgb,var(--low) 45%,transparent)}
+  .tb.MED{color:var(--med);background:var(--med-t);border-color:color-mix(in srgb,var(--med) 45%,transparent)}
+  .tb.HIGH{color:var(--high);background:var(--high-t);border-color:color-mix(in srgb,var(--high) 45%,transparent)}
+  .tm .k{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2)}.tm .mo{font-family:var(--mono);font-size:15px;font-weight:600}
+  .rule{font-family:var(--mono);font-size:12.5px;color:var(--seal);background:var(--seal-t);border:1px solid color-mix(in srgb,var(--seal) 30%,transparent);border-radius:7px;padding:9px 11px;margin-top:6px;word-break:break-word}
+  /* completion */
+  .comp{margin-top:16px;border:1px solid var(--line);border-radius:13px;background:var(--paper);overflow:hidden}
+  .compb{padding:15px;font-size:14.5px;color:var(--ink2);min-height:48px;white-space:pre-wrap}
+  .compb.wait{color:var(--mut);font-style:italic}
+  /* round-trip 還原視覺化 */
+  .rt{display:flex;flex-direction:column;gap:0}
+  .rtstep{border:1px solid var(--line);border-radius:10px;background:var(--surf);padding:11px 13px}
+  .rtl{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin-bottom:7px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .rtl .b{font-family:var(--mono);font-weight:700;color:var(--seal)}
+  .rtl .who{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;color:var(--mut2);background:var(--surf2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;text-transform:none}
+  .rtp{font-family:var(--mono);font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;margin:0}
+  .rtp .tok{color:#fff;background:var(--seal);border-radius:4px;padding:1px 6px;font-weight:700}
+  .rtp .rest{color:#fff;background:var(--low);border-radius:4px;padding:1px 6px;font-weight:700;animation:ri .4s ease}
+  .rtar{align-self:center;color:var(--mut2);font-size:15px;padding:4px 0;line-height:1}
+  .rtnote{font-size:12.5px;color:var(--ink2);margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;line-height:1.6}
+  .rtnote b{color:var(--seal)} .rtnote .g2{color:var(--low)}
+  .rtnote .src{color:var(--mut2)}
+  .vault{display:inline-flex;gap:6px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--ink2);background:var(--surf2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;margin:3px 4px 0 0}
+  .vault .k2{color:var(--seal);font-weight:700}.vault .v2{color:var(--low);font-weight:700}
+  /* ledger */
+  .led{margin-top:20px;border:1px solid var(--line2);border-radius:13px;background:var(--paper);overflow:hidden}
+  .ledh{display:flex;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surf2)}
+  .ledh .t{font-family:var(--disp);font-size:15px}.ledh .g{flex:1}.ledh .c{font-family:var(--mono);font-size:12px;color:var(--mut)}
+  .exp{font:inherit;font-size:12.5px;font-family:var(--mono);cursor:pointer;color:var(--ink2);background:var(--surf);border:1px solid var(--line);border-radius:8px;padding:6px 11px}
+  .tw{overflow-x:auto} table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;min-width:620px}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+  th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);background:var(--surf2)}
+  td.ru{white-space:normal;min-width:200px} .am{color:var(--seal);font-weight:700}.ap{color:var(--low);font-weight:700}
+  .rcp{display:inline-block;background:var(--seal-t);color:var(--seal);border-radius:5px;padding:1px 6px;margin:1px 3px 1px 0}.rcp.ro{background:var(--surf2);color:var(--ink2);border:1px solid var(--line)}
+  @keyframes ri{from{opacity:0;transform:translateY(-6px);background:color-mix(in srgb,var(--seal) 12%,transparent)}to{opacity:1;transform:none}}
+  tr.fresh{animation:ri .5s ease both}@media(prefers-reduced-motion:reduce){tr.fresh{animation:none}}
+  .dis{font-size:12px;color:var(--mut);margin-top:14px;line-height:1.6;padding-left:16px;border-left:2px solid var(--line2)}
+  /* policy panel */
+  .pol{margin-top:14px;border:1px solid var(--line);border-radius:11px;background:var(--surf2);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .polrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pl{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);min-width:88px}
+  .ind{font:inherit;font-size:13px;cursor:pointer;color:var(--ink2);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-family:var(--disp)}
+  .ind.on{background:var(--seal);color:#fff;border-color:var(--seal)}
+  .ty{font:inherit;font-size:12.5px;cursor:pointer;display:inline-flex;gap:5px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:5px 10px;margin:2px 4px 2px 0;font-family:var(--mono);color:var(--mut)}
+  .ty.on{color:var(--seal);border-color:color-mix(in srgb,var(--seal) 40%,var(--line));background:var(--seal-t)}
+  .ty input{accent-color:var(--seal);margin:0}
+  #wl{flex:1;min-width:200px;font-family:var(--body);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 11px}
+  .band{padding:48px 0}.band.alt{background:linear-gradient(180deg,var(--surf2),transparent 60%)}
+  .se{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--seal);font-weight:700;margin-bottom:10px}
+  h2{font-size:clamp(22px,3.4vw,30px);margin:0 0 6px}.sl{color:var(--ink2);max-width:60ch;margin:0 0 26px}
+  .c3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .cap{border:1px solid var(--line);border-radius:14px;padding:22px;background:var(--surf);position:relative;overflow:hidden}
+  .cap::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--seal)}
+  .cap .k{font-family:var(--disp);font-size:15px;color:var(--seal);font-weight:700;letter-spacing:.1em}
+  .cap h3{margin:6px 0 6px;font-size:18px}.cap p{margin:0;font-size:14px;color:var(--ink2)}
+  .cta{border:1px solid var(--line2);border-radius:18px;overflow:hidden;box-shadow:var(--sh);background:radial-gradient(600px 300px at 92% 0%,color-mix(in srgb,var(--seal) 12%,transparent),transparent 60%),var(--surf);padding:34px 30px}
+  .aud{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+  .au{border:1px solid var(--line);border-radius:10px;padding:12px 16px;background:var(--paper);flex:1;min-width:110px}.au .zh{font-family:var(--disp);font-size:17px}.au .en{font-family:var(--mono);font-size:11px;color:var(--mut);text-transform:uppercase}
+  .ctab{display:inline-flex;gap:11px;font-weight:600;font-size:16px;color:#fff;background:var(--seal);border-radius:12px;padding:15px 22px;text-decoration:none;margin-top:6px}
+  .cn{font-size:12.5px;color:var(--mut);margin-top:12px}
+  footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--mut);font-size:12.5px}
+  .honest{max-width:760px;line-height:1.7}.honest b{color:var(--ink2)}
+  :focus-visible{outline:2.5px solid var(--seal);outline-offset:2px}
+  @media(max-width:860px){.results,.c3{grid-template-columns:1fr}}
+  @media(max-width:560px){.wrap{padding:0 16px}.inrow{flex-direction:column}.run{padding:13px 0}}
+</style></head><body>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><span class="seal">閘</span><span>Casca&nbsp;Gate<small>銀行機房 LLM 管制閘道</small></span></div>
+  <span class="sp"></span><span class="dom">CascaGate.cascaio.com</span>
+  <button class="tog" id="tog" type="button">◐ 主題</button>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <span class="eb"><b>互動 Demo</b> · 判斷由 Casca Gate SDK 執行</span>
+  <h1>讓 AI 進得了銀行,<br>先讓它<span class="u">進得了稽核</span>。</h1>
+  <p class="lede">資料不出行、個資<span class="em">當場攔查</span>、每筆調用留下<span class="em">稽核軌跡</span>、規則可審。<br>下面這個閘道<b>現在就能玩</b> —— 判斷跑的是產品的分類引擎(SDK),不是示範動畫。</p>
+
+  <div class="console">
+    <div class="chead"><span class="cdot"></span><span class="ctitle">閘道控制台</span>
+      <span class="sub" id="ver">gate://vpc-local</span><span class="g"></span>
+      <span class="sdkpill" id="sdkpill">SDK 載入中…</span></div>
+    <div class="cbody">
+      <label class="f" for="q">輸入一段要送給 AI 的話</label>
+      <div class="inrow">
+        <textarea id="q" spellcheck="false">身分證 A123-456-789 電話 0912-345-678,幫我查交易</textarea>
+        <button class="run" id="run" type="button">送入閘道 →</button>
+      </div>
+      <div class="chips" id="chips"><span class="l">試試規避樣本:</span>
+        <button class="chip" type="button">請幫我查 <span class="r">A123456789</span> 上月交易</button>
+        <button class="chip" type="button"><span class="r">Ａ１２３４５６７８９</span> 這個帳戶</button>
+        <button class="chip" type="button">信用卡 <span class="r">4532-0151-1283-0366</span> 是否異常</button>
+        <button class="chip" type="button">設計一套跨區部署的微服務架構含熔斷</button>
+        <button class="chip" type="button">什麼是通貨膨脹?</button>
+      </div>
+      <div class="pol">
+        <div class="polrow"><span class="pl">遮罩政策 · 依產業</span>
+          <span id="inds"></span></div>
+        <div class="polrow"><span class="pl">資料轄區 · 啟用 pack</span>
+          <span id="jurs"></span></div>
+        <div class="polrow"><span class="pl">遮罩型別</span>
+          <span id="types"></span></div>
+        <div class="polrow"><span class="pl">自訂機密詞</span>
+          <input type="text" id="wl" placeholder="公司名、當事人、專案代號…(逗號分隔)" spellcheck="false"></div>
+      </div>
+      <div class="results">
+        <div class="rc"><div class="rch"><span class="n">01</span> 個資遮罩 · 進閘前攔查</div><div class="rcb">
+          <p class="bl">原始輸入(已正規化)</p><pre class="pt" id="orig"></pre>
+          <p class="bl" style="margin-top:12px">遮罩後 · 送往模型的內容</p><pre class="pt m" id="masked"></pre>
+          <div class="hits" id="hitrow"></div><div class="nn" id="nn" hidden></div>
+        </div></div>
+        <div class="rc"><div class="rch"><span class="n">02</span> 路由決策 · 分級與選模</div><div class="rcb">
+          <div class="th"><span class="tb MED" id="tb">MED</span><div class="tm"><div class="k">送往模型</div><div class="mo" id="mo">中階模型</div></div></div>
+          <p class="bl">依據規則(產品 SDK 回傳)</p><div class="rule" id="rule"></div>
+        </div></div>
+      </div>
+      <div class="comp"><div class="rch"><span class="n">03</span> 模型回應 → 還原 · round-trip(真值不進 LLM)</div>
+        <div class="compb wait" id="comp">輸入含個資的句子,此處顯示完整閉環:LLM 只看到代碼 → 回應也只用代碼 → 閘道還原成真值交回系統。真值全程不進 LLM。</div></div>
+      <div class="led"><div class="ledh"><span class="t">決策軌跡 · 稽核帳冊</span><span class="g"></span><span class="c" id="cnt">0 筆</span><button class="exp" id="exp" type="button">匯出 CSV</button></div>
+        <div class="tw"><table><thead><tr><th>時間</th><th>單位</th><th>動作</th><th class="ru">依據規則</th><th>送往模型</th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+      <p class="dis">判斷由 <b>Casca Gate SDK</b>(產品分類引擎 v2.6.2 + PII 政策)在你的瀏覽器 client-side 執行 —— 即為產品真實 code,非重寫示範。round-trip 段的還原用瀏覽器內的還原金庫(產品規格 §4.5 的 client-side 示範;②未接端點時為示範回應,接上 Gate 端點即為真實模型輸出,架構同 cascaio.com/terminal)。個資偵測<b>不承諾 100%</b>,與人工複核、政策白名單搭配;生產版為 20 語完整規則引擎並依各行政策設定。</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <div class="se">文件個資掃描</div>
+  <h2>把一份真文件丟進來,看它掃出所有個資</h2>
+  <p class="sl">支援 .txt / .csv / .md / .docx / .pdf,或直接貼上內容。<b>檔案在你的瀏覽器內解析與遮罩,不會上傳到任何伺服器</b> —— 這正是 Casca Gate「資料不出你家」的活體證明。</p>
+  <div class="console">
+    <div class="chead"><span class="cdot"></span><span class="ctitle">文件掃描台</span>
+      <span class="sub">local file · no upload</span><span class="g"></span>
+      <span class="sdkpill">🔒 檔案不離開此瀏覽器</span></div>
+    <div class="cbody">
+      <div id="drop" style="border:1.6px dashed var(--line2);border-radius:12px;padding:26px;text-align:center;background:var(--paper);cursor:pointer;transition:border-color .15s,background .15s">
+        <div style="font-family:var(--disp);font-size:18px;margin-bottom:6px">拖入文件,或點此選擇</div>
+        <div style="font-size:13px;color:var(--mut)">.txt · .csv · .md · .docx · .pdf</div>
+        <input type="file" id="file" accept=".txt,.csv,.md,.docx,.pdf,text/plain" style="display:none">
+      </div>
+      <div style="margin-top:12px"><label class="f" for="paste">或貼上文字</label>
+        <textarea id="paste" spellcheck="false" placeholder="貼上一段含個資的文件內容…" style="min-height:70px"></textarea>
+        <div style="text-align:right;margin-top:8px"><button class="run" id="scan" type="button" style="padding:11px 22px">掃描個資 →</button></div>
+      </div>
+      <div id="docout" hidden style="margin-top:18px">
+        <div class="th" style="margin-bottom:12px">
+          <span class="tb HIGH" id="docn" style="min-width:auto;font-size:20px">0</span>
+          <div class="tm"><div class="k">掃出個資筆數</div><div class="mo" id="docfile">—</div></div>
+          <span class="g" style="flex:1"></span>
+          <button class="exp" id="dldoc" type="button">下載遮罩後檔案</button>
+        </div>
+        <div class="hits" id="dochits" style="margin-bottom:12px"></div>
+        <p class="bl">遮罩後預覽(個資已替換為 [類型_序號])</p>
+        <pre class="pt" id="docmask" style="max-height:280px;overflow:auto"></pre>
+        <p class="dis" id="docnote">逐行掃描,結構保留;身分證/卡號經檢查碼驗證以降低誤擋。個資偵測不承諾 100% 命中,與人工複核搭配。</p>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section class="band alt"><div class="wrap">
+  <div class="se">三項核心能力</div><h2>稽核長要的不是「更聰明的 AI」,是「說得清楚的 AI」</h2>
+  <p class="sl">每一項都對應到稽核底稿裡回答得出來的問題:個資怎麼處理、決策為何、花了多少。</p>
+  <div class="c3">
+    <div class="cap"><span class="k">攔</span><h3>多語言個資與政策執行</h3><p>身分證、卡號、電話、Email 進閘前當場遮罩;容忍全形、分隔符與規避寫法,套用貴行政策。生產版涵蓋 20 語。</p></div>
+    <div class="cap"><span class="k">跡</span><h3>決策軌跡 · 可匯出稽核</h3><p>每筆調用留下時間、單位、動作、依據規則、送往模型的完整軌跡,一鍵導出成稽核證據鏈。</p></div>
+    <div class="cap"><span class="k">度</span><h3>成本紀律 · 不確定向貴</h3><p>依複雜度分級選模,簡單問句走經濟模型;鐵律「不確定一律向貴」—— 寧可貴一次,不要錯一次。</p></div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <div class="cta">
+    <div class="se">為誰而建</div><h2>給要「先過稽核、才敢上線」的金融機構</h2>
+    <p class="sl" style="margin-bottom:6px">數金部要速度,資安長要交代得過去。Casca Gate 讓兩邊在同一份軌跡上對話。</p>
+    <div class="aud"><div class="au"><div class="zh">銀行</div><div class="en">Banking</div></div><div class="au"><div class="zh">證券</div><div class="en">Securities</div></div><div class="au"><div class="zh">保險</div><div class="en">Insurance</div></div></div>
+    <a class="ctab" href="mailto:jewanchen@gmail.com?subject=Casca%20Gate%20%E7%B0%A1%E5%A0%B1%E9%A0%90%E7%B4%84">安排 30 分鐘簡報 + 稽核證據鏈 Demo →</a>
+    <p class="cn">寄到 jewanchen@gmail.com · 我們用貴行提供的樣本(去識別化)跑一遍,現場產出可稽核的決策軌跡。</p>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p class="honest"><b>誠實聲明:</b>本頁判斷由產品 SDK client-side 執行,為真實分類引擎;模型回應段接 Gate 端點。個資偵測不承諾 100% 命中,須與人工複核及政策設定搭配。本頁未提及任何特定客戶,亦不就法規遵循作出承諾;實際適用性以貴行法遵與資安評估為準。</p>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px"><span class="brand" style="font-size:15px"><span class="seal" style="width:26px;height:26px;font-size:15px">閘</span> Casca Gate</span><span style="flex:1"></span><span class="mono">CascaGate.cascaio.com</span><span>© 2026 Casca</span></div>
+</div></footer>
+
+<!-- ★ 產品判斷引擎:Casca Gate SDK(真 classifier + PEP,minify 後不外露原始碼)-->
+<script src="sdk/casca-gate-sdk.js"></script>
+<!-- 文件解析(client-side,檔案不離開瀏覽器):docx=mammoth / pdf=pdf.js -->
+<script src="sdk/vendor/mammoth.browser.min.js"></script>
+<script src="sdk/vendor/pdf.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='sdk/vendor/pdf.worker.min.js';
+  var PEP=window.__CascaPEP;
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function hl(m){return esc(m).replace(/\[([A-Z_]+_\d+)\]/g,'<span class="tok">[$1]</span>');}
+  // 逐行遮罩(保留文件結構,避免跨行過度比對)
+  function maskDoc(text){
+    if(!PEP)return{masked:text,counts:{}};
+    var pol=window.__gatePolicy?window.__gatePolicy():{};
+    var lines=String(text).split(/\r?\n/), out=[], counts={};
+    for(var i=0;i<lines.length;i++){
+      var r=PEP.applyPolicy(lines[i], pol);
+      out.push(r.masked);
+      r.hits.forEach(function(h){counts[h.type]=(counts[h.type]||0)+1;});
+    }
+    return{masked:out.join('\n'),counts:counts};
+  }
+  var lastMasked='', lastName='paste.txt', lastText=null, lastFileName=null;
+  window.__rescanDoc=function(){ if(lastText!=null)render(lastText,lastFileName); };
+  function render(text, name){
+    lastText=text; lastFileName=name;
+    lastName=(name||'貼上內容').replace(/\.(docx|pdf|txt|csv|md)$/i,'')+'-masked.txt';
+    var r=maskDoc(text), total=0;
+    Object.keys(r.counts).forEach(function(k){total+=r.counts[k];});
+    lastMasked=r.masked;
+    document.getElementById('docout').hidden=false;
+    document.getElementById('docn').textContent=total;
+    document.getElementById('docfile').textContent=(name||'貼上內容')+' · '+Array.from(text).length+' 字';
+    var hr=document.getElementById('dochits'); hr.innerHTML='';
+    var order=['TW_ID','CREDIT_CARD','PHONE_TW','EMAIL'], lbl={TW_ID:'身分證',CREDIT_CARD:'信用卡',PHONE_TW:'電話',EMAIL:'Email'};
+    if(total){order.forEach(function(t){if(r.counts[t]){var b=document.createElement('span');b.className='hb';b.textContent=lbl[t]+' ×'+r.counts[t];hr.appendChild(b);}});}
+    else{var n=document.createElement('span');n.className='none';n.textContent='未掃到結構化個資';hr.appendChild(n);}
+    document.getElementById('docmask').innerHTML=hl(r.masked)||'&nbsp;';
+  }
+  function readFile(file){
+    var name=file.name, ext=(name.split('.').pop()||'').toLowerCase();
+    document.getElementById('docfile').textContent='解析中… '+name;
+    if(ext==='docx'&&window.mammoth){
+      file.arrayBuffer().then(function(ab){return mammoth.extractRawText({arrayBuffer:ab});}).then(function(res){render(res.value,name);}).catch(function(){alert('docx 解析失敗');});
+    } else if(ext==='pdf'&&window.pdfjsLib){
+      file.arrayBuffer().then(function(ab){return pdfjsLib.getDocument({data:ab}).promise;}).then(function(pdf){
+        var chain=Promise.resolve(''), i;
+        function page(n){return pdf.getPage(n).then(function(p){return p.getTextContent();}).then(function(c){return c.items.map(function(it){return it.str;}).join(' ');});}
+        var parts=[]; var seq=Promise.resolve();
+        for(i=1;i<=pdf.numPages;i++){(function(n){seq=seq.then(function(){return page(n);}).then(function(t){parts.push(t);});})(i);}
+        seq.then(function(){render(parts.join('\n'),name);});
+      }).catch(function(){alert('pdf 解析失敗');});
+    } else { // txt/csv/md/其他純文字
+      var fr=new FileReader(); fr.onload=function(){render(fr.result,name);}; fr.readAsText(file);
+    }
+  }
+  var drop=document.getElementById('drop'), fin=document.getElementById('file');
+  drop.addEventListener('click',function(){fin.click();});
+  fin.addEventListener('change',function(){if(fin.files[0])readFile(fin.files[0]);});
+  ['dragover','dragenter'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.style.borderColor='var(--seal)';drop.style.background='var(--seal-t)';});});
+  ['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.style.borderColor='';drop.style.background='';});});
+  drop.addEventListener('drop',function(ev){if(ev.dataTransfer.files[0])readFile(ev.dataTransfer.files[0]);});
+  document.getElementById('scan').addEventListener('click',function(){var t=document.getElementById('paste').value;if(t.trim())render(t,'貼上內容');});
+  document.getElementById('dldoc').addEventListener('click',function(){
+    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lastMasked],{type:'text/plain;charset=utf-8;'}));a.download=lastName;a.click();
+  });
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  var root=document.documentElement;
+  // 主題
+  document.getElementById('tog').addEventListener('click',function(){
+    var d=root.getAttribute('data-theme'); var dark=d?d==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+    root.setAttribute('data-theme',dark?'light':'dark');
+  });
+  // Gate 端點(同 terminal:設定後接真 LLM;空=判斷示範模式)
+  var GATE_ENDPOINT = window.CASCA_GATE_URL || '';   // e.g. 'https://api.cascaio.com'
+  var SDK = window.CascaGate;
+  var pill=document.getElementById('sdkpill');
+  if(SDK){ pill.textContent='SDK v'+SDK.version+' 已載入'; document.getElementById('ver').textContent='engine v'+SDK.version; }
+  else { pill.textContent='SDK 載入失敗'; }
+
+  // ── 政策面板:產業預設 + 型別開關 + 機密詞(共享給文件掃描)──
+  var CHK={}, JUR={};
+  function buildPolicy(){
+    if(!SDK)return;
+    var indsEl=document.getElementById('inds'), tyEl=document.getElementById('types');
+    Object.keys(SDK.industries).forEach(function(k){
+      var b=document.createElement('button'); b.className='ind'; b.type='button'; b.dataset.k=k; b.textContent=SDK.industries[k].name;
+      b.addEventListener('click',function(){ applyIndustry(k); });
+      indsEl.appendChild(b);
+    });
+    SDK.types.forEach(function(t){ if(t.type==='CUSTOM'||t.jur)return;  // CUSTOM 由詞表驅動;轄區型別由「資料轄區」控制(避免兩軸重疊)
+      var lab=document.createElement('label'); lab.className='ty on';
+      var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=true; cb.dataset.t=t.type;
+      cb.addEventListener('change',function(){ lab.classList.toggle('on',cb.checked); clearInd(); rerun(); });
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(t.label));
+      tyEl.appendChild(lab); CHK[t.type]=cb;
+    });
+    // 資料轄區 pack(多選;預設 TW → 對應現行產品沿革)
+    var jurEl=document.getElementById('jurs');
+    (SDK.jurisdictions||[]).forEach(function(j){
+      var b=document.createElement('button'); b.className='ind'+(j.code==='TW'?' on':''); b.type='button'; b.dataset.j=j.code;
+      b.textContent=j.name; JUR[j.code]=(j.code==='TW');
+      b.addEventListener('click',function(){ JUR[j.code]=!JUR[j.code]; b.classList.toggle('on',JUR[j.code]); rerun(); });
+      jurEl.appendChild(b);
+    });
+    document.getElementById('wl').addEventListener('input',rerun);
+    applyIndustry('bank');   // 預設銀行
+  }
+  function applyIndustry(k){
+    var set={}; SDK.industries[k].types.forEach(function(t){set[t]=1;});
+    Object.keys(CHK).forEach(function(t){ CHK[t].checked=!!set[t]; CHK[t].parentNode.classList.toggle('on',!!set[t]); });
+    Array.prototype.forEach.call(document.getElementById('inds').children,function(b){b.classList.toggle('on',b.dataset.k===k);});
+    rerun();
+  }
+  function clearInd(){ Array.prototype.forEach.call(document.getElementById('inds').children,function(b){b.classList.remove('on');}); }
+  function getPolicy(){
+    var enabled={}; Object.keys(CHK).forEach(function(t){enabled[t]=CHK[t].checked;});
+    var wl=(document.getElementById('wl').value||'').split(/[,,、\n]/).map(function(s){return s.trim();}).filter(Boolean);
+    enabled.CUSTOM=wl.length>0;
+    var jurs=Object.keys(JUR).filter(function(c){return JUR[c];}); if(!jurs.length)jurs=['TW'];
+    return { enabled:enabled, watchlist:wl, jurisdictions:jurs };
+  }
+  window.__gatePolicy=getPolicy;   // 共享給文件掃描
+  function rerun(){ if(SDK&&document.getElementById('q').value.trim())run(null); if(window.__rescanDoc)window.__rescanDoc(); }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  var UNITS=['數金部','個金部','法金部','資安處','通路營運','財富管理'];
+  var cnt=0;
+  function pad(n){return(n<10?'0':'')+n;} function now(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  // 高亮遮罩後文字裡的 [TYPE_n]
+  function hl(masked){return esc(masked).replace(/\[([A-Z_]+_\d+)\]/g,'<span class="tok">[$1]</span>');}
+  // 依 vault 內的代碼型別,產一段「只會用代碼」的示範模型回應(供 round-trip 展示還原)
+  var RT_CLAUSE={ TW_ID:'已定位客戶 %',CREDIT_CARD:'卡號 % 近 30 日無異常交易',BANK_ACCT:'帳戶 % 餘額與扣款正常',
+    PHONE_TW:'將以簡訊通知 %',EMAIL:'對帳單寄至 %',TW_BIZ:'統編 % 之公司戶已核對',PASSPORT:'護照 % 身分已驗',CUSTOM:'機密標的 % 已列管' };
+  function demoResponse(vault){
+    var toks=Object.keys(vault); if(!toks.length)return '';
+    var parts=toks.map(function(t){var ty=(t.match(/\[([A-Z_]+)_\d+\]/)||[])[1]||'CUSTOM';var tmpl=RT_CLAUSE[ty]||'標的 % 已處理';return tmpl.replace('%',t);});
+    return '收到,已依請求完成初步處理:'+parts.join('、')+'。以上皆為系統代碼,實際值請由閘道還原後執行。';
+  }
+  // 把文字裡的代碼換成「還原後真值」並高亮(綠=真值)
+  function renderRestored(text,vault){
+    var html=esc(text);
+    Object.keys(vault).sort(function(a,b){return b.length-a.length;}).forEach(function(tok){
+      html=html.split(esc(tok)).join('<span class="rest">'+esc(vault[tok])+'</span>');
+    });
+    return html;
+  }
+  // 組 round-trip 三步(masked → LLM回應(帶代碼) → 還原真值)
+  function buildRoundtrip(comp,masked,llmText,vault,realSrc){
+    var vh=Object.keys(vault).map(function(k){return '<span class="vault"><span class="k2">'+esc(k)+'</span> ⇄ <span class="v2">'+esc(vault[k])+'</span></span>';}).join('');
+    comp.className='compb';
+    comp.innerHTML=
+      '<div class="rt">'+
+        '<div class="rtstep"><div class="rtl"><span class="b">①</span> LLM 看到的(遮罩後)<span class="who">→ 送往模型</span></div><pre class="rtp">'+hl(masked)+'</pre></div>'+
+        '<div class="rtar">↓</div>'+
+        '<div class="rtstep"><div class="rtl"><span class="b">②</span> 模型回應(只會用代碼)<span class="who">LLM 沒看過真值</span></div><pre class="rtp">'+hl(llmText)+'</pre></div>'+
+        '<div class="rtar">↓</div>'+
+        '<div class="rtstep"><div class="rtl"><span class="b">③</span> 閘道還原 → 交回銀行系統<span class="who">系統照常動作</span></div><pre class="rtp">'+renderRestored(llmText,vault)+'</pre></div>'+
+      '</div>'+
+      '<div class="rtnote">還原金庫(<b>代碼</b> ⇄ <span class="g2">真值</span>,只存在你的閘道、不出網路):<br>'+vh+
+        '<br>回程由閘道用<b>自己發的代碼</b>精確查表換回 —— 同一真值綁同一代碼,自動對得起來。'+
+        '<span class="src"> '+realSrc+'</span></div>';
+  }
+  function run(text){
+    if(text==null)text=document.getElementById('q').value;
+    if(!text.trim()||!SDK)return;
+    var r=SDK.evaluate(text, getPolicy());              // ★ 產品真實判斷(依政策)
+    var norm=window.__CascaPEP?window.__CascaPEP.normalize(text):text;
+    // 卡片1
+    var origHtml=esc(norm);
+    // 標原文命中(簡:用 masked 的 token 位置反推較複雜,這裡標原文中被偵測型別的原值)
+    document.getElementById('orig').innerHTML=origHtml||'&nbsp;';
+    document.getElementById('masked').innerHTML=hl(r.masked)||'&nbsp;';
+    var hr=document.getElementById('hitrow'); hr.innerHTML='';
+    if(r.pii.length){var seen={};r.pii.forEach(function(t){seen[t]=(seen[t]||0)+1;});Object.keys(seen).forEach(function(t){var b=document.createElement('span');b.className='hb';b.textContent=t+' ×'+seen[t];hr.appendChild(b);});}
+    else{var n=document.createElement('span');n.className='none';n.textContent='未偵測到個資 · 原文放行';hr.appendChild(n);}
+    var nn=document.getElementById('nn');
+    if(norm!==text){nn.hidden=false;nn.textContent='⚠ 偵測到全形/寬字元,已正規化為半形後比對 —— 規避寫法一樣攔得到。';}else nn.hidden=true;
+    // 卡片2
+    var tb=document.getElementById('tb'); tb.className='tb '+r.tier; tb.textContent=r.tier;
+    document.getElementById('mo').textContent=r.model+(r.escalated?'(向貴)':'');
+    document.getElementById('rule').textContent=r.rule;
+    // 卡片3:round-trip(遮罩→LLM只見代碼→還原真值)
+    var comp=document.getElementById('comp');
+    var vault=r.vault||{};
+    if(!Object.keys(vault).length){
+      comp.className='compb wait';
+      comp.textContent='此句未偵測到個資 —— 原文放行,無需遮罩/還原。試試含身分證、卡號、電話的句子看完整閉環。';
+    } else if(GATE_ENDPOINT){
+      comp.className='compb wait'; comp.textContent='呼叫模型中…(送出的是遮罩後代碼)';
+      fetch(GATE_ENDPOINT.replace(/\/$/,'')+'/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({messages:[{role:'system',content:'方括號如 [TW_ID_1] 是隱私佔位符,請逐字保留、當作真值使用,勿改寫或翻譯。'},{role:'user',content:r.masked}]})})
+        .then(function(x){return x.json();}).then(function(j){
+          var t=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'(無回應)';
+          buildRoundtrip(comp,r.masked,t,vault,'(真實模型輸出;系統提示已要求逐字保留代碼)');
+        }).catch(function(){buildRoundtrip(comp,r.masked,demoResponse(vault),vault,'(無法連上 Gate 端點,②為示範回應;架構同 terminal)');});
+    } else {
+      buildRoundtrip(comp,r.masked,demoResponse(vault),vault,'(②為示範回應;設定 Gate 端點後即為真實模型輸出)');
+    }
+    // 軌跡
+    var body=document.getElementById('tbody');var tr=document.createElement('tr');tr.className='fresh';
+    var masked=r.pii.length>0;var ru='';var seen2={};r.pii.forEach(function(t){if(!seen2[t]){ru+='<span class="rcp">PII:'+t+'</span>';seen2[t]=1;}});
+    ru+='<span class="rcp ro">ROUTE:'+r.tier+(r.escalated?'(向貴)':'')+'</span>';
+    tr.innerHTML='<td>'+now()+'</td><td>'+UNITS[Math.floor(Math.random()*UNITS.length)]+'</td><td class="'+(masked?'am':'ap')+'">'+(masked?'遮罩後放行':'直接放行')+'</td><td class="ru">'+ru+'</td><td>'+r.model+'</td>';
+    body.insertBefore(tr,body.firstChild); while(body.children.length>12)body.removeChild(body.lastChild);
+    cnt++; document.getElementById('cnt').textContent=cnt+' 筆';
+  }
+  document.getElementById('run').addEventListener('click',function(){run(null);});
+  document.getElementById('q').addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='Enter')run(null);});
+  Array.prototype.forEach.call(document.getElementById('chips').querySelectorAll('.chip'),function(c){c.addEventListener('click',function(){var t=c.textContent.trim();document.getElementById('q').value=t;run(t);});});
+  document.getElementById('exp').addEventListener('click',function(){
+    var rows=[['時間','單位','動作','依據規則','送往模型']];
+    Array.prototype.forEach.call(document.getElementById('tbody').querySelectorAll('tr'),function(tr){var td=tr.querySelectorAll('td');rows.push([td[0].textContent,td[1].textContent,td[2].textContent,td[3].textContent.replace(/\s+/g,' ').trim(),td[4].textContent]);});
+    var csv='﻿'+rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='casca-gate-audit-trail.csv';a.click();
+  });
+  buildPolicy();            // ★ 移到末端:確保 RT_CLAUSE/demoResponse/run 皆已定義後才初始化面板(否則 init 觸發 run→demoResponse 時 RT_CLAUSE 尚未賦值)
+  if(SDK)run(null);
+})();
+</script>
+</body></html>

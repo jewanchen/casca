@@ -12,3 +12,4 @@
 /dashboard      /casca-dashboard.html   200
 /annotator      /casca-annotator.html   200
 /docs/zapier    /casca-api-docs.html    200
+/gate           /gate/                  301

@@ -50,6 +50,12 @@
   to = "/casca-annotator.html"
   status = 200
 
+# ── Casca Gate demo(cascaio.com/gate)──────────────────────
+[[redirects]]
+  from = "/gate"
+  to = "/gate/"
+  status = 301
+
 # ── Security Headers ──────────────────────────────────────
 [[headers]]
   for = "/*"
