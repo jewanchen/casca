@@ -1,5 +1,5 @@
 /* Casca Gate SDK — bundles the REAL product classifier + PEP. Judgment = product code. */
-/* build: 2026-08-01 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
+/* build: 2026-08-04 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();          // Node.js / CommonJS
@@ -3555,11 +3555,18 @@ function hkIdValid(id){
   return s%11===0;
 }
 
-// ── FIX-C 前置正規化 ──
+// 紅隊#6:同形字(西里爾/希臘冒充拉丁 A-Z)→ 折回拉丁(TA=台星港,非西里爾市場,誤折風險可接受)
+var CONFUSABLES={'\u0410':'A','\u0412':'B','\u0415':'E','\u041A':'K','\u041C':'M','\u041D':'H','\u041E':'O','\u0420':'P','\u0421':'C','\u0422':'T','\u0423':'Y','\u0425':'X','\u0430':'a','\u0435':'e','\u043E':'o','\u0440':'p','\u0441':'c','\u0443':'y','\u0445':'x','\u0391':'A','\u0392':'B','\u0395':'E','\u0396':'Z','\u0397':'H','\u0399':'I','\u039A':'K','\u039C':'M','\u039D':'N','\u039F':'O','\u03A1':'P','\u03A4':'T','\u03A5':'Y','\u03A7':'X'};
+var CONF_RE=new RegExp('['+Object.keys(CONFUSABLES).join('')+']','g');
+// ── FIX-C 前置正規化(含紅隊規避硬化)──
 function normalize(text){
   return String(text)
-    .replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);})   // 全形數字
-    .replace(/[Ａ-Ｚａ-ｚ]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}); // 全形字母
+    .replace(/[\u200B-\u200D\uFEFF\u2060\u00AD]/g,'')                       // 紅隊#7:零寬字元/軟連字號 strip
+    .replace(/[\u2010-\u2015\u2212]/g,'-')                                    // 紅隊#2:各式破折號 → 半形 -
+    .replace(/[\u00A0\u2000-\u200A\u3000]/g,' ')                             // 紅隊#2:全形/不斷行空白 → 半形空白
+    .replace(CONF_RE,function(c){return CONFUSABLES[c];})                            // 紅隊#6:同形字折回拉丁
+    .replace(/[\uFF10-\uFF19]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);})   // 全形數字
+    .replace(/[\uFF21-\uFF3A\uFF41-\uFF5A]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}); // 全形字母
 }
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
