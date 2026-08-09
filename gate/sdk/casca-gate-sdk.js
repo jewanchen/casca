@@ -1,5 +1,5 @@
 /* Casca Gate SDK — bundles the REAL product classifier + PEP. Judgment = product code. */
-/* build: 2026-08-04 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
+/* build: 2026-08-08 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();          // Node.js / CommonJS
@@ -3694,10 +3694,78 @@ var INDUSTRY={
 
 if(typeof window!=='undefined'){window.__CascaPEP={applyPolicy:applyPolicy,restore:restore,normalize:normalize,TYPES:TYPES,INDUSTRY:INDUSTRY,JURISDICTIONS:JURISDICTIONS};}
 if(typeof module!=='undefined'&&module.exports){module.exports={applyPolicy:applyPolicy,restore:restore,normalize:normalize,TYPES:TYPES,INDUSTRY:INDUSTRY,JURISDICTIONS:JURISDICTIONS};}
+// ── 治理引擎(意圖+監理主題→治理判定,跑在遮罩後)──
+/**
+ * Casca Gate — 治理引擎(意圖 + 監理主題分類 → 治理判定)
+ * classify(text, lang):跑在【遮罩後】文本,不碰原文 PII。**確定性 + 可解釋**(對稽核逐條說明)。
+ * 動作為【建議】(policy engine 執行);低信心偏標記不硬攔——紅旗才 block。source-available,逐條可讀可改。
+ */
+
+// ── 意圖(員工在做什麼)──
+function detectIntent(t){
+  if(/招攬|行銷文案|廣告文案|話術|對客文宣|文案|marketing copy|sales script/i.test(t)) return {code:'customer_content',label:'對客內容'};
+  if(/(草擬|擬一?份|寫一?[封篇份]|草稿|生成一?[段篇]|draft|compose)/i.test(t)) return {code:'drafting',label:'擬稿'};
+  if(/分析|評估|比較|預測|試算|診斷|assess|analy[sz]e|evaluate|forecast/i.test(t)) return {code:'analysis',label:'分析'};
+  if(/程式|函式|語法|code\b|function|sql|script|debug|報錯/i.test(t)) return {code:'code',label:'程式'};
+  if(/查詢|查一下|列出|多少|明細|lookup|list all/i.test(t)) return {code:'data_lookup',label:'查詢'};
+  if(/心情|壓力|好累|焦慮|想離職|受不了/.test(t)) return {code:'personal',label:'私人'};
+  return {code:'other',label:'其他'};
+}
+
+// ── 監理主題(命中 = 貼標籤 + 風險 + 建議動作)——關鍵詞刻意收斂,避免一般 prompt 誤觸 ──
+var GOV_RULES=[
+  {topic:'credit_decision',label:'授信決策',risk:'high',action:'review',
+   re:/授信|核貸|核准.{0,4}(貸款|額度)|貸款.{0,4}(核准|准駁|決策)|徵信|信用評分|放款.{0,4}(核准|決策)|credit (decision|scoring|underwriting)|loan approval/i},
+  {topic:'investment_advice',label:'投資建議',risk:'high',action:'review',
+   re:/投資建議|該(買進?|賣出?|進場|加碼|減碼)|建議.{0,6}(買進|賣出|標的|加碼)|選股|報酬率.{0,4}建議|資產配置建議|停損|買進推薦|investment advice|buy recommendation|stock pick/i},
+  {topic:'insurance_claim',label:'理賠/核保',risk:'high',action:'review',
+   re:/理賠(金|決策|審核|與否)?|核保(決策|與否)?|出險|拒賠|保險金給付|claim (adjudication|decision)|underwriting decision/i},
+  {topic:'aml_kyc',label:'AML/KYC',risk:'elevated',action:'log',
+   re:/洗錢|可疑交易|防制洗錢|實質受益人|制裁名單|\bKYC\b|\bCDD\b|申報.{0,4}(金流|交易)|suspicious transaction|money laundering/i},
+  {topic:'insider_mnpi',label:'內線/未公開',risk:'high',action:'restrict',
+   re:/內線(交易|消息)?|未公開.{0,4}(資訊|消息|重大)|重大訊息|尚未(揭露|公告)|併購案.{0,4}(未|機密|保密)|material non.?public|insider (trading|information)/i},
+  {topic:'customer_content',label:'對客文案',risk:'elevated',action:'compliance',
+   re:/招攬|行銷文案|廣告文案|話術|對客文宣|保險招攬|理財.{0,4}文案|marketing copy|sales script/i},
+  {topic:'complaint',label:'客訴/爭議',risk:'elevated',action:'log',
+   re:/客訴|申訴|爭議處理|金融消費評議|評議中心|消費爭議|customer complaint|dispute resolution/i},
+];
+
+// ── 紅旗禁止意圖 → 攔截 + 告警(只用明確樣式,避免誤攔)──
+var PROHIBITED=[
+  {flag:'evade_aml_kyc',label:'規避 KYC/洗錢通報',
+   re:/(規避|繞過|避開|躲過).{0,8}(通報|申報|KYC|洗錢|盡職調查)|讓.{0,8}(交易|金流).{0,4}不被(通報|發現)|如何.{0,6}避免.{0,4}(通報|申報)/i},
+  {flag:'financial_misrep',label:'財報美化/不實',
+   re:/美化.{0,4}(財報|報表|數字|帳)|(做假|竄改|灌水).{0,4}(帳|財報|數字|報表)|隱匿.{0,4}(虧損|負債|重大風險)|window.?dress/i},
+  {flag:'insider_use',label:'利用內線獲利',
+   re:/利用.{0,4}內線|靠.{0,6}未公開.{0,6}(獲利|買賣)|內線.{0,4}(獲利|操作|下單)/i},
+];
+
+var PRIORITY={block:5,restrict:4,review:3,compliance:2,log:1,allow:0};
+var ACTION_LABEL={block:'攔截 + 告警',restrict:'限地端模型 + 高留痕',review:'建議人工複核',compliance:'合規審(揭露/公平待客)',log:'留痕標記',allow:'放行'};
+
+/**
+ * classify(text, lang) → {intent, topics[], prohibited[], risk, action, actionLabel, rationale[]}
+ * text 應為【遮罩後】文本。動作 = 建議,非強制;高信心紅旗才 block。
+ */
+function classify(text, lang){
+  text=String(text||'');
+  var intent=detectIntent(text), topics=[], prohibited=[], rationale=[];
+  PROHIBITED.forEach(function(p){ if(p.re.test(text)){ prohibited.push({flag:p.flag,label:p.label}); rationale.push('🚩 紅旗:'+p.label); } });
+  GOV_RULES.forEach(function(g){ if(g.re.test(text)){ topics.push({topic:g.topic,label:g.label,risk:g.risk,action:g.action}); rationale.push('監理主題:'+g.label+' → '+ACTION_LABEL[g.action]); } });
+  var action='allow', risk='low';
+  if(prohibited.length){ action='block'; risk='high'; }
+  else topics.forEach(function(t){ if(PRIORITY[t.action]>PRIORITY[action])action=t.action; if(t.risk==='high')risk='high'; else if(t.risk==='elevated'&&risk!=='high')risk='elevated'; });
+  if(action==='allow'&&!topics.length) rationale.push('未命中監理主題 · 一般用途');
+  return { intent:intent, topics:topics, prohibited:prohibited, risk:risk, action:action, actionLabel:ACTION_LABEL[action], rationale:rationale };
+}
+
+if(typeof window!=='undefined'){window.__CascaGov={classify:classify,ACTION_LABEL:ACTION_LABEL};}
+if(typeof module!=='undefined'&&module.exports){module.exports={classify:classify,ACTION_LABEL:ACTION_LABEL};}
 // ── Casca Gate SDK facade ──────────────────────────────────────────
 (function(root){
   var CLF = (typeof root!=='undefined' && root.CascaClassifier) || (typeof module!=='undefined' && module.exports);
   var PEP = (typeof root!=='undefined' && root.__CascaPEP) || null;
+  var GOV = (typeof root!=='undefined' && root.__CascaGov) || null;   // 治理引擎
   var TIER_MODEL = { LOW:'經濟模型', MED:'中階模型', HIGH:'高階模型', AMBIG:'中階模型' };
   var ESC = { LOW:'MED', MED:'HIGH', AMBIG:'MED', HIGH:'HIGH' };
   function norm(c){ return c==='AMBIG'?'MED':c; }
@@ -3709,6 +3777,7 @@ if(typeof module!=='undefined'&&module.exports){module.exports={applyPolicy:appl
     var cx = r.cx, conf = (typeof r.confidence==='number')?r.confidence:100, esc=false;
     if (conf < 80 || cx==='AMBIG'){ var up=ESC[cx]||'MED'; if(up!==cx){cx=up; esc=true;} }
     cx = norm(cx);
+    var gov = GOV ? GOV.classify(pep.masked, r.lang) : null;     // ★ 治理判定(跑在遮罩後,不碰原文)
     return {
       masked: pep.masked,
       vault: pep.vault || {},                                    // ★ §4.5 還原金庫(代碼→真值,不出瀏覽器)
@@ -3716,6 +3785,7 @@ if(typeof module!=='undefined'&&module.exports){module.exports={applyPolicy:appl
       counts: pep.counts || {},
       tier: cx, model: TIER_MODEL[cx], confidence: conf, escalated: esc,
       rule: (esc?('L1SAFE-ESC→'+cx+' | '):'') + r.rule, lang: r.lang,
+      governance: gov,                                            // ★ {intent,topics,prohibited,risk,action,actionLabel,rationale}
     };
   }
   // restore(text, vault):§4.5 回程還原,拿閘道自己發的代碼精確查表換回真值

@@ -76,6 +76,22 @@
   .comp{margin-top:16px;border:1px solid var(--line);border-radius:13px;background:var(--paper);overflow:hidden}
   .compb{padding:15px;font-size:14.5px;color:var(--ink2);min-height:48px;white-space:pre-wrap}
   .compb.wait{color:var(--mut);font-style:italic}
+  /* 治理判定卡 */
+  .govb{padding:15px;font-size:14px;color:var(--ink2);min-height:48px}
+  .govb.wait{color:var(--mut);font-style:italic}
+  .govrow{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .gv{font-family:var(--mono);font-size:12px;border-radius:999px;padding:4px 11px;font-weight:700;border:1px solid var(--line);background:var(--surf2);color:var(--ink2)}
+  .gv .lab{font-weight:500;color:var(--mut);margin-right:5px}
+  .gv.risk-low{color:var(--low);border-color:color-mix(in srgb,var(--low) 40%,transparent);background:var(--low-t)}
+  .gv.risk-elevated{color:var(--med);border-color:color-mix(in srgb,var(--med) 45%,transparent);background:var(--med-t)}
+  .gv.risk-high{color:var(--high);border-color:color-mix(in srgb,var(--high) 45%,transparent);background:var(--high-t)}
+  .gv.act-block{color:#fff;background:var(--seal);border-color:var(--seal)}
+  .gv.act-restrict,.gv.act-review{color:var(--high);background:var(--high-t);border-color:color-mix(in srgb,var(--high) 45%,transparent)}
+  .gv.act-compliance,.gv.act-log{color:var(--med);background:var(--med-t);border-color:color-mix(in srgb,var(--med) 45%,transparent)}
+  .gv.act-allow{color:var(--low);background:var(--low-t);border-color:color-mix(in srgb,var(--low) 45%,transparent)}
+  .gvtop{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--seal-t);color:var(--seal);border:1px solid color-mix(in srgb,var(--seal) 30%,transparent);border-radius:6px;padding:3px 9px;margin:2px 5px 2px 0}
+  .gvred{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--seal);color:#fff;border-radius:6px;padding:3px 9px;margin:2px 5px 2px 0;font-weight:700}
+  .gvrat{font-family:var(--mono);font-size:12px;color:var(--mut2);border-top:1px dashed var(--line);padding-top:9px;margin-top:10px;line-height:1.7}
   /* round-trip 還原視覺化 */
   .rt{display:flex;flex-direction:column;gap:0}
   .rtstep{border:1px solid var(--line);border-radius:10px;background:var(--surf);padding:11px 13px}
@@ -160,6 +176,9 @@
         <button class="chip" type="button"><span class="r">Ａ１２３４５６７８９</span> 這個帳戶</button>
         <button class="chip" type="button">信用卡 <span class="r">4532-0151-1283-0366</span> 是否異常</button>
         <button class="chip" type="button">設計一套跨區部署的微服務架構含熔斷</button>
+        <button class="chip" type="button">評估客戶 <span class="r">A123456789</span> 的授信額度與准駁</button>
+        <button class="chip" type="button">幫我寫一段保險招攬話術</button>
+        <button class="chip" type="button">怎麼讓這筆金流不被通報</button>
         <button class="chip" type="button">什麼是通貨膨脹?</button>
       </div>
       <div class="pol">
@@ -183,7 +202,9 @@
           <p class="bl">依據規則(產品 SDK 回傳)</p><div class="rule" id="rule"></div>
         </div></div>
       </div>
-      <div class="comp"><div class="rch"><span class="n">03</span> 模型回應 → 還原 · round-trip(真值不進 LLM)</div>
+      <div class="comp"><div class="rch"><span class="n">03</span> 治理判定 · 意圖 + 監理主題 → 建議動作(遮罩後判斷,不碰原文)</div>
+        <div class="govb" id="govb">輸入一則業務 prompt,此處顯示語意治理判定:意圖、碰到的監理主題(授信/投資建議/理賠/AML/內線…)、建議動作與可稽核依據。這是「分類器 → 治理引擎」——遮罩答『有沒有洩漏』,這裡答『員工在做什麼、該不該放行』。</div></div>
+      <div class="comp"><div class="rch"><span class="n">04</span> 模型回應 → 還原 · round-trip(真值不進 LLM)</div>
         <div class="compb wait" id="comp">輸入含個資的句子,此處顯示完整閉環:LLM 只看到代碼 → 回應也只用代碼 → 閘道還原成真值交回系統。真值全程不進 LLM。</div></div>
       <div class="led"><div class="ledh"><span class="t">決策軌跡 · 稽核帳冊</span><span class="g"></span><span class="c" id="cnt">0 筆</span><button class="exp" id="exp" type="button">匯出 CSV</button></div>
         <div class="tw"><table><thead><tr><th>時間</th><th>單位</th><th>動作</th><th class="ru">依據規則</th><th>送往模型</th></tr></thead><tbody id="tbody"></tbody></table></div></div>
@@ -439,7 +460,20 @@
     var tb=document.getElementById('tb'); tb.className='tb '+r.tier; tb.textContent=r.tier;
     document.getElementById('mo').textContent=r.model+(r.escalated?'(向貴)':'');
     document.getElementById('rule').textContent=r.rule;
-    // 卡片3:round-trip(遮罩→LLM只見代碼→還原真值)
+    // 卡片3:治理判定(意圖 + 監理主題 → 建議動作,跑在遮罩後)
+    var gov=r.governance, govb=document.getElementById('govb');
+    if(gov){
+      var riskZh={low:'低',elevated:'偏高',high:'高'}[gov.risk]||gov.risk;
+      var gh='<div class="govrow">'+
+        '<span class="gv"><span class="lab">意圖</span>'+esc(gov.intent.label)+'</span>'+
+        '<span class="gv risk-'+gov.risk+'"><span class="lab">風險</span>'+riskZh+'</span>'+
+        '<span class="gv act-'+gov.action+'"><span class="lab">建議動作</span>'+esc(gov.actionLabel)+'</span></div>';
+      if(gov.prohibited.length) gh+='<div>'+gov.prohibited.map(function(p){return '<span class="gvred">🚩 '+esc(p.label)+'</span>';}).join('')+'</div>';
+      if(gov.topics.length) gh+='<div style="margin-top:4px">'+gov.topics.map(function(t){return '<span class="gvtop">'+esc(t.label)+'</span>';}).join('')+'</div>';
+      gh+='<div class="gvrat">依據('+(gov.action==='block'?'高信心紅旗':'可稽核')+'):'+(gov.rationale.length?gov.rationale.map(esc).join(' ｜ '):'—')+'</div>';
+      govb.className='govb'; govb.innerHTML=gh;
+    } else { govb.className='govb wait'; }
+    // 卡片4:round-trip(遮罩→LLM只見代碼→還原真值)
     var comp=document.getElementById('comp');
     var vault=r.vault||{};
     if(!Object.keys(vault).length){
@@ -460,7 +494,9 @@
     var body=document.getElementById('tbody');var tr=document.createElement('tr');tr.className='fresh';
     var masked=r.pii.length>0;var ru='';var seen2={};r.pii.forEach(function(t){if(!seen2[t]){ru+='<span class="rcp">PII:'+t+'</span>';seen2[t]=1;}});
     ru+='<span class="rcp ro">ROUTE:'+r.tier+(r.escalated?'(向貴)':'')+'</span>';
-    tr.innerHTML='<td>'+now()+'</td><td>'+UNITS[Math.floor(Math.random()*UNITS.length)]+'</td><td class="'+(masked?'am':'ap')+'">'+(masked?'遮罩後放行':'直接放行')+'</td><td class="ru">'+ru+'</td><td>'+r.model+'</td>';
+    if(gov&&gov.action!=='allow') ru+='<span class="rcp ro">GOV:'+gov.action.toUpperCase()+(gov.topics[0]?'·'+gov.topics[0].label:(gov.prohibited[0]?'·紅旗':''))+'</span>';
+    var actTxt=(gov&&gov.action==='block')?'攔截':(masked?'遮罩後放行':'直接放行');
+    tr.innerHTML='<td>'+now()+'</td><td>'+UNITS[Math.floor(Math.random()*UNITS.length)]+'</td><td class="'+(gov&&gov.action==='block'?'am':(masked?'am':'ap'))+'">'+actTxt+'</td><td class="ru">'+ru+'</td><td>'+r.model+'</td>';
     body.insertBefore(tr,body.firstChild); while(body.children.length>12)body.removeChild(body.lastChild);
     cnt++; document.getElementById('cnt').textContent=cnt+' 筆';
   }
