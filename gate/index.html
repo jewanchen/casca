@@ -92,6 +92,24 @@
   .gvtop{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--seal-t);color:var(--seal);border:1px solid color-mix(in srgb,var(--seal) 30%,transparent);border-radius:6px;padding:3px 9px;margin:2px 5px 2px 0}
   .gvred{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--seal);color:#fff;border-radius:6px;padding:3px 9px;margin:2px 5px 2px 0;font-weight:700}
   .gvrat{font-family:var(--mono);font-size:12px;color:var(--mut2);border-top:1px dashed var(--line);padding-top:9px;margin-top:10px;line-height:1.7}
+  /* 治理儀表板 */
+  .gdash{margin-top:20px;border:1px solid var(--line2);border-radius:13px;background:var(--paper);overflow:hidden}
+  .gdb{padding:16px}
+  .gdtiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  .gdtile{border:1px solid var(--line);border-radius:11px;background:var(--surf2);padding:13px 14px;text-align:center}
+  .gdtile .gdn{font-family:var(--disp);font-size:26px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+  .gdtile .gdl{font-size:11.5px;color:var(--mut);margin-top:5px;letter-spacing:.04em}
+  .gdtile.warn .gdn{color:var(--med)} .gdtile.high .gdn{color:var(--high)} .gdtile.block .gdn{color:var(--seal)}
+  .gdcols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .gdct{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut2);margin-bottom:9px}
+  .gdlist{display:flex;flex-direction:column;gap:7px}
+  .gdrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:12.5px}
+  .gdrow .gdbar{grid-column:1/-1;height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:-3px}
+  .gdrow .gdbar i{display:block;height:100%;background:var(--seal);border-radius:3px}
+  .gdrow .gdbar.r-high i{background:var(--high)} .gdrow .gdbar.r-elevated i{background:var(--med)} .gdrow .gdbar.r-low i{background:var(--low)}
+  .gdrow .gdlab{font-family:var(--mono);color:var(--ink2)} .gdrow .gdv{font-family:var(--mono);color:var(--mut);font-variant-numeric:tabular-nums}
+  .gdnote{font-size:12px;color:var(--mut2);margin:14px 0 0;line-height:1.6;border-top:1px dashed var(--line);padding-top:11px}
+  @media(max-width:640px){.gdtiles{grid-template-columns:repeat(2,1fr)}.gdcols{grid-template-columns:1fr}}
   /* round-trip 還原視覺化 */
   .rt{display:flex;flex-direction:column;gap:0}
   .rtstep{border:1px solid var(--line);border-radius:10px;background:var(--surf);padding:11px 13px}
@@ -208,6 +226,21 @@
         <div class="compb wait" id="comp">輸入含個資的句子,此處顯示完整閉環:LLM 只看到代碼 → 回應也只用代碼 → 閘道還原成真值交回系統。真值全程不進 LLM。</div></div>
       <div class="led"><div class="ledh"><span class="t">決策軌跡 · 稽核帳冊</span><span class="g"></span><span class="c" id="cnt">0 筆</span><button class="exp" id="exp" type="button">匯出 CSV</button></div>
         <div class="tw"><table><thead><tr><th>時間</th><th>單位</th><th>動作</th><th class="ru">依據規則</th><th>送往模型</th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+      <div class="gdash"><div class="ledh"><span class="t">治理總覽 · 語意治理儀表板</span><span class="g"></span><span class="c" id="gdcount">0 則</span></div>
+        <div class="gdb">
+          <div class="gdtiles">
+            <div class="gdtile"><div class="gdn" id="gd-total">0</div><div class="gdl">總調用</div></div>
+            <div class="gdtile warn"><div class="gdn" id="gd-attn">0</div><div class="gdl">需關注</div></div>
+            <div class="gdtile high"><div class="gdn" id="gd-high">0</div><div class="gdl">高風險</div></div>
+            <div class="gdtile block"><div class="gdn" id="gd-block">0</div><div class="gdl">攔截</div></div>
+          </div>
+          <div class="gdcols">
+            <div class="gdcol"><div class="gdct">監理主題分布</div><div id="gd-topics" class="gdlist"></div></div>
+            <div class="gdcol"><div class="gdct">建議動作分布</div><div id="gd-actions" class="gdlist"></div></div>
+            <div class="gdcol"><div class="gdct">部門風險熱度</div><div id="gd-depts" class="gdlist"></div></div>
+          </div>
+          <p class="gdnote">此總覽由每則調用的治理判定即時聚合(含示範基線)—— 這就是「董事會問 AI 治理」時,資安長打得開的那張圖:全行 AI 用在哪、風險集中在哪、什麼被攔。生產版可依部門/時間/主題下鑽並匯出。</p>
+        </div></div>
       <p class="dis">判斷由 <b>Casca Gate SDK</b>(產品分類引擎 v2.6.2 + PII 政策)在你的瀏覽器 client-side 執行 —— 即為產品真實 code,非重寫示範。round-trip 段的還原用瀏覽器內的還原金庫(產品規格 §4.5 的 client-side 示範;②未接端點時為示範回應,接上 Gate 端點即為真實模型輸出,架構同 cascaio.com/terminal)。個資偵測<b>不承諾 100%</b>,與人工複核、政策白名單搭配;生產版為 20 語完整規則引擎並依各行政策設定。</p>
     </div>
   </div>
@@ -496,10 +529,52 @@
     ru+='<span class="rcp ro">ROUTE:'+r.tier+(r.escalated?'(向貴)':'')+'</span>';
     if(gov&&gov.action!=='allow') ru+='<span class="rcp ro">GOV:'+gov.action.toUpperCase()+(gov.topics[0]?'·'+gov.topics[0].label:(gov.prohibited[0]?'·紅旗':''))+'</span>';
     var actTxt=(gov&&gov.action==='block')?'攔截':(masked?'遮罩後放行':'直接放行');
-    tr.innerHTML='<td>'+now()+'</td><td>'+UNITS[Math.floor(Math.random()*UNITS.length)]+'</td><td class="'+(gov&&gov.action==='block'?'am':(masked?'am':'ap'))+'">'+actTxt+'</td><td class="ru">'+ru+'</td><td>'+r.model+'</td>';
+    var dept=UNITS[Math.floor(Math.random()*UNITS.length)];
+    tr.innerHTML='<td>'+now()+'</td><td>'+dept+'</td><td class="'+(gov&&gov.action==='block'?'am':(masked?'am':'ap'))+'">'+actTxt+'</td><td class="ru">'+ru+'</td><td>'+r.model+'</td>';
     body.insertBefore(tr,body.firstChild); while(body.children.length>12)body.removeChild(body.lastChild);
     cnt++; document.getElementById('cnt').textContent=cnt+' 筆';
+    if(gov){govLog.push({gov:gov,dept:dept});renderDash();}   // 治理儀表板即時累加
   }
+  // ── 治理儀表板:聚合每則調用的治理判定 ──
+  var govLog=[];
+  function gdBars(el,entries,max,riskOf){
+    if(!entries.length){el.innerHTML='<div class="gdrow"><span class="gdv">—</span></div>';return;}
+    el.innerHTML=entries.map(function(e){
+      var w=max?Math.round(e.v/max*100):0, rc=riskOf?('r-'+riskOf(e.k)):'';
+      return '<div class="gdrow"><span class="gdlab">'+esc(e.k)+'</span><span class="gdv">'+e.v+'</span><span class="gdbar '+rc+'"><i style="width:'+w+'%"></i></span></div>';
+    }).join('');
+  }
+  function sorted(obj){return Object.keys(obj).map(function(k){return {k:k,v:obj[k]};}).sort(function(a,b){return b.v-a.v;});}
+  function renderDash(){
+    var a={total:govLog.length,attn:0,high:0,block:0,topics:{},actions:{},depts:{},deptRisk:{}};
+    govLog.forEach(function(e){var g=e.gov;
+      if(g.action!=='allow')a.attn++; if(g.risk==='high')a.high++; if(g.action==='block')a.block++;
+      g.topics.forEach(function(t){a.topics[t.label]=(a.topics[t.label]||0)+1;});
+      a.actions[g.actionLabel]=(a.actions[g.actionLabel]||0)+1;
+      a.depts[e.dept]=(a.depts[e.dept]||0)+1;
+      a.deptRisk[e.dept]=(a.deptRisk[e.dept]||0)+(g.risk==='high'?2:g.risk==='elevated'?1:0);
+    });
+    document.getElementById('gd-total').textContent=a.total;
+    document.getElementById('gd-attn').textContent=a.attn;
+    document.getElementById('gd-high').textContent=a.high;
+    document.getElementById('gd-block').textContent=a.block;
+    document.getElementById('gdcount').textContent=a.total+' 則';
+    var tp=sorted(a.topics); gdBars(document.getElementById('gd-topics'),tp,tp.length?tp[0].v:0);
+    var ac=sorted(a.actions); gdBars(document.getElementById('gd-actions'),ac,ac.length?ac[0].v:0);
+    var dp=sorted(a.deptRisk).filter(function(x){return x.v>0;});
+    gdBars(document.getElementById('gd-depts'),dp,dp.length?dp[0].v:0);
+  }
+  // 示範基線:用真引擎分類代表性 prompt(非假數字),現場調用會疊加其上
+  var SEED=[['評估這位客戶的授信額度與准駁','數金部'],['企金客戶的放款核准評估','法金部'],
+    ['這位客戶的投資組合現在該加碼嗎，建議標的','財富管理'],['幫客戶做選股建議','財富管理'],
+    ['這件保單理賠要不要拒賠','個金部'],['核保與否的評估','個金部'],
+    ['這筆可疑交易需要通報洗錢嗎','資安處'],['實質受益人的 KYC 盡職調查','資安處'],
+    ['關於這個尚未公告的併購案分析','法金部'],['幫我寫一段保險招攬話術','通路營運'],
+    ['理財商品的行銷文案','通路營運'],['處理這個客訴爭議','通路營運'],
+    ['怎麼讓這筆金流不被通報','數金部'],['幫我美化這季財報數字','法金部'],
+    ['幫我分析這季市場趨勢與競品','數金部'],['幫我寫一封會議通知信','資安處'],
+    ['什麼是通貨膨脹','個金部'],['幫我 debug 這段 SQL','資安處']];
+  function seedDash(){ if(!SDK)return; SEED.forEach(function(p){ var r=SDK.evaluate(p[0],getPolicy()); if(r.governance)govLog.push({gov:r.governance,dept:p[1]}); }); renderDash(); }
   document.getElementById('run').addEventListener('click',function(){run(null);});
   document.getElementById('q').addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='Enter')run(null);});
   Array.prototype.forEach.call(document.getElementById('chips').querySelectorAll('.chip'),function(c){c.addEventListener('click',function(){var t=c.textContent.trim();document.getElementById('q').value=t;run(t);});});
@@ -510,6 +585,7 @@
     var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='casca-gate-audit-trail.csv';a.click();
   });
   buildPolicy();            // ★ 移到末端:確保 RT_CLAUSE/demoResponse/run 皆已定義後才初始化面板(否則 init 觸發 run→demoResponse 時 RT_CLAUSE 尚未賦值)
+  seedDash();               // 治理儀表板示範基線
   if(SDK)run(null);
 })();
 </script>
