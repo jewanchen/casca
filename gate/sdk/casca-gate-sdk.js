@@ -1,5 +1,5 @@
 /* Casca Gate SDK — bundles the REAL product classifier + PEP. Judgment = product code. */
-/* build: 2026-08-08 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
+/* build: 2026-08-14 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();          // Node.js / CommonJS
@@ -3609,6 +3609,9 @@ var DETECTORS=[
   { type:'TW_ID', label:'身分證', jur:'TW', re:/[A-Za-z][ \-]?[12](?:[ \-]?\d){8}/g, validate:function(v){return twIdValid(v.replace(/[ \-]/g,'').toUpperCase());} },
   { type:'TW_ARC', label:'居留證', jur:'TW', re:/[A-Za-z][ \-]?[89](?:[ \-]?\d){8}/g, validate:function(v){return twArcValid(v);} },  // 新式居留證
   { type:'TW_ARC', label:'居留證', jur:'TW', re:/[A-Za-z][A-Da-d]\d{8}/g, validate:function(v){return twArcValid(v);} },              // 舊式居留證
+  // 錨點 fallback:明確標「身分證/居留證」+ 格式相符 → 照遮,不管檢查碼(寧可誤擋;救打錯一碼/假號/OCR 誤差)
+  { type:'TW_ID', label:'身分證', jur:'TW', context:new RegExp('(?:身分證|身份證)(?:字號|號碼|號)?[：:\\s是為]{0,3}([A-Za-z][ \\-]?[12](?:[ \\-]?\\d){8})','g') },
+  { type:'TW_ARC', label:'居留證', jur:'TW', context:new RegExp('(?:居留證|統一證號|統號)(?:號碼|號)?[：:\\s是為]{0,3}([A-Za-z][ \\-]?[89A-Da-d](?:[ \\-]?\\d){8})','gi') },
   { type:'TW_BIZ', label:'統一編號', jur:'TW', re:/\d(?:[ \-]?\d){7}/g, validate:function(v){return twBizValid(v.replace(/[ \-]/g,''));} },
   { type:'PHONE_TW', label:'手機', jur:'TW', re:/09\d{2}[ \-]?\d{3}[ \-]?\d{3}/g },
   { type:'PHONE_TW_LAND', label:'市話', jur:'TW', re:/0[2-8][ \-]?\d{3,4}[ \-]?\d{4}/g },
