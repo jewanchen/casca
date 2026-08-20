@@ -1,5 +1,5 @@
 /* Casca Gate SDK — bundles the REAL product classifier + PEP. Judgment = product code. */
-/* build: 2026-08-14 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
+/* build: 2026-08-20 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();          // Node.js / CommonJS
@@ -3525,6 +3525,15 @@ function twBizValid(n){ // 統一編號(統編)8 碼
   if(sum%10===0)return true;
   return n[6]==='7'&&(sum+1)%10===0;
 }
+// IBAN mod-97(ISO 13616):前 4 碼移末、字母轉數字、mod 97 === 1;確定性,可裸掃
+function ibanValid(v){
+  v=String(v).replace(/[ \-]/g,'').toUpperCase();
+  if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(v))return false;
+  var r=v.slice(4)+v.slice(0,4),rem=0;
+  for(var i=0;i<r.length;i++){var c=r.charCodeAt(i);var d=(c>=65&&c<=90)?String(c-55):r[i];
+    for(var j=0;j<d.length;j++){rem=(rem*10+(+d[j]))%97;}}
+  return rem===1;
+}
 function luhn(num){
   if(!/^\d{13,19}$/.test(num))return false;
   var s=0,a=false;
@@ -3577,6 +3586,10 @@ var LEXICON={
   passport: ['護照','护照','passport'],
   policy_no:['保單號','保單','保单号','保单','policy no','policy number','policy'],
   medical:  ['病歷號','病歷','病历号','病历','病例','medical record','mrn'],
+  // 法律 pack(legal preset)錨點詞
+  swift:    ['swift code','swift/bic','swift','bic'],
+  reg_no:   ['公司登記號','公司注册号','company registration','registration no','registration number','uen','ein','cin'],
+  dob:      ['出生日期','出生日','生日','date of birth','birth date','dob'],
   // 中文姓名語境錨點(NAME_ZH):前置身分詞 / 後置稱謂
   name_prefix:['用戶','用户','客戶','客户','會員','会员','申請人','申请人','持卡人','受益人','被保險人','被保险人','貴賓','贵宾','來電者','来电者','姓名'],
   name_suffix:['先生','小姐','女士','經理','经理','襄理','專員','专员','課長','课长','副理'],
@@ -3585,6 +3598,14 @@ var LEXICON={
 var SURNAMES='王李張劉陳楊黃趙周吳徐孫朱高林何郭馬羅梁宋鄭謝韓唐馮于董蕭程曹袁鄧許傅沈曾彭呂蘇盧蔣蔡賈丁魏薛葉閻余潘杜戴夏鍾汪田任姜范方石姚譚廖鄒熊金陸郝孔白崔康毛邱秦江史顧侯邵孟龍萬段雷錢湯尹黎易常武喬賀賴龔文';
 var NAME_CORE='['+SURNAMES+'][\\u4e00-\\u9fa5]{1,2}';   // 姓 + 1-2 字名(前置錨點式)
 var NAME_CORE_T='['+SURNAMES+'][\\u4e00-\\u9fa5]{0,2}'; // 姓 + 0-2 字名(後接稱謂式,允許「陳先生」裸姓+稱謂)
+// ── 法律 pack:合約結構偵測(無 watchlist;PoC 收邊界版,驗收=VAST SOW)──
+// 邊界紀律:大寫詞列 {1,5} 上限、非貪婪+lookahead 停在雙空白/換行/小寫詞、排除法律套語。
+// 大小寫敏感('g' 不加 i):小寫 "limited"(not limited to / limited liability)天然不觸。
+// 中文法人名(XX有限公司)無大小寫邊界可收,誤遮風險高 → 不做,走 watchlist / 本地 NER roadmap。
+var ORG_WORD="[A-Z][A-Za-z0-9&.,'\\-]*";                       // 大寫開頭詞(允許 Co., 之類內嵌標點)
+var ORG_SUFFIX="(?:Pte\\.?[ ]+Ltd\\.?|Ltd\\.?|Limited|LIMITED|Inc\\.?|Incorporated|LLC|LLP|PLC|Corp\\.?|Corporation|GmbH)";
+var ORG_STOP="(?:The|A|An|This|That|In|On|At|By|Of|For|And|Or|But|Not|Any|All|Including)[ ]"; // 冠詞/連接詞不得起頭(排「The Limited」句首誤觸)
+var PROJECT_STOP="(?:Management|Manager|Plan|Plans|Scope|Team|Teams|Timeline|Budget|Status|Update|Updates|Phase|Charter|Owner|Lead|Report|Reports)";
 // 由 lexicon 錨點 + 值格式組出 context regex source(一個 capture group = 值)
 function ctx(concept, valuePat){
   var anchors=LEXICON[concept].map(escRe).join('|');
@@ -3605,6 +3626,26 @@ var DETECTORS=[
   // 中文姓名(NAME_ZH):偏精確,必須語境錨定(前置身分詞 或 後置稱謂)。裸名 = 本地 NER roadmap。
   { type:'NAME_ZH', label:'姓名', context:new RegExp('(?:'+LEXICON.name_prefix.map(escRe).join('|')+')('+NAME_CORE+')','g') },
   { type:'NAME_ZH', label:'姓名', context:new RegExp('('+NAME_CORE_T+')(?='+LEXICON.name_suffix.map(escRe).join('|')+')','g') },
+  // ── 法律 pack(universal;預設只編入 legal 產業 preset)──
+  // ORG_LEGAL a:法人字尾式(Wipro Limited / VAST Intelligence Ltd);排 limited liability
+  { type:'ORG_LEGAL', label:'法人名', re:new RegExp('(?:(?!'+ORG_STOP+')'+ORG_WORD+'[ ]+){1,5}'+ORG_SUFFIX+'(?![A-Za-z])(?![ ]+[Ll]iability)','g') },
+  // ORG_LEGAL b:當事人定義位((1) WIPRO LIMITED, a company …)——含無標準字尾的法人
+  { type:'ORG_LEGAL', label:'法人名', context:new RegExp('\\([ ]*\\d{1,2}[ ]*\\)[ ]*('+ORG_WORD+'(?:[ ]+'+ORG_WORD+'){0,5}?),[ ]*an?[ ]+(?:company|corporation|partnership|limited)','g') },
+  // ORG_LEGAL c:簽署錨點(for and on behalf of X)——停在雙空白/換行/標點/小寫詞
+  { type:'ORG_LEGAL', label:'法人名', context:new RegExp('on behalf of[ ]+('+ORG_WORD+'(?:[ ]+'+ORG_WORD+'){0,4}?(?:[ ]+'+ORG_SUFFIX+')?)(?=[ ]{2,}|[ ]*[\\r\\n.,;]|[ ]+[a-z]|$)','g') },
+  // NAME_LEGAL a:簽名欄 Name: Jeremy Chen(空欄不觸;停在雙空白/換行)
+  { type:'NAME_LEGAL', label:'簽署人', context:new RegExp("(?:Name|姓名)[ ]*[:：][ ]*([A-Z][A-Za-z'\\-]+(?:[ ]+[A-Z][A-Za-z'\\-]+){0,3})(?=[ ]{2,}|[ ]*[\\r\\n]|[ ]+[a-z]|$)",'g') },
+  // NAME_LEGAL b:稱謂錨點 Mr./Ms./Mrs./Dr.(容忍 Mr.Chen 無空格、Chih - Cheng 間隔連字)
+  { type:'NAME_LEGAL', label:'簽署人', context:new RegExp("(?:Mr|Ms|Mrs|Dr)(?:\\.[ ]?|[ ]+)([A-Z][A-Za-z'\\-]+(?:(?:,[ ]?|[ ]+)[A-Z][A-Za-z'\\-]+){0,2}(?:[ ]?-[ ]?[A-Z][A-Za-z'\\-]+)?)",'g') },
+  // IBAN:mod-97 檢查碼,可裸掃(容忍 4 碼分組空格);SWIFT 誤擋率高必須錨點式
+  { type:'IBAN', label:'IBAN', re:/[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}(?![A-Za-z0-9])/g, validate:function(v){return ibanValid(v);} },
+  { type:'SWIFT_BIC', label:'SWIFT/BIC', context:new RegExp(ctx('swift','[A-Za-z]{6}[A-Za-z0-9]{2}(?:[A-Za-z0-9]{3})?'),'gi') },
+  // 他國公司登記號(UEN/EIN/CIN,錨點式)
+  { type:'REG_NO', label:'公司登記號', context:new RegExp(ctx('reg_no','[A-Za-z0-9][A-Za-z0-9\\-]{5,14}'),'gi') },
+  // 出生日期(L3 個資;交易/里程碑日期不遮=L2)
+  { type:'DOB', label:'出生日期', context:new RegExp(ctx('dob','(?:\\d{1,4}[\\/.\\-]\\d{1,2}[\\/.\\-]\\d{1,4}|\\d{4}年\\d{1,2}月\\d{1,2}日|(?:\\d{1,2}[ ]+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ .,]{0,2}\\d{1,2}(?:[.,]?[ ]?\\d{2,4})?)'),'gi') },
+  // 專案代號啟發式(Project Falcon / 專案代號:獵鷹);通用詞 stoplist 排 Project Management 等
+  { type:'PROJECT_CODE', label:'專案代號', context:new RegExp('(?:Project|專案代號|项目代号)(?:[ ]*[:：][ ]*|[ ]+)(?!'+PROJECT_STOP+'\\b)([A-Z][A-Za-z0-9\\-]{0,19}\\b|[\\u4e00-\\u9fa5]{2,8})','g') },
   // ── TW pack ──
   { type:'TW_ID', label:'身分證', jur:'TW', re:/[A-Za-z][ \-]?[12](?:[ \-]?\d){8}/g, validate:function(v){return twIdValid(v.replace(/[ \-]/g,'').toUpperCase());} },
   { type:'TW_ARC', label:'居留證', jur:'TW', re:/[A-Za-z][ \-]?[89](?:[ \-]?\d){8}/g, validate:function(v){return twArcValid(v);} },  // 新式居留證
@@ -3683,7 +3724,10 @@ function restore(text, vault){
 }
 
 // 型別清單(給 UI 產 checkbox)
-var TYPES=DETECTORS.map(function(d){return {type:d.type,label:d.label,jur:d.jur||null};}).concat([{type:'CUSTOM',label:'自訂機密詞',jur:null}]);
+// 同 type 多條偵測規則 → 清單去重(UI checkbox 一型別一個;NAME_ZH/ORG_LEGAL 等多規則型別)
+var TYPES=(function(){var seen={},out=[];DETECTORS.forEach(function(d){ if(seen[d.type])return; seen[d.type]=1;
+  out.push({type:d.type,label:d.label,jur:d.jur||null}); });
+  out.push({type:'CUSTOM',label:'自訂機密詞',jur:null}); return out;})();
 // 轄區清單(給 UI 產切換)
 var JURISDICTIONS=[{code:'TW',name:'台灣'},{code:'SG',name:'新加坡'},{code:'HK',name:'香港'}];
 // 產業預設(勾了產業 = 預選這組型別)
@@ -3691,7 +3735,7 @@ var INDUSTRY={
   general: { name:'通用', types:['EMAIL','TW_ID','TW_ARC','PHONE_TW','CREDIT_CARD','NAME_ZH'] },
   bank:    { name:'銀行', types:['TW_ID','TW_ARC','CREDIT_CARD','BANK_ACCT','TW_BIZ','PHONE_TW','EMAIL','SG_NRIC','HK_HKID','NAME_ZH'] },
   insurance:{name:'保險', types:['TW_ID','TW_ARC','PHONE_TW','BANK_ACCT','EMAIL','PASSPORT','TW_BIZ','POLICY_NO','MEDICAL','NAME_ZH'] },
-  legal:   { name:'法律', types:['TW_ID','TW_ARC','TW_BIZ','BANK_ACCT','PASSPORT','EMAIL','CUSTOM','NAME_ZH'] },
+  legal:   { name:'法律', types:['TW_ID','TW_ARC','TW_BIZ','BANK_ACCT','PASSPORT','EMAIL','CUSTOM','NAME_ZH','ORG_LEGAL','NAME_LEGAL','IBAN','SWIFT_BIC','REG_NO','DOB','PROJECT_CODE'] },
   securities:{name:'證券',types:['TW_ID','TW_ARC','TW_BIZ','BANK_ACCT','CREDIT_CARD','PHONE_TW','EMAIL','NAME_ZH'] },
 };
 
