@@ -1,5 +1,5 @@
 /* Casca Gate SDK — bundles the REAL product classifier + PEP. Judgment = product code. */
-/* build: 2026-08-20 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
+/* build: 2026-08-28 · classifier + PEP(policy toggles + watchlist) + reversible vault/restore §4.5 */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = factory();          // Node.js / CommonJS
@@ -3527,7 +3527,7 @@ function twBizValid(n){ // 統一編號(統編)8 碼
 }
 // IBAN mod-97(ISO 13616):前 4 碼移末、字母轉數字、mod 97 === 1;確定性,可裸掃
 function ibanValid(v){
-  v=String(v).replace(/[ \-]/g,'').toUpperCase();
+  v=String(v).replace(/[ \-\r\n]/g,'').toUpperCase();
   if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(v))return false;
   var r=v.slice(4)+v.slice(0,4),rem=0;
   for(var i=0;i<r.length;i++){var c=r.charCodeAt(i);var d=(c>=65&&c<=90)?String(c-55):r[i];
@@ -3579,6 +3579,13 @@ function normalize(text){
 }
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
+// ── 紅隊#5 cross-line:checksum 型偵測器的 gap 容忍換行(單 gap 最多 3 字元,涵蓋 " \r\n")──
+// 雙閘防誤擋:(a) 剝除後仍須過原檢查碼;(b) 整段 match 至多 1 個換行(擋多行數字表格)。
+// 無檢查碼型(PHONE_*)不跟進——跨行拼電話=高誤擋;情境錨定型維持既有語義。
+var XGAP='[ \\-\\r\\n]{0,3}';
+function xstrip(v){return String(v).replace(/[ \-\r\n]/g,'');}
+function oneLineBreak(v){return (String(v).match(/\n/g)||[]).length<=1;}
+
 // ── LEXICON:情境錨點詞(concept × 語言;加一種語言 = 加詞,不動邏輯)──
 // P0=簡繁英(台星港主語言);日/韓/泰/越列 P1(見規劃 §2.2)。
 var LEXICON={
@@ -3618,7 +3625,7 @@ function ctx(concept, valuePat){
 var DETECTORS=[
   // ── universal(通用,無轄區)──
   { type:'EMAIL', label:'Email', re:/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g },
-  { type:'CREDIT_CARD', label:'信用卡', re:/\d(?:[ \-]?\d){12,18}/g, validate:function(v){var d=v.replace(/[ \-]/g,'');return d.length>=13&&d.length<=19&&luhn(d);} },
+  { type:'CREDIT_CARD', label:'信用卡', re:new RegExp('\\d(?:'+XGAP+'\\d){12,18}','g'), validate:function(v){var d=xstrip(v);return oneLineBreak(v)&&d.length>=13&&d.length<=19&&luhn(d);} },
   { type:'BANK_ACCT', label:'銀行帳號', context:new RegExp(ctx('bank_acct','[0-9][0-9\\- ]{7,18}[0-9]'),'gi') },
   { type:'PASSPORT', label:'護照', context:new RegExp(ctx('passport','[A-Z0-9]{8,9}'),'gi') },
   { type:'POLICY_NO', label:'保單號', context:new RegExp(ctx('policy_no','[A-Z0-9][A-Z0-9\\-]{5,19}'),'gi') },
@@ -3638,7 +3645,7 @@ var DETECTORS=[
   // NAME_LEGAL b:稱謂錨點 Mr./Ms./Mrs./Dr.(容忍 Mr.Chen 無空格、Chih - Cheng 間隔連字)
   { type:'NAME_LEGAL', label:'簽署人', context:new RegExp("(?:Mr|Ms|Mrs|Dr)(?:\\.[ ]?|[ ]+)([A-Z][A-Za-z'\\-]+(?:(?:,[ ]?|[ ]+)[A-Z][A-Za-z'\\-]+){0,2}(?:[ ]?-[ ]?[A-Z][A-Za-z'\\-]+)?)",'g') },
   // IBAN:mod-97 檢查碼,可裸掃(容忍 4 碼分組空格);SWIFT 誤擋率高必須錨點式
-  { type:'IBAN', label:'IBAN', re:/[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}(?![A-Za-z0-9])/g, validate:function(v){return ibanValid(v);} },
+  { type:'IBAN', label:'IBAN', re:/[A-Z]{2}\d{2}(?:[ \r\n]?[A-Z0-9]){11,30}(?![A-Za-z0-9])/g, validate:function(v){return oneLineBreak(v)&&ibanValid(v);} },
   { type:'SWIFT_BIC', label:'SWIFT/BIC', context:new RegExp(ctx('swift','[A-Za-z]{6}[A-Za-z0-9]{2}(?:[A-Za-z0-9]{3})?'),'gi') },
   // 他國公司登記號(UEN/EIN/CIN,錨點式)
   { type:'REG_NO', label:'公司登記號', context:new RegExp(ctx('reg_no','[A-Za-z0-9][A-Za-z0-9\\-]{5,14}'),'gi') },
@@ -3647,20 +3654,20 @@ var DETECTORS=[
   // 專案代號啟發式(Project Falcon / 專案代號:獵鷹);通用詞 stoplist 排 Project Management 等
   { type:'PROJECT_CODE', label:'專案代號', context:new RegExp('(?:Project|專案代號|项目代号)(?:[ ]*[:：][ ]*|[ ]+)(?!'+PROJECT_STOP+'\\b)([A-Z][A-Za-z0-9\\-]{0,19}\\b|[\\u4e00-\\u9fa5]{2,8})','g') },
   // ── TW pack ──
-  { type:'TW_ID', label:'身分證', jur:'TW', re:/[A-Za-z][ \-]?[12](?:[ \-]?\d){8}/g, validate:function(v){return twIdValid(v.replace(/[ \-]/g,'').toUpperCase());} },
-  { type:'TW_ARC', label:'居留證', jur:'TW', re:/[A-Za-z][ \-]?[89](?:[ \-]?\d){8}/g, validate:function(v){return twArcValid(v);} },  // 新式居留證
+  { type:'TW_ID', label:'身分證', jur:'TW', re:new RegExp('[A-Za-z]'+XGAP+'[12](?:'+XGAP+'\\d){8}','g'), validate:function(v){return oneLineBreak(v)&&twIdValid(xstrip(v).toUpperCase());} },
+  { type:'TW_ARC', label:'居留證', jur:'TW', re:new RegExp('[A-Za-z]'+XGAP+'[89](?:'+XGAP+'\\d){8}','g'), validate:function(v){return oneLineBreak(v)&&twArcValid(xstrip(v));} },  // 新式居留證
   { type:'TW_ARC', label:'居留證', jur:'TW', re:/[A-Za-z][A-Da-d]\d{8}/g, validate:function(v){return twArcValid(v);} },              // 舊式居留證
   // 錨點 fallback:明確標「身分證/居留證」+ 格式相符 → 照遮,不管檢查碼(寧可誤擋;救打錯一碼/假號/OCR 誤差)
-  { type:'TW_ID', label:'身分證', jur:'TW', context:new RegExp('(?:身分證|身份證)(?:字號|號碼|號)?[：:\\s是為]{0,3}([A-Za-z][ \\-]?[12](?:[ \\-]?\\d){8})','g') },
-  { type:'TW_ARC', label:'居留證', jur:'TW', context:new RegExp('(?:居留證|統一證號|統號)(?:號碼|號)?[：:\\s是為]{0,3}([A-Za-z][ \\-]?[89A-Da-d](?:[ \\-]?\\d){8})','gi') },
+  { type:'TW_ID', label:'身分證', jur:'TW', context:new RegExp('(?:身分證|身份證)(?:字號|號碼|號)?[：:\\s是為]{0,3}([A-Za-z]'+XGAP+'[12](?:'+XGAP+'\\d){8})','g') },
+  { type:'TW_ARC', label:'居留證', jur:'TW', context:new RegExp('(?:居留證|統一證號|統號)(?:號碼|號)?[：:\\s是為]{0,3}([A-Za-z]'+XGAP+'[89A-Da-d](?:'+XGAP+'\\d){8})','gi') },
   { type:'TW_BIZ', label:'統一編號', jur:'TW', re:/\d(?:[ \-]?\d){7}/g, validate:function(v){return twBizValid(v.replace(/[ \-]/g,''));} },
   { type:'PHONE_TW', label:'手機', jur:'TW', re:/09\d{2}[ \-]?\d{3}[ \-]?\d{3}/g },
   { type:'PHONE_TW_LAND', label:'市話', jur:'TW', re:/0[2-8][ \-]?\d{3,4}[ \-]?\d{4}/g },
   // ── SG pack ──
-  { type:'SG_NRIC', label:'NRIC/FIN', jur:'SG', re:/[STFGMstfgm]\d{7}[A-Za-z]/g, validate:function(v){return sgIdValid(v);} },
+  { type:'SG_NRIC', label:'NRIC/FIN', jur:'SG', re:new RegExp('[STFGMstfgm](?:'+XGAP+'\\d){7}'+XGAP+'[A-Za-z]','g'), validate:function(v){return oneLineBreak(v)&&sgIdValid(xstrip(v));} },
   { type:'PHONE_SG', label:'SG 電話', jur:'SG', re:/(?:\+?65[ \-]?)?[89]\d{3}[ \-]?\d{4}/g, validate:function(v){return v.replace(/[^\d]/g,'').replace(/^65/,'').length===8;} },
   // ── HK pack ──
-  { type:'HK_HKID', label:'HKID', jur:'HK', re:/[A-Za-z]{1,2}\d{6}\((?:\d|[Aa])\)|[A-Za-z]{1,2}\d{6}[0-9A]/g, validate:function(v){return hkIdValid(v);} },
+  { type:'HK_HKID', label:'HKID', jur:'HK', re:new RegExp('[A-Za-z]{1,2}(?:'+XGAP+'\\d){6}(?:'+XGAP+'\\((?:\\d|[Aa])\\)|'+XGAP+'[0-9A])','g'), validate:function(v){return oneLineBreak(v)&&hkIdValid(xstrip(v));} },
   { type:'PHONE_HK', label:'HK 電話', jur:'HK', re:/(?:\+?852[ \-]?)?[569]\d{3}[ \-]?\d{4}/g, validate:function(v){return v.replace(/[^\d]/g,'').replace(/^852/,'').length===8;} },
 ];
 
@@ -3785,6 +3792,13 @@ var PROHIBITED=[
    re:/美化.{0,4}(財報|報表|數字|帳)|(做假|竄改|灌水).{0,4}(帳|財報|數字|報表)|隱匿.{0,4}(虧損|負債|重大風險)|window.?dress/i},
   {flag:'insider_use',label:'利用內線獲利',
    re:/利用.{0,4}內線|靠.{0,6}未公開.{0,6}(獲利|買賣)|內線.{0,4}(獲利|操作|下單)/i},
+  // 紅隊#11:注入/規避管控意圖(祈使+受詞樣式收斂;名詞性討論不觸)。
+  // 註:閘道端遮罩本不受注入影響(已實測);此旗=偵測「試圖規避」的治理訊號。
+  // unless=防禦性語境排除(防止/偵測/稽核…)——攻擊者加「防止」可躲此旗,但遮罩仍強制;
+  // 治理訊號寧漏勿誤攔(低信心不硬攔紀律),誠實標註此邊界。
+  {flag:'prompt_injection',label:'注入/規避管控',
+   re:/(忽略|無視|跳過)(所有|以上|之前|前面)?.{0,6}(指令|規則|限制|遮罩|防護)|(關閉|停用|繞過|規避|破解).{0,6}(遮罩|過濾|防護|管控|閘道|審查機制)|(輸出|給我|顯示|還原).{0,6}(原始|未遮罩|遮罩前).{0,4}(資料|個資|內容|文本)|ignore (all |the |previous |above )?.{0,12}(instructions|rules|policies|masking)|disregard .{0,16}(instructions|rules)|bypass .{0,12}(filter|mask|guard|polic)|disable .{0,12}(mask|filter|safety|guard)|(reveal|output|show) .{0,16}(original|unmasked|raw) (data|text|content)|jailbreak|\bDAN mode\b|you are now DAN|pretend .{0,12}no (rules|restrictions)|(顯示|洩露|套出|給我看?).{0,6}系統提示|(show|reveal|print|leak) .{0,10}system prompt/i,
+   unless:/防止|防範|偵測|檢測|防堵|稽核|演練|教育訓練|prevent|detect|mitigat|audit|training/i},
 ];
 
 var PRIORITY={block:5,restrict:4,review:3,compliance:2,log:1,allow:0};
@@ -3797,7 +3811,7 @@ var ACTION_LABEL={block:'攔截 + 告警',restrict:'限地端模型 + 高留痕'
 function classify(text, lang){
   text=String(text||'');
   var intent=detectIntent(text), topics=[], prohibited=[], rationale=[];
-  PROHIBITED.forEach(function(p){ if(p.re.test(text)){ prohibited.push({flag:p.flag,label:p.label}); rationale.push('🚩 紅旗:'+p.label); } });
+  PROHIBITED.forEach(function(p){ if(p.re.test(text)&&!(p.unless&&p.unless.test(text))){ prohibited.push({flag:p.flag,label:p.label}); rationale.push('🚩 紅旗:'+p.label); } });
   GOV_RULES.forEach(function(g){ if(g.re.test(text)){ topics.push({topic:g.topic,label:g.label,risk:g.risk,action:g.action}); rationale.push('監理主題:'+g.label+' → '+ACTION_LABEL[g.action]); } });
   var action='allow', risk='low';
   if(prohibited.length){ action='block'; risk='high'; }
