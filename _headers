@@ -25,3 +25,8 @@
 # Static assets — long cache
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Casca Shutter — 自動更新來源(electron-updater generic;只放 latest.yml,安裝檔另行託管)
+/shutter/updates/*
+  Content-Type: text/yaml; charset=utf-8
+  Cache-Control: no-cache
