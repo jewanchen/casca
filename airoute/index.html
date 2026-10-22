@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casca AI Route</title>
+<meta name="description" content="Casca AI Route:研究背書的 LLM 路由引擎,每個請求 1 毫秒內分級送到合適的模型,依產業省 30–75%,品質 SLA 寫在合約裡,改一行 base_url 就上線。">
+<meta property="og:title" content="Casca AI Route — Cut your LLM bill 30–75%. One line of code.">
+<meta property="og:description" content="Research-backed routing engine with per-industry benchmarks, contractual quality SLA and a published paper. One line to integrate, 14 languages.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cascaio.com/airoute/">
+<link rel="icon" href="/FullLogo_Transparent_NoBuffer.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<style>
+.sys{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:36px}
+.sys .cell{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:26px;min-width:0}
+.sys .tag{font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;color:var(--brand);margin-top:12px}
+.sys h3{margin:6px 0 8px}.sys p{color:var(--ink-soft)}
+@media (max-width:860px){.sys{grid-template-columns:1fr}}
+.opt{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.opt .cell{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:24px;min-width:0}
+.opt h3{margin-bottom:6px}.opt .p{color:var(--brand);font-weight:900;font-size:1.4rem}.opt p,.opt li{color:var(--ink-soft);font-size:.95rem}.opt ul{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:8px}.opt li::before{content:"●";color:var(--brand);font-size:.6rem;margin-right:8px;vertical-align:middle}
+@media (max-width:860px){.opt{grid-template-columns:1fr}}
+.commit{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:36px}
+.commit .cell{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:24px;min-width:0}
+.commit b.n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;margin-bottom:10px}
+.commit h3{margin-bottom:6px}.commit p{color:var(--ink-soft);font-size:.95rem}
+@media (max-width:860px){.commit{grid-template-columns:1fr}}
+.pool{margin-top:16px;background:var(--brand-tint);border-radius:var(--radius);padding:24px}
+.pool .logos{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.pool .logos span{background:var(--white);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.85rem;font-weight:600}
+</style>
+</head>
+<body>
+<nav id="site-nav"></nav>
+
+<header class="hero" id="top">
+  <div class="wrap two">
+    <div>
+      <span class="eyebrow" data-s="heroEye"></span>
+      <h1 data-s="heroH1"></h1>
+      <p class="lead" data-s="heroLead"></p>
+      <div class="ctas"><a class="btn primary" href="/casca-dashboard.html#signup" data-s="ctaTrial"></a><a class="btn ghost" href="#how" data-s="ctaHow"></a></div>
+      <p class="fine" data-s="heroFine"></p>
+    </div>
+    <div class="code" data-reveal><span class="c"># 現有程式碼 / your current code</span>
+client = OpenAI(api_key=<span class="s">"sk-..."</span>,
+                base_url=<span class="s">"https://api.openai.com/v1"</span>)
+
+<span class="c"># 改成這樣,其餘不動 / change to this, nothing else</span>
+client = OpenAI(api_key=<span class="s">"sk-casca-..."</span>,
+                base_url=<span class="s">"https://api.cascaio.com/v1"</span>)  <span class="c"># ✓</span>
+
+<span class="c"># 退路 5 秒 / escape hatch in 5 seconds</span>
+<span class="k">export</span> CASCA_BYPASS=true</div>
+  </div>
+</header>
+
+<section class="stats">
+  <div class="wrap">
+    <div class="stat"><b>30–75%</b><span data-s="st1"></span></div>
+    <div class="stat"><b>&lt;1 ms</b><span data-s="st2"></span></div>
+    <div class="stat"><b>14</b><span data-s="st3"></span></div>
+    <div class="stat"><b>160</b><span data-s="st4"></span></div>
+  </div>
+</section>
+
+<section class="s" id="how">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow" data-s="sEye"></span><h2 data-s="sH2"></h2><p class="lead" data-s="sLead"></p></div>
+    <div class="sys">
+      <div class="cell" data-reveal><h3 data-s="s1H"></h3><p data-s="s1P"></p><div class="tag">160 RULES · 14 LANGUAGES · L1+L2 PIPELINE</div></div>
+      <div class="cell" data-reveal><h3 data-s="s2H"></h3><p data-s="s2P"></p><div class="tag">FORCE HIGH · ONE-CLICK ROLLBACK · SLA GUARANTEE</div></div>
+      <div class="cell" data-reveal><h3 data-s="s3H"></h3><p data-s="s3P"></p><div class="tag">FUZZY MATCH · LEVENSHTEIN &lt; 5 · GLOBAL POOL</div></div>
+      <div class="cell" data-reveal><h3 data-s="s4H"></h3><p data-s="s4P"></p><div class="tag">AMBIG QUEUE · v2.6.2 PRODUCTION · COMPOUNDING</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="s soft" id="math">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow" data-s="mEye"></span><h2 data-s="mH2"></h2><p class="lead" data-s="mLead"></p></div>
+    <div class="tblwrap" style="margin-top:28px"><table class="tbl">
+      <thead><tr><th data-s="mTh1"></th><th data-s="mTh2"></th><th data-s="mTh3"></th></tr></thead>
+      <tbody>
+        <tr><td data-s="mr1"></td><td class="ok">65–75%</td><td data-s="mr1w"></td></tr>
+        <tr><td data-s="mr2"></td><td class="ok">60–72%</td><td data-s="mr2w"></td></tr>
+        <tr><td data-s="mr3"></td><td class="ok">60–75%</td><td data-s="mr3w"></td></tr>
+        <tr><td data-s="mr4"></td><td class="ok">55–68%</td><td data-s="mr4w"></td></tr>
+        <tr><td data-s="mr5"></td><td class="ok">41–55%</td><td data-s="mr5w"></td></tr>
+        <tr><td data-s="mr6"></td><td class="ok">38–52%</td><td data-s="mr6w"></td></tr>
+        <tr><td data-s="mr7"></td><td class="ok">30–45%</td><td data-s="mr7w"></td></tr>
+        <tr><td data-s="mr8"></td><td class="ok">19–31%</td><td data-s="mr8w"></td></tr>
+      </tbody></table></div>
+    <p class="note" style="margin-top:12px" data-s="mNote"></p>
+    <p style="margin-top:14px"><a class="btn ghost" href="mailto:casca@vastitw.com?subject=Free%20workload%20analysis%20request" data-s="mCta"></a> <a class="btn ghost" href="https://github.com/jewanchen/casca/blob/main/casca-technical-article.md" target="_blank" rel="noopener" data-s="mPaper"></a></p>
+  </div>
+</section>
+
+<section class="s" id="compare">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow" data-s="cEye"></span><h2 data-s="cH2"></h2><p class="lead" data-s="cLead"></p></div>
+    <div class="tblwrap" style="margin-top:28px"><table class="tbl">
+      <thead><tr><th data-s="cTh"></th><th>OpenRouter</th><th>Helicone</th><th>Portkey</th><th>Casca</th></tr></thead>
+      <tbody>
+        <tr><td data-s="c1"></td><td class="no">—</td><td class="no">—</td><td data-s="cManual"></td><td class="ok" data-s="cNative"></td></tr>
+        <tr><td data-s="c2"></td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ok" data-s="cContract"></td></tr>
+        <tr><td data-s="c3"></td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ok">✓ Zenodo</td></tr>
+        <tr><td data-s="c4"></td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ok" data-s="cEight"></td></tr>
+        <tr><td data-s="c5"></td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ok">✓ Flywheel</td></tr>
+        <tr><td data-s="c6"></td><td data-s="cEnOnly"></td><td>N/A</td><td data-s="cLimited"></td><td class="ok" data-s="cBuiltin"></td></tr>
+        <tr><td data-s="c7"></td><td class="no">—</td><td class="no">—</td><td class="ok">✓</td><td class="ok" data-s="cIso"></td></tr>
+        <tr><td data-s="c8"></td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok" data-s="cOneLine"></td></tr>
+        <tr><td data-s="c9"></td><td class="no">—</td><td class="no">—</td><td data-s="cConfig"></td><td class="ok" data-s="cEnv"></td></tr>
+      </tbody></table></div>
+    <p class="note" style="margin-top:12px" data-s="cNote"></p>
+  </div>
+</section>
+
+<section class="s soft" id="pricing">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow" data-s="pEye"></span><h2 data-s="pH2"></h2><p class="lead" data-s="pLead"></p></div>
+    <div class="plans four">
+      <div class="plan"><div class="name">Free</div><div class="price">$0<small> / mo</small></div><p class="note" data-s="p1n"></p><p data-s="p1d"></p><ul><li data-s="p1a"></li><li data-s="p1b"></li><li data-s="p1c"></li><li data-s="p1e"></li><li data-s="p1f"></li></ul><a class="btn ghost" href="/casca-dashboard.html#signup" data-s="pStartFree"></a></div>
+      <div class="plan"><div class="name">Starter</div><div class="price">$299<small> / mo</small></div><p class="note" data-s="p2n"></p><p data-s="p2d"></p><ul><li data-s="pEvFree"></li><li data-s="p2a"></li><li data-s="p2b"></li><li data-s="p2c"></li><li data-s="p2e"></li></ul><a class="btn ghost" href="/casca-dashboard.html#signup" data-s="pTrial"></a></div>
+      <div class="plan hi"><div class="name">Growth <span class="note" data-s="pPopular"></span></div><div class="price">$999<small> / mo</small></div><p class="note" data-s="p3n"></p><p data-s="p3d"></p><ul><li data-s="pEvStarter"></li><li data-s="p3a"></li><li data-s="p3b"></li><li data-s="p3c"></li><li data-s="p3e"></li></ul><a class="btn primary" href="/casca-dashboard.html#signup" data-s="pTrial"></a></div>
+      <div class="plan"><div class="name">Scale</div><div class="price" data-s="p4price"></div><p class="note" data-s="p4n"></p><p data-s="p4d"></p><ul><li data-s="pEvGrowth"></li><li data-s="p4a"></li><li data-s="p4b"></li><li data-s="p4c"></li><li data-s="p4e"></li></ul><a class="btn ghost" href="#scale" data-s="pSeeOptions"></a></div>
+    </div>
+    <h3 id="scale" style="margin-top:36px" data-s="oH"></h3><p class="note" data-s="oSub"></p>
+    <div class="opt">
+      <div class="cell"><div class="note" data-s="oAEye"></div><h3 data-s="oAH"></h3><div class="p">$2,499 / mo</div><p data-s="oAP"></p><ul><li data-s="oAa"></li><li data-s="oAb"></li></ul></div>
+      <div class="cell"><div class="note" data-s="oBEye"></div><h3 data-s="oBH"></h3><div class="p" data-s="oBp"></div><p data-s="oBP"></p><ul><li data-s="oBa"></li><li data-s="oBb"></li><li data-s="oBc"></li></ul></div>
+    </div>
+    <div class="pool"><div class="note" data-s="plEye"></div><h3 data-s="plH"></h3><p data-s="plP"></p><div class="logos"><span>OpenAI</span><span>Anthropic</span><span>Google</span><span>Groq</span><span>Mistral</span><span>Together AI</span><span>Fireworks AI</span><span>Cohere</span><span>+ more</span></div><p class="note" data-s="plNote"></p><p style="margin-top:8px"><b data-s="plPrice"></b> <a href="mailto:casca@vastitw.com?subject=Provider%20Pool%20add-on%20inquiry" data-s="plCta"></a></p></div>
+    <div class="opt" style="margin-top:16px">
+      <div class="cell"><div class="note">Enterprise</div><h3 data-s="enH"></h3><p data-s="enP"></p><ul><li data-s="ena"></li><li data-s="enb"></li><li data-s="enc"></li><li data-s="end"></li></ul><p style="margin-top:10px"><a class="btn primary small" href="mailto:casca@vastitw.com?subject=Enterprise%20inquiry" data-s="enCta"></a></p></div>
+      <div class="cell"><div class="note" data-s="exEye"></div><h3 data-s="exH"></h3><p data-s="exP"></p><p class="note" style="margin-top:8px" data-s="exNote"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="commitment">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow" data-s="kEye"></span><h2 data-s="kH2"></h2><p class="lead" data-s="kLead"></p></div>
+    <div class="commit">
+      <div class="cell" data-reveal><b class="n">1</b><h3 data-s="k1H"></h3><p data-s="k1P"></p></div>
+      <div class="cell" data-reveal><b class="n">2</b><h3 data-s="k2H"></h3><p data-s="k2P"></p></div>
+      <div class="cell" data-reveal><b class="n">3</b><h3 data-s="k3H"></h3><p data-s="k3P"></p></div>
+      <div class="cell" data-reveal><b class="n">4</b><h3 data-s="k4H"></h3><p data-s="k4P"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="s soft" id="faq">
+  <div class="wrap"><div class="doc">
+    <div class="center"><span class="eyebrow">FAQ</span><h2 data-s="fqH2"></h2></div>
+    <div style="margin-top:22px" id="faqlist"></div>
+  </div></div>
+</section>
+
+<section class="final" id="contact">
+  <div class="wrap">
+    <h2 data-s="fH2"></h2>
+    <p data-s="fP"></p>
+    <div class="ctas"><a class="btn primary" href="/casca-dashboard.html#signup" data-s="fStart"></a><a class="btn ghost" href="mailto:casca@vastitw.com?subject=Free%20workload%20analysis%20request" data-s="fAnalysis"></a></div>
+    <p style="margin-top:18px;font-size:.9rem;opacity:.85" data-s="fFine"></p>
+  </div>
+</section>
+
+<footer id="site-footer"></footer>
+<script src="/site.js"></script>
+<script>
+var FAQ={
+ 'zh-TW':[
+  ['Casca 和 OpenRouter、Helicone、Portkey 有什麼不同?','OpenRouter 是多供應商聚合器,讓你挑模型,但不會分類請求、依複雜度路由。Helicone 是觀測與分析,量測但不優化。Portkey 支援你自己維護的手動路由規則。Casca 是路由引擎:每個請求自動分級、送到合適的模型,並且發表了方法論與各產業基準。'],
+  ['品質掉了怎麼辦?','三層保護:(1) 你設品質門檻,系統自動監看每個請求;(2) 一鍵回滾,60 秒內所有流量回到 GPT-4o;(3) 連續三天低於門檻,整個月退費。寫在合約裡,不是口頭承諾。'],
+  ['Casca 掛了怎麼辦?','設 CASCA_BYPASS=true,5 秒內所有流量繞過 Casca 直連你的供應商,就像 Casca 不存在一樣。我們在兩個區域主動-主動部署,99.9% 可用性 SLA;但設計原則是:你的系統在架構上不依賴我們。'],
+  ['我的提示會被存下來或拿去訓練嗎?','不會。提示在記憶體裡完成分類就立刻丟掉,不寫磁碟、不儲存、不訓練。API 金鑰放在你自己的 AWS Secrets Manager 或 Azure Key Vault,我們不持有副本。這是架構,不是政策。'],
+  ['為什麼電商省得比開發工具多?','因為流量的複雜度分布跟產業走。電商客服六成以上是簡單查詢(訂單狀態、退貨),幾乎都能送 Gemini Flash,比 GPT-4o 便宜 50 倍。開發工具的查詢多半真的需要推理,能優化的空間就小。'],
+  ['有 SOC 2 / GDPR / HIPAA 嗎?','GDPR:有,我們不儲存提示、24 小時內可簽標準 DPA、基礎設施可為歐盟客戶做區域隔離。SOC 2 Type II:進行中。HIPAA:尚未,醫療資料建議只走 HIGH 層並搭配 Vault 自架。'],
+  ['支援 Zapier、Salesforce、n8n 這些無程式碼平台嗎?','Zapier:有,Casca AI Routing 動作在 Zapier 市集可直接用。Salesforce AppExchange:技術審查中。n8n / Make.com:任何能發自訂 HTTP 請求的平台都能用 OpenAI 相容端點接上。'],
+  ['Casca 是誰做的?','Vast Intelligence Limited(皓品智慧有限公司),香港註冊、台北營運,創辦人 Jeremy Chen。技術論文(Zenodo DOI)與參考實作公開。聯絡:casca@vastitw.com。'],
+  ['成果計費怎麼運作?','Scale 層可選成果計費:連接你供應商帳單的唯讀權限(OpenAI、Anthropic、Google),Casca 以 GPT-4o 固定費率為基準驗證每月省下的金額,收 12%。引擎沒省到錢就是 $0;上限是固定方案的 1.5 倍,不會有意外帳單。'],
+  ['Provider Pool 是什麼?我需要嗎?','Scale 以上的選購(Enterprise 預設)。不用自備每家供應商的金鑰,由 Casca 管理供應商關係:預談費率、統一 DPA、自動故障轉移、一張發票。新模型上市當天可用,供應商改價一鍵切換。'],
+  ['真的可以無條件暫停訂閱?','可以。從儀表板暫停 1–3 個月:期間零訂閱費、路由引擎停用(流量經 bypass 回你的供應商)、所有設定、金鑰、儀表板資料保留。90 天內隨時恢復,不收設定費。'],
+  ['多語言提示怎麼處理?','分類器原生支援 14 種語言:英、繁中、簡中、日、韓、法、德、西、義、阿拉伯、印地、泰、越、印尼。每種語言有專屬前處理:日文敬語移除、法文客套語剝除、阿拉伯文 RTL 偵測、泰文斷詞等。']],
+ en:[
+  ['How is Casca different from OpenRouter, Helicone, or Portkey?','OpenRouter is a multi-provider aggregator: it lets you pick a model but does not classify your request or route by complexity. Helicone is observability and analytics: it measures, it does not optimise. Portkey supports manual routing rules you maintain yourself. Casca is a routing engine: every request is classified automatically, sent to the fitting model, with published methodology and per-industry benchmarks.'],
+  ['What happens if quality drops?','Triple protection: (1) you set quality thresholds and the system monitors every request; (2) one-click rollback returns all traffic to GPT-4o within 60 seconds; (3) if quality stays below your threshold for three consecutive days, the entire month is refunded. In the contract, not a promise.'],
+  ['What if Casca goes down?','Set CASCA_BYPASS=true: within 5 seconds all traffic bypasses Casca and connects directly to your provider, as if Casca never existed. We deploy active-active across two regions with a 99.9% uptime SLA, but the design principle is that your system never depends on us architecturally.'],
+  ['Are my prompts stored or used for training?','No. Prompts complete routing classification in memory and are immediately discarded: never written to disk, never stored, never used for training. Your API keys live in your own AWS Secrets Manager or Azure Key Vault; we hold zero copies. This is architecture, not policy.'],
+  ['Why does e-commerce save more than dev tools?','Because traffic complexity follows the industry. E-commerce support is 60%+ simple lookups (order status, returns) that can route to Gemini Flash at 50× less than GPT-4o. Developer-tool queries genuinely need reasoning most of the time, so there is less to optimise.'],
+  ['Are you SOC 2 / GDPR / HIPAA compliant?','GDPR: yes. We store no prompts, a standard DPA can be signed within 24 hours, and infrastructure can be region-isolated for EU customers. SOC 2 Type II: in progress. HIPAA: not yet; for health data we recommend HIGH-tier-only routing together with a self-hosted Vault.'],
+  ['Do you support Zapier, Salesforce, n8n and other no-code platforms?','Zapier: yes, Casca AI Routing actions are on the Zapier marketplace today. Salesforce AppExchange: in technical review. n8n / Make.com: any platform that can send custom HTTP requests works with the OpenAI-compatible endpoint.'],
+  ['Who is behind Casca?','Vast Intelligence Limited, incorporated in Hong Kong and operating from Taipei, founded by Jeremy Chen. The technical paper (Zenodo DOI) and reference implementation are public. Contact: casca@vastitw.com.'],
+  ['How does outcome-based pricing actually work?','On the Scale tier you can opt in: connect read access to your provider billing (OpenAI, Anthropic, Google) and Casca verifies your monthly savings against a GPT-4o flat-rate baseline, billing 12% of the verified amount. Floor: $0 if the engine saves nothing. Cap: 1.5× the flat plan, so there are no surprise bills.'],
+  ['What is the Provider Pool, and do I need it?','An optional add-on for Scale and above (default for Enterprise). Instead of bringing your own keys for each provider, Casca manages the relationships: pre-negotiated rates, unified DPA, automatic failover, one invoice. New models are available the day they launch; when a vendor changes pricing you switch in one click.'],
+  ['Can I really pause my subscription with no penalty?','Yes. Pause for 1–3 months from your dashboard: zero subscription fees, routing inactive (traffic falls back to your provider via bypass), all settings, keys and dashboard data preserved. Resume any time within 90 days with no setup fee.'],
+  ['How does Casca handle multilingual prompts?','The classifier natively supports 14 languages: EN, ZH (Traditional and Simplified), JA, KO, FR, DE, ES, IT, AR, HI, TH, VI and ID. Each has dedicated pre-processing: Japanese keigo removal, French politeness stripping, Arabic RTL detection, Thai word segmentation and more.']]
+};
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function renderFaq(){ var l=CascaSite.lang(); document.getElementById('faqlist').innerHTML=(FAQ[l]||FAQ.en).map(function(q){ return '<details class="faq"><summary>'+esc(q[0])+'</summary><p>'+esc(q[1])+'</p></details>'; }).join(''); }
+var site=CascaSite.init({current:'airoute',str:{
+ 'zh-TW':{pageTitle:'Casca AI Route — 省 30–75% LLM 費用,改一行程式碼',
+  heroEye:'給每月花 $10K–$200K 在 LLM API 的團隊',heroH1:'LLM 帳單省 30–75%。\n改一行程式碼。\n數字有論文背書。',
+  heroLead:'研究背書的路由引擎:每個請求在 1 毫秒內分類,送到真正合適的模型,而不是最貴的那個。輸出一樣、SLA 一樣;每 token 最多省 97%,真實帳單依工作負載省 30–75%。',
+  ctaTrial:'免費開始試用 →',ctaHow:'看它怎麼運作 ↓',heroFine:'✓ 30 分鐘內上線 ✓ 提示不儲存、不訓練 ✓ 出事一鍵退回原供應商',
+  st1:'真實帳單降幅(依工作負載)',st2:'每個請求的分類時間',st3:'種語言原生分類',st4:'條規則,v2.6.2 生產版',
+  sEye:'核心技術',sH2:'零妥協的省錢,\n靠四個系統一起做。',sLead:'分類複雜度、保護品質、快取答案、自動學習。',
+  s1H:'依複雜度路由',s1P:'每個提示在 1 毫秒內分成 HIGH、MED、LOW。簡單問題送 Gemini Flash(每 token 最多便宜 97%);關鍵分析留在 GPT-4o 或 Claude Sonnet。沒有要維護的手動規則:生產引擎原生處理 14 種語言,模稜兩可的交給 L2 MiniLM 後備。',
+  s2H:'品質 SLA 保護',s2P:'法律、法遵、醫療類提示一律強制送 GPT-4o / Claude Sonnet。品質連續三天低於你設的門檻,全額退費。寫在合約裡,不是承諾。',
+  s3H:'語意快取',s3P:'「什麼是 API?」一天被問 200 次。同一個問題、同一個答案、零成本。全域知識快取做語意比對:錯字、換句話說、多語變體都命中,$0。',
+  s4H:'自動學習飛輪',s4P:'模稜兩可的提示(「幫我處理一下」「修一下」)進 AMBIG 佇列審核,每次解決都訓練引擎。引擎版本公開:v1.2(26 條規則,論文)→ v2.6.2(160 條,生產中)。你的省幅逐月累積。',
+  mEye:'誠實的數學',mH2:'多數「省 60%」是編的。\n真相看產業。',mLead:'我們把 8 種代表性工作負載跑過 v2.6.2 引擎。下面是實際看到的數字,包括省得少的產業。我們公開表現差的,因為誠實比行銷走得遠。',
+  mTh1:'產業',mTh2:'帳單降幅',mTh3:'為什麼是這個幅度',
+  mr1:'金融科技客服',mr1w:'餘額、交易、KYC 查詢為主,幾乎全是 LOW 層流量',mr2:'電商客服',mr2w:'訂單狀態、退貨、尺寸:同樣的問題大量重複',mr3:'人資服務台',mr3w:'每個員工都問同樣的休假、福利、退休金問題',mr4:'保險客服',mr4w:'保單查詢與理賠進度重複且簡單',mr5:'行銷 / 內容工具',mr5w:'中階內容生成為主,LOW 與 HIGH 都少',mr6:'教育科技 / 線上學習',mr6w:'混合問答與教學,複雜度分布寬',mr7:'B2B SaaS 內嵌 AI',mr7w:'混合推理工作:分析、草擬、摘要',mr8:'開發工具 / 程式生成',mr8w:'多數查詢真的需要推理,能優化的少',
+  mNote:'數字為 v2.6.2 引擎模擬工作負載對 GPT-4o 固定費率($5.00 / 百萬 token)基準。真實帳單取決於流量組成、重試策略與額外開銷。已發表的 v1.2 論文記錄基礎方法論;v2.6.2 產業基準即將發表。',mCta:'幫我分析工作負載 →',mPaper:'讀方法論與論文 →',
+  cEye:'比較',cH2:'為什麼不直接用 OpenRouter、Helicone 或 Portkey?',cLead:'真實比較,沒有行銷話術。Casca 是路由引擎,不是聚合器或觀測層,而且我們發表研究。',
+  cTh:'能力',c1:'依請求複雜度自動路由',cManual:'手動規則',cNative:'✓ 原生',c2:'品質 SLA 含月退費',cContract:'✓ 合約',c3:'發表技術論文 + DOI',c4:'各產業省幅基準',cEight:'✓ 8 個垂直',c5:'從真實流量自動學習',c6:'14 語原生分類',cEnOnly:'僅英文路由',cLimited:'有限',cBuiltin:'✓ 內建',c7:'跨客戶語意快取',cIso:'✓ + 隔離模式',c8:'OpenAI SDK 相容(即插即用)',cOneLine:'✓ 一行',c9:'旁路開關(≤ 5 秒回滾)',cConfig:'設定檔',cEnv:'✓ 環境變數',
+  cNote:'比較依各家 2026 年 5 月公開文件。不同意?到 GitHub 開 issue,我們更新表格。',
+  pEye:'定價',pH2:'為你省下的付費,\n不是為你花掉的。',pLead:'自助方案固定月費;或選成果計費,只在省下的錢超過訂閱費時才付。所有自備金鑰方案:金鑰不離開你的基礎設施,模型費用由 OpenAI / Anthropic / Google 直接向你收,Casca 只收路由費。',
+  p1n:'含 1,000 萬 token · 自備 API 金鑰 · 無超額,配額封頂',p1d:'給創辦人在副專案或概念驗證上試 Casca。',p1a:'三層智慧路由',p1b:'跨客戶語意快取',p1c:'即時省錢儀表板',p1e:'社群支援(GitHub)',p1f:'自備 OpenAI / Anthropic / Google 金鑰',pStartFree:'免費開始 →',
+  p2n:'含 1 億 token · 自備金鑰 · 超額 $0.10 / 百萬 token',p2d:'給 A 輪 AI 原生新創,每月 $5K–$30K 花在 LLM。',pEvFree:'Free 的全部',p2a:'Email 支援 · 24 小時回覆',p2b:'路由分析與告警',p2c:'品質 SLA(自動)',p2e:'隨時暫停訂閱',pTrial:'開始 60 天試用 →',
+  pPopular:'最多人選',p3n:'含 5 億 token · 自備金鑰 · 超額 $0.05 / 百萬 token',p3d:'給 A / B 輪團隊,每月 $30K–$80K 花在 LLM。路由費第一天就回本。',pEvStarter:'Starter 的全部',p3a:'Slack 支援 · 當日回覆',p3b:'自訂路由規則 + 強制 HIGH 清單',p3c:'多供應商故障轉移',p3e:'稽核紀錄 · 保留 90 天',
+  p4price:'$2,499 起',p4n:'20 億 token · 或省下金額的 12% · 兩種付法',p4d:'給中型團隊,每月 $80K–$300K 花在 LLM。固定或成果計費任選。',pEvGrowth:'Growth 的全部',p4a:'可選成果計費',p4b:'可加購 Provider Pool',p4c:'專屬成功經理',p4e:'客製 SLA 與稽核保留期',pSeeOptions:'看兩種付法 ↓',
+  oH:'Scale 層的兩種付法',oSub:'隨時切換',oAEye:'選項 A · 可預測',oAH:'固定訂閱',oAP:'含 20 億 token,超額 $0.05 / 百萬 token。每月帳單可預測,採購好核、財務好算。',oAa:'財務有可預測的費用項',oAb:'不需共享帳單資料',
+  oBEye:'選項 B · 利益一致',oBH:'成果計費',oBp:'省下金額的 12%',oBP:'連接你供應商帳單的唯讀權限。我們以 GPT-4o 固定費率為基準驗證省下的錢,收 12%。下限 $0;上限選項 A 的 1.5 倍,絕不比固定方案貴。',oBa:'下限 $0:引擎表現差你零風險',oBb:'上限 1.5 倍:沒有意外帳單',oBc:'含每月同業基準報告',
+  plEye:'選購 · Scale 以上',plH:'Casca Provider Pool:讓你的 AI 堆疊不被綁死',plP:'一次整合,接上每家主要 LLM 供應商與可信的第二梯隊。新模型上市當天可用;OpenAI 改價,一鍵切換;新供應商在價格 / 品質上勝出,你立刻受惠。給不想把 AI 策略綁在單一供應商路線圖上的團隊。',plNote:'預談費率 · 統一 DPA · 自動故障轉移 · 所有供應商一張發票',plPrice:'加購 +$499 / 月(Enterprise 內含)',plCta:'加到 Scale 方案 →',
+  enH:'客製年約 · 成果計費為主',enP:'給每月 $300K 以上花在 LLM 的團隊。成果計費 12–15%(量大更低)。Provider Pool 預設內含。客製 SLA、指定客戶經理、私有部署、代你與供應商談費率。',ena:'Provider Pool 預設',enb:'可私有部署',enc:'每季業務檢討',end:'設定費 $15K–$30K',enCta:'聯絡業務 →',
+  exEye:'算給你看',exH:'電商客服,每月 $50K 在 GPT-4o',exP:'Casca 把約 60% 流量送到便宜模型,LLM 帳單降到約 $15K。加 Growth 方案:50 億 token × $0.05 + $999 ≈ $1,250。Casca 總成本 $1,250 / 月,淨省 $33,750 / 月,ROI 27:1。',exNote:'其他產業比例不同,見上方誠實數學表。',
+  kEye:'服務承諾',kH2:'設計成讓你隨時可以離開。',kLead:'最好的 SaaS 承諾不是綁約,是把取消做得毫無摩擦,客戶留下來是因為想留。白話版承諾如下。',
+  k1H:'60 天省錢保證',k1P:'使用 60 天後經驗證的帳單降幅不到 30%,退還試用期訂閱費。不問原因、不談判;每個客戶帳號一次。',k2H:'隨時取消',k2P:'從儀表板隨時取消。自助方案無年約、不用打電話給業務。服務到當期結束;未用部分不退。CASCA_BYPASS=true 5 秒內把流量退回你的供應商。',k3H:'暫停訂閱',k3P:'隨時暫停 1–3 個月。期間零訂閱費、路由引擎停用(流量經旁路回供應商)、所有設定、金鑰、儀表板資料保留。90 天內隨時恢復,無罰則。',k4H:'自動化品質 SLA',k4P:'客觀指標、自動折抵,不用申訴、沒有主觀爭議:7 日滾動路由準確率 < 90%;旁路切換延遲 > 5 秒;p99 延遲連續三天 > 供應商基準 1.5 倍。Enterprise 客戶另有客製 MSA 與指定客戶績效承諾。',
+  fqH2:'常見問題',fH2:'別再燒錢。\n今天就開始。',fP:'高接觸($50K+/月的團隊):寄 100 筆去識別化的真實請求,我們用 v2.6.2 引擎跑一遍,24 小時內回各層級省錢預估;不綁約、不用業務電話。自助:建立免費帳號,拿金鑰、換 base_url,30 分鐘內開始路由。',fStart:'建立免費帳號 →',fAnalysis:'索取免費工作負載分析 →',fFine:'✓ 免費開始 ✓ 不用信用卡 ✓ 隨時取消 · 24 小時內回覆,直接回到創辦人'},
+ en:{pageTitle:'Casca AI Route — Cut your LLM bill 30–75%. One line of code.',pageDesc:'Research-backed routing engine with per-industry benchmarks, contractual quality SLA and a published paper. One line to integrate, 14 languages.',
+  heroEye:'For teams spending $10K–$200K / month on LLM APIs',heroH1:'Cut your LLM bill 30–75%.\nOne line of code.\nNumbers backed by published research.',
+  heroLead:'A research-backed routing engine that classifies each request in under 1 ms and sends it to the model that actually fits, not the most expensive one. Same outputs, same SLA. Up to 97% per token; 30–75% on real bills depending on workload.',
+  ctaTrial:'Start free trial →',ctaHow:'See how it works ↓',heroFine:'✓ Live in under 30 minutes ✓ Prompts never stored or trained on ✓ One-click bypass if anything goes wrong',
+  st1:'real bill reduction (by workload)',st2:'classification time per request',st3:'languages classified natively',st4:'rules in the v2.6.2 production engine',
+  sEye:'Core technology',sH2:'Zero-compromise cost optimisation,\nfour systems working together.',sLead:'Classify complexity, protect quality, cache answers, learn automatically.',
+  s1H:'Complexity-aware routing',s1P:'Every prompt is classified HIGH, MED or LOW in under 1 ms. Simple queries route to Gemini Flash (up to 97% cheaper per token); critical analysis stays on GPT-4o or Claude Sonnet. No manual rules to maintain: the production engine handles 14 languages natively, with an L2 MiniLM fallback for ambiguous cases.',
+  s2H:'SLA quality protection',s2P:'Legal, compliance and medical prompts are force-routed to GPT-4o / Claude Sonnet, always. If quality drops below your threshold for three consecutive days, you get a full refund. Written in the contract, not a promise.',
+  s3H:'Semantic caching',s3P:'"What is an API?" gets asked 200 times a day. Same question, same answer, zero cost. The global knowledge cache matches semantically: typos, rephrasing and multilingual variants all hit cache at $0.',
+  s4H:'Auto-learn flywheel',s4P:'Ambiguous prompts ("handle this for me", "fix it") enter the AMBIG queue for review; every resolution trains the engine. Engine versioning is public: v1.2 (26 rules, peer-reviewed paper) → v2.6.2 (160 rules, current production). Your savings compound monthly.',
+  mEye:'Honest math',mH2:'Most "save 60%" claims are fiction.\nThe truth is industry-dependent.',mLead:'We modelled 8 representative workloads through the v2.6.2 routing engine. These are the numbers we actually saw, including the industries where Casca saves less. We publish the underperformers because honesty scales better than marketing.',
+  mTh1:'Industry',mTh2:'Bill reduction',mTh3:'Why this savings level',
+  mr1:'Fintech support',mr1w:'Balance, transaction and KYC lookups dominate; almost all LOW-tier traffic',mr2:'E-commerce CS',mr2w:'Order status, returns, sizing: the same questions repeat at scale',mr3:'HR helpdesk',mr3w:'Every employee asks the same PTO / benefits / 401k questions',mr4:'Insurance support',mr4w:'Policy lookups and claim status checks are repetitive and simple',mr5:'Marketing / content tools',mr5w:'Mid-tier content generation dominates; fewer LOW, fewer HIGH',mr6:'EdTech / online learning',mr6w:'Mixed Q&A and tutoring; broad complexity distribution',mr7:'B2B SaaS in-app AI',mr7w:'Mixed reasoning workloads: analyse / draft / summarise blend',mr8:'Developer tools / code gen',mr8w:'Most queries genuinely need reasoning; less to optimise',
+  mNote:'Numbers represent modelled workloads on engine v2.6.2 against a GPT-4o flat-rate baseline ($5.00 / M tokens). Real customer bills depend on traffic mix, retry policies and overhead. The published v1.2 paper documents the foundational methodology; the v2.6.2 industry benchmark is coming.',mCta:'Get my workload analysed →',mPaper:'Read methodology & paper →',
+  cEye:'Compare',cH2:'Why not just use OpenRouter, Helicone or Portkey?',cLead:'Real comparison, no marketing spin. Casca is a routing engine, not an aggregator or observability layer, and we publish our research.',
+  cTh:'Capability',c1:'Auto-route by request complexity',cManual:'Manual rules',cNative:'✓ Native',c2:'Quality SLA with monthly refund',cContract:'✓ Contractual',c3:'Published technical paper + DOI',c4:'Per-industry savings benchmark',cEight:'✓ 8 verticals',c5:'Auto-learn from real traffic',c6:'14-language native classification',cEnOnly:'EN-only routing',cLimited:'Limited',cBuiltin:'✓ Built-in',c7:'Cross-customer semantic cache',cIso:'✓ + isolation mode',c8:'OpenAI SDK compatible (drop-in)',cOneLine:'✓ One line',c9:'Bypass switch (≤ 5 s rollback)',cConfig:'Config-based',cEnv:'✓ Env var',
+  cNote:'All comparisons based on public documentation as of May 2026. Disagree? Open an issue on GitHub and we will update the table.',
+  pEye:'Pricing',pH2:'Pay for what you save.\nNot what you spend.',pLead:'Self-serve plans for predictable pricing, or the outcome-based tier that only charges when you save more than the subscription would have cost. All BYO-key plans: your API keys never leave your infrastructure; LLM costs are billed directly by OpenAI / Anthropic / Google and Casca charges the routing fee only.',
+  p1n:'10M tokens included · BYO API keys · no overage, quota-capped',p1d:'For founders trying Casca on a side project or proof of concept.',p1a:'3-tier intelligent routing',p1b:'Cross-customer semantic cache',p1c:'Real-time savings dashboard',p1e:'Community support (GitHub)',p1f:'Bring your own OpenAI / Anthropic / Google keys',pStartFree:'Start free →',
+  p2n:'100M tokens included · BYO keys · overage $0.10 / 1M tokens routed',p2d:'For Series A AI-native startups spending $5K–$30K / month on LLMs.',pEvFree:'Everything in Free',p2a:'Email support · 24h response',p2b:'Routing analytics + alerts',p2c:'Quality SLA (automated)',p2e:'Pause subscription anytime',pTrial:'Start 60-day trial →',
+  pPopular:'most popular',p3n:'500M tokens included · BYO keys · overage $0.05 / 1M tokens routed',p3d:'For Series A/B teams spending $30K–$80K / month on LLMs. The routing fee pays for itself on day one.',pEvStarter:'Everything in Starter',p3a:'Slack support · same-day response',p3b:'Custom routing rules + force-HIGH lists',p3c:'Multi-provider failover',p3e:'Audit logs · 90-day retention',
+  p4price:'From $2,499',p4n:'2B tokens · or 12% of savings · two pricing options',p4d:'For mid-market teams spending $80K–$300K / month on LLMs. Choose flat or outcome-based.',pEvGrowth:'Everything in Growth',p4a:'Outcome-based pricing available',p4b:'Provider Pool add-on available',p4c:'Dedicated success manager',p4e:'Custom SLA + audit log retention',pSeeOptions:'See both options ↓',
+  oH:'Scale tier: two ways to pay',oSub:'Switch anytime',oAEye:'Option A · Predictable',oAH:'Flat subscription',oAP:'2 billion tokens included; overage $0.05 / 1M tokens. A predictable monthly bill: easy for procurement to approve, easy for finance to forecast.',oAa:'Predictable revenue line for finance',oAb:'No data sharing required',
+  oBEye:'Option B · Aligned',oBH:'Outcome-based',oBp:'12% of verified savings',oBP:'Connect read access to your provider billing. We verify savings against a GPT-4o flat-rate baseline and bill 12% of what you actually save. Floor: $0 if no savings. Cap: 1.5× Option A, never more than the flat plan.',oBa:'Floor $0: zero risk if the engine underperforms',oBb:'Cap 1.5× Option A: no surprise bills',oBc:'Includes a monthly peer-benchmark report',
+  plEye:'Optional add-on · Scale tier and above',plH:'Casca Provider Pool: future-proof your AI stack',plP:'One integration, every major LLM provider and every credible second-tier alternative. New models are available the day they launch; when OpenAI changes pricing you switch in one click; when a new provider beats GPT-4o on price/quality, you benefit immediately. Built for teams that do not want their AI strategy tied to one vendor\'s roadmap.',plNote:'Pre-negotiated rates · unified DPA · auto failover · one invoice across all providers',plPrice:'Add-on +$499 / month (included in Enterprise)',plCta:'Add to Scale plan →',
+  enH:'Custom annual contract · outcome-based primary',enP:'For teams spending $300K+ / month on LLMs. Outcome pricing 12–15% of verified savings (lower at higher volumes). Provider Pool included by default. Custom SLA, named-account support, private deployment, custom rate-card negotiation with providers on your behalf.',ena:'Provider Pool by default',enb:'Private deployment available',enc:'Quarterly business reviews',end:'Setup fee $15K–$30K',enCta:'Contact sales →',
+  exEye:'The math',exH:'E-commerce CS workload, $50K / month on GPT-4o',exP:'Casca routes about 60% to cheaper models, so the LLM bill drops to about $15K. Add the Growth plan: 5B tokens × $0.05 + $999 ≈ $1,250. Total Casca cost $1,250 / month; net savings $33,750 / month; ROI 27:1.',exNote:'Other industries see different ratios; see the honest-math table above.',
+  kEye:'Service commitment',kH2:'Designed so you can leave anytime.',kLead:'The best SaaS commitment is not lock-in; it is making cancel-anytime so frictionless that customers stay because they want to. Here is exactly what we promise, in plain English.',
+  k1H:'60-day savings guarantee',k1P:'If your verified bill reduction is under 30% after 60 days of active use, we refund the subscription fee for the trial period. No questions, no negotiation; once per customer account.',k2H:'Cancel anytime',k2P:'Cancel from your dashboard at any time. No annual lock-in on self-serve plans, no salesperson to call. Service runs to the end of the billing cycle; no refund of the unused portion. CASCA_BYPASS=true reverts traffic to your provider in under 5 seconds.',k3H:'Pause subscription',k3P:'Pause for 1–3 months at any time: zero subscription fees, routing engine inactive (traffic falls back via bypass), all settings, keys and dashboard data preserved. Resume anytime within 90 days, no penalty.',k4H:'Automated quality SLA',k4P:'Objective metrics, automatic credits, no claim required and no subjective dispute: routing accuracy under 90% on a 7-day rolling window; bypass latency over 5 seconds; p99 latency over 1.5× the provider baseline for three consecutive days. Enterprise customers receive a custom MSA with named-account commitments.',
+  fqH2:'Frequently asked',fH2:'Stop burning money.\nStart today.',fP:'High-touch ($50K+/month teams): send 100 anonymised real requests, we run them through the v2.6.2 engine and return a per-tier savings projection within 24 hours; no commitment, no sales call. Self-serve: create a free account, get a key, swap your base_url, start routing in under 30 minutes.',fStart:'Create free account →',fAnalysis:'Request free workload analysis →',fFine:'✓ Free to start ✓ No credit card ✓ Cancel anytime · reply within 24h, directly to the founder'}
+}});
+renderFaq(); document.getElementById('site-lang').addEventListener('click',function(){ setTimeout(renderFaq,0); });
+</script>
+</body>
+</html>

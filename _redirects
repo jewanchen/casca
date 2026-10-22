@@ -20,3 +20,8 @@
 /aishutter          /aishutter/              301
 /aishutter/support  /aishutter/support/      301
 /aishutter/privacy  /aishutter/privacy/      301
+# 2026-10-22 site restyle A: old pages folded into the new home / gate
+/tw.html            /                        301
+/tw                 /                        301
+/terminal.html      /gate/                   301
+/airoute            /airoute/                301
