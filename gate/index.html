@@ -1,9 +1,13 @@
 <!doctype html>
 <html lang="zh-Hant"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Casca Gate:銀行機房 LLM 管制閘道。個資進閘前當場遮罩、每筆調用留下可匯出的稽核軌跡、成本紀律「不確定一律向貴」。互動 Demo 由產品 SDK 在你的瀏覽器執行。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
 <title>Casca Gate — 讓 AI 進得了銀行,先讓它進得了稽核</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="/FullLogo_Transparent_NoBuffer.png">
 <style>
   :root{
     --ink:#0E2233;--ink2:#33475a;--paper:#F2EFE8;--paper2:#EAE6DC;--surf:#FBFAF6;--surf2:#F4F1E9;
@@ -166,13 +170,54 @@
   :focus-visible{outline:2.5px solid var(--seal);outline-offset:2px}
   @media(max-width:860px){.results,.c3{grid-template-columns:1fr}}
   @media(max-width:560px){.wrap{padding:0 16px}.inrow{flex-direction:column}.run{padding:13px 0}}
-</style></head><body>
+</style>
+<style>
+/* ── 2026-10-22 改版 B:換皮不動 demo。舊 token 對到 site.css,舊版面容器改新樣式;demo 元件(console / results / ledger / gdash)沿用原 CSS ── */
+:root{--paper:#F5F9FB;--paper2:#EAF0FA;--surf:#FFFFFF;--surf2:#F4F7FC;--line:#E9EFF3;--line2:#D5DCE6;--ink:#16242E;--ink2:#54636E;--mut:#54636E;--mut2:#8A98A2;--disp:var(--font);--body:var(--font);--sh:var(--shadow-md);--seal:#B5342A;--seal-t:#f7e1de}
+body{font-family:var(--font);background:var(--white);color:var(--ink)}
+.tog{display:none!important}
+.hero{padding:72px 0 80px;background:linear-gradient(180deg,var(--brand-tint-2) 0%,var(--white) 100%);border:none}
+.hero .wrap{max-width:1120px}
+.eb{display:inline-block;font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);margin-bottom:14px;background:none;border:none;padding:0}
+.hero h1{font-family:var(--font);font-size:clamp(2.2rem,5vw,3.6rem);font-weight:900;letter-spacing:-.01em;line-height:1.2;margin-bottom:18px;color:var(--ink)}
+.hero h1 .u{color:var(--brand);text-decoration:none;background:none;border:none;box-shadow:none}
+.lede{font-size:1.15rem;color:var(--ink-soft);max-width:40em;margin-bottom:28px;font-family:var(--font)}
+.lede .em{color:var(--ink);font-weight:700;background:none}
+.band{padding:88px 0;background:var(--white);border:none}
+.band.alt{background:var(--bg-soft)}
+.band .wrap{max-width:1120px}
+.se{display:inline-block;font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);margin-bottom:14px;font-family:var(--font)}
+.band h2{font-family:var(--font);font-size:clamp(1.7rem,3.4vw,2.6rem);font-weight:900;line-height:1.2;letter-spacing:-.01em;margin-bottom:12px;color:var(--ink)}
+.sl{font-size:1.15rem;color:var(--ink-soft);max-width:38em;font-family:var(--font);margin-bottom:28px}
+.console{border-radius:var(--radius);border:1px solid var(--line);background:var(--white);box-shadow:var(--shadow-lg);overflow:hidden;margin-top:28px}
+.chead{background:var(--brand-tint-2);border-bottom:1px solid var(--line)}
+.run,.ctab,.exp{font-family:var(--font);border-radius:999px;font-weight:700}
+.run{background:var(--brand);color:#fff;border:none;box-shadow:0 8px 24px rgba(37,99,173,.22)}
+.run:hover{background:var(--brand-deep)}
+.exp{background:var(--white);color:var(--brand);border:1.5px solid var(--line)}
+.chip{border-radius:999px;background:var(--white);border:1px solid var(--line);font-family:var(--font)}
+.chip:hover{border-color:var(--brand-light)}
+.c3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+.cap{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow-sm);min-width:0}
+.cap::before{display:none}
+.cap .k{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--seal);color:#fff;font-weight:900;font-size:1.1rem;margin-bottom:12px;font-family:var(--font)}
+.cap h3{font-family:var(--font);font-size:1.2rem;font-weight:700;margin-bottom:8px;color:var(--ink)}
+.cap p{color:var(--ink-soft);font-family:var(--font)}
+@media (max-width:860px){.c3{grid-template-columns:1fr}}
+.band .cta{background:linear-gradient(135deg,var(--brand-deep),var(--brand));color:#fff;border-radius:var(--radius);padding:56px 40px;text-align:center;border:none;box-shadow:none}
+nav.site .cta{background:none!important;border:none!important;padding:0!important;border-radius:0;box-shadow:none;color:inherit}
+.band .cta .se{color:rgba(255,255,255,.8)}.band .cta h2{color:#fff}.band .cta .sl{color:rgba(255,255,255,.9);margin:0 auto 18px}
+.aud{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:18px 0 26px}
+.au{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:12px 22px;min-width:120px}
+.au .zh{font-weight:900;font-size:1.2rem;color:#fff}.au .en{color:rgba(255,255,255,.75);font-size:.85rem}
+.ctab{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:#fff;color:var(--brand);text-decoration:none;box-shadow:none;border:none}
+.cn{color:rgba(255,255,255,.85);font-family:var(--font);margin-top:14px}
+.honest{color:var(--ink-soft);font-size:.9rem;border:1px solid var(--line);border-radius:16px;padding:16px 20px;background:var(--bg-soft);font-family:var(--font)}
+section.honestwrap{padding:0 0 48px}
+</style></head><body class="theme-gate">
 
-<header class="top"><div class="wrap">
-  <div class="brand"><span class="seal">閘</span><span>Casca&nbsp;Gate<small>銀行機房 LLM 管制閘道</small></span></div>
-  <span class="sp"></span><span class="dom">CascaGate.cascaio.com</span>
-  <button class="tog" id="tog" type="button">◐ 主題</button>
-</div></header>
+<nav id="site-nav"></nav>
+<button class="tog" id="tog" type="button" hidden>◐</button>
 
 <section class="hero"><div class="wrap">
   <span class="eb"><b>互動 Demo</b> · 判斷由 Casca Gate SDK 執行</span>
@@ -295,15 +340,13 @@
     <div class="se">為誰而建</div><h2>給要「先過稽核、才敢上線」的金融機構</h2>
     <p class="sl" style="margin-bottom:6px">數金部要速度,資安長要交代得過去。Casca Gate 讓兩邊在同一份軌跡上對話。</p>
     <div class="aud"><div class="au"><div class="zh">銀行</div><div class="en">Banking</div></div><div class="au"><div class="zh">證券</div><div class="en">Securities</div></div><div class="au"><div class="zh">保險</div><div class="en">Insurance</div></div></div>
-    <a class="ctab" href="mailto:jewanchen@gmail.com?subject=Casca%20Gate%20%E7%B0%A1%E5%A0%B1%E9%A0%90%E7%B4%84">安排 30 分鐘簡報 + 稽核證據鏈 Demo →</a>
-    <p class="cn">寄到 jewanchen@gmail.com · 我們用貴行提供的樣本(去識別化)跑一遍,現場產出可稽核的決策軌跡。</p>
+    <a class="ctab" href="mailto:casca@vastitw.com?subject=Casca%20Gate%20%E7%B0%A1%E5%A0%B1%E9%A0%90%E7%B4%84">安排 30 分鐘簡報 + 稽核證據鏈 Demo →</a>
+    <p class="cn">寄到 casca@vastitw.com · 我們用貴行提供的樣本(去識別化)跑一遍,現場產出可稽核的決策軌跡。</p>
   </div>
 </div></section>
 
-<footer><div class="wrap">
-  <p class="honest"><b>誠實聲明:</b>本頁判斷由產品 SDK client-side 執行,為真實分類引擎;模型回應段接 Gate 端點。個資偵測不承諾 100% 命中,須與人工複核及政策設定搭配。本頁未提及任何特定客戶,亦不就法規遵循作出承諾;實際適用性以貴行法遵與資安評估為準。</p>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px"><span class="brand" style="font-size:15px"><span class="seal" style="width:26px;height:26px;font-size:15px">閘</span> Casca Gate</span><span style="flex:1"></span><span class="mono">CascaGate.cascaio.com</span><span>© 2026 Casca</span></div>
-</div></footer>
+<section class="honestwrap"><div class="wrap"><p class="honest"><b>誠實聲明:</b>本頁判斷由產品 SDK client-side 執行,為真實分類引擎;模型回應段接 Gate 端點。個資偵測不承諾 100% 命中,須與人工複核及政策設定搭配。本頁未提及任何特定客戶,亦不就法規遵循作出承諾;實際適用性以貴行法遵與資安評估為準。</p></div></section>
+<footer id="site-footer"></footer>
 
 <!-- ★ 產品判斷引擎:Casca Gate SDK(真 classifier + PEP,minify 後不外露原始碼)-->
 <script src="sdk/casca-gate-sdk.js"></script>
@@ -589,4 +632,6 @@
   if(SDK)run(null);
 })();
 </script>
+<script src="/site.js"></script>
+<script>CascaSite.init({current:'gate',cta:{href:'mailto:casca@vastitw.com?subject=Casca%20Gate%20demo',s:'gateCta'},str:{'zh-TW':{gateCta:'預約 Demo',pageTitle:'Casca Gate — 銀行機房 LLM 管制閘道'},en:{gateCta:'Book a demo',pageTitle:'Casca Gate — LLM governance gateway for banks'}}});</script>
 </body></html>
