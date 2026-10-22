@@ -13,5 +13,10 @@
 /annotator      /casca-annotator.html   200
 /docs/zapier    /casca-api-docs.html    200
 /gate           /gate/                  301
-/shutter        /shutter/               301
-/shutter/support /shutter/support/      301
+# AIShutter (2026-10-22 renamed; updates feed stays until the desktop updater moves)
+/shutter/updates/*  /shutter/updates/:splat  200
+/shutter            /aishutter/              301
+/shutter/*          /aishutter/:splat        301
+/aishutter          /aishutter/              301
+/aishutter/support  /aishutter/support/      301
+/aishutter/privacy  /aishutter/privacy/      301
