@@ -156,6 +156,8 @@ footer .copy{grid-column:1/-1;border-top:1px solid var(--line);padding-top:18px;
       <a href="#enterprise" data-s="navEnterprise"></a>
       <a href="#how" data-s="navHow"></a>
       <a href="#get" data-s="navGet"></a>
+      <a href="#faq" data-s="navFaq"></a>
+      <a href="/shutter/support/" data-s="navSupport"></a>
       <a href="/shutter/privacy/" data-s="navPrivacy"></a>
     </div>
     <div class="cta">
@@ -300,6 +302,21 @@ footer .copy{grid-column:1/-1;border-top:1px solid var(--line);padding-top:18px;
   </div>
 </section>
 
+<section class="s" id="faq">
+  <div class="wrap">
+    <div class="center"><span class="eyebrow">FAQ</span><h2 data-s="faqH2"></h2></div>
+    <div class="three" style="grid-template-columns:1fr 1fr">
+      <div class="cell"><h3 data-s="q1"></h3><p data-s="a1"></p></div>
+      <div class="cell"><h3 data-s="q2"></h3><p data-s="a2"></p></div>
+      <div class="cell"><h3 data-s="q3"></h3><p data-s="a3"></p></div>
+      <div class="cell"><h3 data-s="q4"></h3><p data-s="a4"></p></div>
+      <div class="cell"><h3 data-s="q5"></h3><p data-s="a5"></p></div>
+      <div class="cell"><h3 data-s="q6"></h3><p data-s="a6"></p></div>
+    </div>
+    <p class="center" style="margin-top:22px"><a class="btn ghost" href="/shutter/support/" data-s="moreSupport"></a></p>
+  </div>
+</section>
+
 <section class="final" id="contact">
   <div class="wrap">
     <h2 data-s="finalH2"></h2>
@@ -327,6 +344,7 @@ footer .copy{grid-column:1/-1;border-top:1px solid var(--line);padding-top:18px;
     <div><h4 data-s="footCompany"></h4><ul>
       <li><a href="https://cascaio.com/">Casca</a></li>
       <li><a href="https://cascaio.com/gate/">Casca Gate</a></li>
+      <li><a href="/shutter/support/" data-s="navSupport"></a></li>
       <li><a href="/shutter/privacy/" data-s="navPrivacy"></a></li>
       <li><a href="mailto:casca@vastitw.com" data-s="contactUs"></a></li>
     </ul></div>
@@ -372,6 +390,13 @@ var STR={
   p3Name:'企業版',p3Price:'洽詢',p3Desc:'個人版 + 受管模式 + AIShutter Center,客戶自架。',p3a:'政策三層、分群派送',p3b:'型別 × 次數統計、稽核',p3c:'Docker 自架、HTTPS',p3d:'原文永不離開端點',p3Cta:'聯絡我們',
   honest:'AIShutter 無法偵測所有機密,請搭配人工複核與公司政策使用。它與 DLP 並存,不取代。',
   finalH2:'你的下一句話\n真值留在你這裡。',finalP:'現在就把 AIShutter 加到 Chrome;Windows 版與企業版,寫信給我們。',
+  navFaq:'常見問題',navSupport:'支援',moreSupport:'更多:支援與說明 →',faqH2:'常見問題',
+  q1:'更新後 Chrome 說擴充被停用,要我「同意」?',a1:'這一版新增了 Copilot 的新網域 copilot.com。Chrome 的規則是:擴充要存取新網站,必須請你再同意一次。按「啟用」就恢復,不會重設任何設定。',
+  q2:'我沒有裝 Windows 程式,擴充還能用嗎?',a2:'可以。沒有本機程式時擴充走「瀏覽器模式」:五個 AI 網站照常出卡、遮蔽、還原;暫停、關閉、排除網站都存在這個瀏覽器本機。裝了 Windows 程式才會多出桌面 app 與命令列的保護。',
+  q3:'支援哪些 AI?',a3:'網頁版:ChatGPT、Claude、Gemini、DeepSeek、Copilot。Windows 桌面 app:DeepSeek、Claude、ChatGPT。Microsoft Copilot 桌面 app 目前不支援(它的介面對外關閉,我們不做注入),請用 Copilot 網頁版。',
+  q4:'它遮錯了怎麼辦?',a4:'卡上每一項都能單獨「這項不遮」,也可以「全部放行」送原文;按「辨識有誤 → 記住」之後,同一個值在這台電腦上不會再問。誤遮的紀錄只存本機,想回報可以寫信給我們。',
+  q5:'我的資料會送去哪裡?',a5:'哪裡都不會。偵測在你的電腦記憶體裡進行,真值與代碼的對應存在本機的加密金庫,七天後自動清掉。擴充唯一的連線對象是同一台電腦上的 AIShutter 程式。企業版受管時公司也只看得到型別與次數。',
+  q6:'怎麼暫停或關掉?',a6:'工具列小視窗有「暫停 1 小時」和「關閉快門」;卡上也有。關掉就是關掉,立刻生效,沒有例外;公司政策鎖定的型別除外。',
   footTag:'裝在你電腦上的 AI 隱私快門。送出前確認,回答在本機還原。',footProduct:'產品',footCompany:'公司',footStore:'Chrome 線上應用程式商店',footMade:'台北製作。'
  },
  en:{
@@ -408,6 +433,13 @@ var STR={
   p3Name:'Enterprise',p3Price:'Contact us',p3Desc:'Personal edition + managed mode + AIShutter Center, self-hosted.',p3a:'Three policy tiers, groups',p3b:'Type × count statistics, audit',p3c:'Docker self-hosting, HTTPS',p3d:'Original text never leaves the endpoint',p3Cta:'Contact us',
   honest:'AIShutter cannot detect everything; use it with human review and your organisation\'s policies. It works alongside DLP, not instead of it.',
   finalH2:'Your next message\nwith the real values staying here.',finalP:'Add AIShutter to Chrome now; for the Windows build or Enterprise, write to us.',
+  navFaq:'FAQ',navSupport:'Support',moreSupport:'More: support & guides →',faqH2:'Frequently asked',
+  q1:'After an update Chrome says the extension is disabled and asks me to accept?',a1:'This version added Copilot\'s new domain, copilot.com. Chrome requires your consent again whenever an extension gains access to a new site. Click Enable and everything comes back; no settings are reset.',
+  q2:'I have not installed the Windows program. Does the extension still work?',a2:'Yes. Without the local program the extension runs in browser mode: the five AI sites still get the card, masking and restoring; pause, off and excluded sites are stored in this browser. The Windows program adds protection for desktop AI apps and the command line.',
+  q3:'Which AI tools are supported?',a3:'Web: ChatGPT, Claude, Gemini, DeepSeek and Copilot. Windows desktop apps: DeepSeek, Claude and ChatGPT. The Microsoft Copilot desktop app is not supported (its interface is closed to accessibility and we do not inject code); use Copilot on the web instead.',
+  q4:'It masked something it should not have. What now?',a4:'Every item on the card can be skipped individually, or you can send the original. After Misidentified → Remember, that value is never asked about again on this computer. Reports stay local; email us if you want to tell us.',
+  q5:'Where does my data go?',a5:'Nowhere. Detection runs in memory on your computer; the mapping between real values and placeholders lives in a local encrypted vault that expires after seven days. The extension\'s only connection is to the AIShutter program on the same machine. In a managed company deployment, the company sees types and counts only.',
+  q6:'How do I pause or turn it off?',a6:'The toolbar pop-up has Pause 1 hour and Turn off; the card has them too. Off means off, immediately, no exceptions, except types your company policy has locked.',
   footTag:'The AI privacy shutter on your computer. Confirm before sending; restore locally in the reply.',footProduct:'Product',footCompany:'Company',footStore:'Chrome Web Store',footMade:'Made in Taipei.'
  }
 };
