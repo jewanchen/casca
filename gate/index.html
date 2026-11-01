@@ -3,10 +3,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Casca Gate:銀行機房 LLM 管制閘道。個資進閘前當場遮罩、每筆調用留下可匯出的稽核軌跡、成本紀律「不確定一律向貴」。互動 Demo 由產品 SDK 在你的瀏覽器執行。">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
-<title>Casca Gate — 讓 AI 進得了銀行,先讓它進得了稽核</title>
+<title>Casca Gate — 銀行機房 LLM 管制閘道</title>
 <link rel="icon" href="/FullLogo_Transparent_NoBuffer.png">
 <style>
   :root{
@@ -214,10 +214,10 @@ nav.site .cta{background:none!important;border:none!important;padding:0!importan
 .cn{color:rgba(255,255,255,.85);font-family:var(--font);margin-top:14px}
 .honest{color:var(--ink-soft);font-size:.9rem;border:1px solid var(--line);border-radius:16px;padding:16px 20px;background:var(--bg-soft);font-family:var(--font)}
 section.honestwrap{padding:0 0 48px}
-</style></head><body class="theme-gate">
+</style><link rel="canonical" href="https://cascaio.com/gate/"><meta property="og:title" content="Casca Gate — 銀行機房 LLM 管制閘道"><meta property="og:description" content="Casca Gate:銀行機房 LLM 管制閘道。個資進閘前當場遮罩、每筆調用留下可匯出的稽核軌跡、成本紀律「不確定一律向貴」。互動 Demo 由產品 SDK 在你的瀏覽器執行。"><meta property="og:type" content="website"><meta property="og:url" content="https://cascaio.com/gate/"><meta property="og:site_name" content="Casca"><meta property="og:locale" content="zh_TW"><meta property="og:image" content="https://cascaio.com/og/gate.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Casca Gate — 銀行機房 LLM 管制閘道"><meta name="twitter:description" content="Casca Gate:銀行機房 LLM 管制閘道。個資進閘前當場遮罩、每筆調用留下可匯出的稽核軌跡、成本紀律「不確定一律向貴」。互動 Demo 由產品 SDK 在你的瀏覽器執行。"><meta name="twitter:image" content="https://cascaio.com/og/gate.png"></head><body class="theme-gate">
 
-<nav id="site-nav"></nav>
-<button class="tog" id="tog" type="button" hidden>◐</button>
+<nav id="site-nav" class="site"><div class="wrap"><a class="logo" href="/"><span class="mark" aria-hidden="true">C</span><span>Casca</span></a><div class="links" id="site-links"><a href="/airoute/" data-s="nAiroute">AI Route</a><a href="/gate/" class="on" data-s="nGate">Gate</a><a href="/aishutter/" data-s="nAishutter">AIShutter</a><a href="/#enterprise" data-s="nEnterprise">企業</a><a href="/casca-api-docs.html" data-s="nDocs">文件</a><a href="/#contact" data-s="nContact">聯絡</a></div><div class="cta"><button class="langsw" id="site-lang" type="button">EN</button><button class="navtoggle" id="site-toggle" type="button" aria-label="menu">☰</button><a class="btn ghost small" href="/casca-dashboard.html" data-s="nLogin" style="display:none" id="site-login">登入</a><a class="btn primary small" href="mailto:casca@vastitw.com?subject=Casca%20Gate%20demo" data-s="gateCta">預約 Demo</a></div></div></nav>
+<button class="tog" id="tog" type="button" hidden="">◐</button>
 
 <section class="hero"><div class="wrap">
   <span class="eb"><b>互動 Demo</b> · 判斷由 Casca Gate SDK 執行</span>
@@ -258,7 +258,7 @@ section.honestwrap{padding:0 0 48px}
         <div class="rc"><div class="rch"><span class="n">01</span> 個資遮罩 · 進閘前攔查</div><div class="rcb">
           <p class="bl">原始輸入(已正規化)</p><pre class="pt" id="orig"></pre>
           <p class="bl" style="margin-top:12px">遮罩後 · 送往模型的內容</p><pre class="pt m" id="masked"></pre>
-          <div class="hits" id="hitrow"></div><div class="nn" id="nn" hidden></div>
+          <div class="hits" id="hitrow"></div><div class="nn" id="nn" hidden=""></div>
         </div></div>
         <div class="rc"><div class="rch"><span class="n">02</span> 路由決策 · 分級與選模</div><div class="rcb">
           <div class="th"><span class="tb MED" id="tb">MED</span><div class="tm"><div class="k">送往模型</div><div class="mo" id="mo">中階模型</div></div></div>
@@ -309,7 +309,7 @@ section.honestwrap{padding:0 0 48px}
         <textarea id="paste" spellcheck="false" placeholder="貼上一段含個資的文件內容…" style="min-height:70px"></textarea>
         <div style="text-align:right;margin-top:8px"><button class="run" id="scan" type="button" style="padding:11px 22px">掃描個資 →</button></div>
       </div>
-      <div id="docout" hidden style="margin-top:18px">
+      <div id="docout" hidden="" style="margin-top:18px">
         <div class="th" style="margin-bottom:12px">
           <span class="tb HIGH" id="docn" style="min-width:auto;font-size:20px">0</span>
           <div class="tm"><div class="k">掃出個資筆數</div><div class="mo" id="docfile">—</div></div>
@@ -346,7 +346,7 @@ section.honestwrap{padding:0 0 48px}
 </div></section>
 
 <section class="honestwrap"><div class="wrap"><p class="honest"><b>誠實聲明:</b>本頁判斷由產品 SDK client-side 執行,為真實分類引擎;模型回應段接 Gate 端點。個資偵測不承諾 100% 命中,須與人工複核及政策設定搭配。本頁未提及任何特定客戶,亦不就法規遵循作出承諾;實際適用性以貴行法遵與資安評估為準。</p></div></section>
-<footer id="site-footer"></footer>
+<footer id="site-footer" class="site"><div class="wrap"><div><a class="logo" href="/" style="margin-bottom:10px"><span class="mark" aria-hidden="true">C</span><span>Casca</span></a><p data-s="fTag">Your Stack. Your data. Any LLM. — AI 路由基礎設施,台北與香港。</p><p style="margin-top:10px">Vast Intelligence Limited<br>+886 2 2706 7590<br>casca@vastitw.com</p></div><div><h4 data-s="fProduct">產品</h4><ul><li><a href="/airoute/" data-s="fRoute">AI Route(路由與省錢)</a></li><li><a href="/gate/" data-s="fGate">Gate(管制閘道)</a></li><li><a href="/aishutter/" data-s="fShutter">AIShutter(隱私快門)</a></li><li><a href="/casca-api-docs.html" data-s="fDocs">API 文件</a></li><li><a href="/casca-dashboard.html" data-s="fDash">儀表板</a></li><li><a href="https://casca-production.up.railway.app/health" target="_blank" rel="noopener" data-s="fStatus">服務狀態</a></li></ul></div><div><h4 data-s="fResources">資源</h4><ul><li><a href="https://github.com/jewanchen/casca/blob/main/casca-technical-article.md" target="_blank" rel="noopener" data-s="fPaper">技術論文(Zenodo DOI)</a></li><li><a href="https://github.com/jewanchen/casca" target="_blank" rel="noopener" data-s="fGithub">GitHub</a></li><li><a href="https://github.com/jewanchen/casca/issues" target="_blank" rel="noopener" data-s="fIssues">問題回報</a></li><li><a href="/aishutter/support/" data-s="fShutterSupport">AIShutter 支援</a></li><li><a href="https://www.linkedin.com/in/jeremy-chen-50994760" target="_blank" rel="noopener" data-s="fLinkedin">創辦人 LinkedIn</a></li></ul></div><div><h4 data-s="fCompany">公司</h4><ul><li><a href="mailto:casca@vastitw.com" data-s="fContact">聯絡我們</a></li><li><a href="mailto:casca@vastitw.com?subject=Press%20inquiry" data-s="fPress">媒體</a></li><li><a href="/aishutter/privacy/" data-s="fPrivacy">隱私權政策</a></li><li><a href="mailto:casca@vastitw.com?subject=Terms%20of%20Service%20request" data-s="fTerms">服務條款</a></li><li><a href="mailto:casca@vastitw.com?subject=DPA%20request" data-s="fDpa">資料處理協議(DPA)</a></li></ul></div><div class="copy"><span>© 2026 Vast Intelligence Limited(皓品智慧有限公司). All rights reserved.</span><span data-s="fMade">台北製作。</span></div></div></footer>
 
 <!-- ★ 產品判斷引擎:Casca Gate SDK(真 classifier + PEP,minify 後不外露原始碼)-->
 <script src="sdk/casca-gate-sdk.js"></script>
@@ -634,4 +634,5 @@ section.honestwrap{padding:0 0 48px}
 </script>
 <script src="/site.js"></script>
 <script>CascaSite.init({current:'gate',cta:{href:'mailto:casca@vastitw.com?subject=Casca%20Gate%20demo',s:'gateCta'},str:{'zh-TW':{gateCta:'預約 Demo',pageTitle:'Casca Gate — 銀行機房 LLM 管制閘道'},en:{gateCta:'Book a demo',pageTitle:'Casca Gate — LLM governance gateway for banks'}}});</script>
+
 </body></html>
