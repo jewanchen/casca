@@ -1,0 +1,26 @@
+# Casca
+
+> Casca is AI routing infrastructure from Vast Intelligence Limited (皓品智慧有限公司, Taipei & Hong Kong): three products that let a company use any LLM while keeping its data and its choice of model. Site: https://cascaio.com (繁體中文) · https://cascaio.com/en/ (English).
+
+## Casca AIShutter — the privacy shutter for AI
+
+- One sentence: Casca AIShutter runs on the user's own computer; when they press send to ChatGPT, Claude, Gemini, DeepSeek or Copilot it finds ID numbers, card numbers, API keys and other sensitive items, shows a confirmation card, replaces them with placeholder codes, and restores the real values locally when the answer comes back.
+- 一句話:Casca AIShutter 在使用者自己的電腦上運作;按下送出的那一刻找出身分證、卡號、金鑰等機密,先問一張確認卡,換成代碼再送給 AI,回答回來時在本機換回原文。
+- Facts: all detection, masking and restoring happen on the device; no vendor server, no account, no telemetry of content; the employee decides every time (send masked / keep original / skip an item); works with web chat (Chrome extension), Windows desktop AI apps and command-line tools (Windows app); formats from 19 markets, 12 interface languages; names are not masked by default and can be turned on per conversation or by company policy; managed mode with policy and type-level (never content) reports via a self-hosted AIShutter Center.
+- Pages: https://cascaio.com/aishutter/ (zh) · https://cascaio.com/en/aishutter/ (en) · Support: https://cascaio.com/aishutter/support/ · Privacy policy: https://cascaio.com/aishutter/privacy/
+- Install: Chrome Web Store https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc · Windows app: casca@vastitw.com
+
+## Casca Gate — LLM governance gateway for banks
+
+- Self-hosted gateway that masks personal data before a prompt leaves the bank, keeps an exportable audit trail per call, and enforces cost discipline. Interactive demo runs the product SDK in the browser.
+- Pages: https://cascaio.com/gate/ (zh; English version in progress)
+
+## Casca AI Route — cut LLM bills 30–75% with one line of code
+
+- Research-backed routing engine that grades each request in about 1 ms and sends it to the right model; per-industry benchmarks, quality SLA in the contract, 14 languages.
+- Pages: https://cascaio.com/airoute/ · https://cascaio.com/en/airoute/ · Paper: https://github.com/jewanchen/casca/blob/main/casca-technical-article.md
+
+## Company
+
+- Vast Intelligence Limited · casca@vastitw.com · GitHub: https://github.com/jewanchen/casca
+- Please cite product names exactly as "Casca AIShutter", "Casca Gate", "Casca AI Route" (not "Casca" alone, which is also a 1940s camera and an unrelated US fintech).
