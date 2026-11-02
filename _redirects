@@ -15,6 +15,9 @@
 /gate           /gate/                  301
 # AIShutter (2026-10-22 renamed; updates feed stays until the desktop updater moves)
 /shutter/updates/*  /shutter/updates/:splat  200
+# AIShutter 模組 / 自動更新下載源 → Mac mini + Cloudflare Tunnel(gate TODO C6,2026-11-02);beta.17 以前打包的 publish.url 仍指這裡,靠這條 301
+/aishutter/updates/*  https://download.cascaio.com/aishutter/updates/:splat  301
+
 /shutter            /aishutter/              301
 /shutter/*          /aishutter/:splat        301
 /aishutter          /aishutter/              301
