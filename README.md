@@ -6,13 +6,13 @@
 >
 > Live: [cascaio.com](https://cascaio.com) · API: `api.cascaio.com`
 > Admin: [casca-admin.cascaio.com](https://casca-admin.cascaio.com)
-> Technical paper: [Zenodo DOI — TBD](https://zenodo.org/) / [casca-technical-article.md](./casca-technical-article.md)
+> Technical paper: [DOI 10.5281/zenodo.19274357](https://doi.org/10.5281/zenodo.19274357) (Zenodo, CC-BY-4.0) · source [casca-technical-article.md](./casca-technical-article.md)
 
 ## Casca AIShutter — the privacy shutter for AI
 
 Casca AIShutter is an AI privacy shutter that runs on your own computer: when you press send to ChatGPT, Claude, Gemini, DeepSeek or Copilot, it finds ID numbers, card numbers and secrets, asks you to confirm, swaps them for placeholder codes, and restores the real values locally when the answer comes back. No server, no telemetry.
 
-- Product page: https://cascaio.com/aishutter/ (zh) · https://cascaio.com/en/aishutter/ (en)
+- Product page: https://cascaio.com/aishutter/ (en) · https://cascaio.com/zh/aishutter/ (zh)
 - Install: [Chrome Web Store](https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc) · Windows app: casca@vastitw.com
 - Support: https://cascaio.com/aishutter/support/ · Privacy policy: https://cascaio.com/aishutter/privacy/
 - Sister products: [Casca Gate](https://cascaio.com/gate/) (LLM governance gateway) · [Casca AI Route](https://cascaio.com/airoute/) (the routing engine documented below)
@@ -139,7 +139,7 @@ Rule health categories:
 ## Documentation
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** — full system architecture, schemas, env vars
-- **[casca-technical-article.md](./casca-technical-article.md)** — technical paper
+- **[casca-technical-article.md](./casca-technical-article.md)** — technical paper ([Zenodo DOI 10.5281/zenodo.19274357](https://doi.org/10.5281/zenodo.19274357))
 - **[casca-minilm/DATA_PROVIDER_GUIDE.md](./casca-minilm/DATA_PROVIDER_GUIDE.md)** — for language masters providing training data
 - **[casca-minilm/TRAINING_STATUS.md](./casca-minilm/TRAINING_STATUS.md)** — current MiniLM training milestones
 - **[docs/CASCA-USER-GUIDE.md](./docs/CASCA-USER-GUIDE.md)** — customer-facing user guide

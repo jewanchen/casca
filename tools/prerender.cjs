@@ -2,8 +2,10 @@
 // cascaio.com 預先渲染(SEO / GEO 包 1 + 包 2,2026-11-01)
 // 問題:每頁正文都靠 /site.js 在瀏覽器裡把字串表填進 [data-s],不跑 JS 的爬蟲(GPTBot / ClaudeBot / PerplexityBot、LINE / Slack 預覽)看到空頁;
 //       英文版只存在瀏覽器裡(同一個網址切換),搜尋引擎抓不到。
-// 做法:用 jsdom 跑同一支 site.js,把 nav / footer / [data-s] 填好後寫回 HTML(zh-TW 寫回原檔;en 寫到 /en/ 下同路徑),
+// 做法:用 jsdom 跑同一支 site.js,把 nav / footer / [data-s] 填好後寫回 HTML,
 //       <html data-lang> 鎖定語言(site.js 配合),互相 hreflang;另補 canonical / og / twitter / JSON-LD。
+// 2026-11-02 全站預設英文(契約 2026-11-02_cascaio-default-english):有英文版的頁 **en 寫回原檔(根路徑)、zh 寫到 /zh/ 下同路徑**;
+//       gate / privacy 只有中文,留在根路徑。原檔裡的字串表(STR)同時有 zh / en,所以兩種輸出都從它算,可重複執行。舊 /en/ 由 _redirects 301 回根。
 // 可重複執行(idempotent)。用法:node tools/prerender.cjs [--check]   (需要 jsdom:NODE_PATH 指向裝了 jsdom 的 node_modules)
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -19,7 +21,10 @@ const PAGES = [
   { file: 'index.html', url: '/', og: '/og/home.png', en: true, ld: 'org' },
   { file: 'aishutter/index.html', url: '/aishutter/', og: '/og/aishutter.png', en: true, ld: 'app',
     title: { 'zh-TW': 'Casca AIShutter — 送出之前,先遮住。AI 的隱私快門', en: 'Casca AIShutter — Mask before you send. The privacy shutter for AI' } },
-  { file: 'aishutter/support/index.html', url: '/aishutter/support/', og: '/og/aishutter.png', en: true },
+  { file: 'aishutter/support/index.html', url: '/aishutter/support/', og: '/og/aishutter.png', en: true,
+    title: { 'zh-TW': 'Casca AIShutter 支援 / Support', en: 'Casca AIShutter Support' },
+    desc: { 'zh-TW': 'Casca AIShutter 支援與說明:安裝、更新時重新同意網域、瀏覽器模式、支援的網站與桌面 app、暫停與關閉、誤遮處理、移除、聯絡方式。',
+            en: 'Casca AIShutter support: install, re-approve domains after an update, browser mode, supported sites and desktop apps, pause and off, false positives, uninstall, contact.' } },
   { file: 'aishutter/privacy/index.html', url: '/aishutter/privacy/', og: '/og/aishutter.png', en: false,
     desc: { 'zh-TW': 'Casca AIShutter 隱私權政策:所有偵測、遮蔽與還原都在你的電腦上完成;沒有伺服器、沒有帳號、不收集對話內容,對照表以你的金鑰加密保存在本機。' } },
   { file: 'gate/index.html', url: '/gate/', og: '/og/gate.png', en: false },   // gate 正文是寫死的中文 HTML,沒有英文版可出
@@ -51,7 +56,8 @@ const text = el => (el ? el.textContent : '').replace(/\s+/g, ' ').trim();
 
 function render(p, lang) {
   const src = path.join(ROOT, p.file), html = fs.readFileSync(src, 'utf8');
-  const url = (lang === 'en' ? '/en' : '') + p.url, outFile = lang === 'en' ? path.join(ROOT, 'en', p.file) : src;
+  const zhSub = p.en && lang !== 'en', pfx = zhSub ? '/zh' : '';   // 2026-11-02:有英文版的頁 → 根 = en、/zh/ = zh;只有中文的頁留在根
+  const url = pfx + p.url, outFile = zhSub ? path.join(ROOT, 'zh', p.file) : src;
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: SITE + p.url, pretendToBeVisual: true });
   const { window: win } = dom, doc = win.document, de = doc.documentElement;
   de.setAttribute('data-lang', lang);                      // site.js 讀這個鎖語言(也決定 nav 連結前綴)
@@ -59,8 +65,8 @@ function render(p, lang) {
   if (args) { win.eval(siteJs); win.CascaSite.init(args); } // 跑真的 site.js:nav / footer / [data-s] / <html lang> / pageTitle
   else if (doc.getElementById('site-nav')) throw new Error(p.file + ': 找不到 CascaSite.init');
   de.lang = lang === 'en' ? 'en' : 'zh-Hant';
-  // 英文版:相對路徑補成絕對(gate 的 sdk/…)、站內連結指到 /en/ 對應頁
-  if (lang === 'en') {
+  // /zh/ 版:相對路徑補成絕對、站內連結指到 /zh/ 對應頁(根路徑的英文版不用動)
+  if (pfx) {
     const dir = p.url;
     doc.querySelectorAll('[src],[href]').forEach(el => {
       const attr = el.hasAttribute('src') ? 'src' : 'href', v = el.getAttribute(attr) || '';
@@ -69,7 +75,7 @@ function render(p, lang) {
     });
     doc.body.querySelectorAll('a[href]').forEach(a => {
       const v = a.getAttribute('href'), m = v.match(/^(\/[a-z/-]*)(#.*)?$/); if (!m) return;
-      if (TWINS.includes(m[1])) a.setAttribute('href', '/en' + m[1] + (m[2] || ''));
+      if (TWINS.includes(m[1])) a.setAttribute('href', pfx + m[1] + (m[2] || ''));
     });
   }
   // 標題 / 描述:指定覆寫 > site.js 的 pageTitle/pageDesc > 原檔;英文版沒有 pageDesc 時用英文 heroLead
@@ -81,12 +87,21 @@ function render(p, lang) {
     if (!en.pageTitle && !(p.title && p.title.en)) { const h1 = text(doc.body.querySelector('h1')); if (/[\u4e00-\u9fff]/.test(doc.title) && h1 && !/[\u4e00-\u9fff]/.test(h1)) doc.title = h1 + ' — Casca'; }
     if (/[\u4e00-\u9fff]/.test(getMeta(doc, 'meta[name="description"]'))) { const para = [...doc.body.querySelectorAll('p')].map(text).find(t => t.length >= 60 && !/[\u4e00-\u9fff]/.test(t)); if (para) setMeta(doc, 'meta[name="description"]', { name: 'description', content: para.slice(0, 180) }); }
   }
+  // \u4e2d\u6587\u7248\u5c0d\u7a31\u56de\u9000(2026-11-02 \u8d77\u539f\u6a94\u662f\u82f1\u6587\u8f38\u51fa,\u975c\u614b <title> / description \u53ef\u80fd\u5df2\u662f\u82f1\u6587):pageDesc \u2192 heroLead \u2192 \u7b2c\u4e00\u6bb5 \u2265 30 \u500b\u6f22\u5b57;\u6a19\u984c\u7528\u4e2d\u6587 h1
+  if (zhSub && args && args.str && args.str['zh-TW']) {
+    const zh = args.str['zh-TW'], han = s => (s.match(/[\u4e00-\u9fff]/g) || []).length;
+    if (!han(getMeta(doc, 'meta[name="description"]'))) {
+      const d = zh.pageDesc || zh.heroLead || [...doc.body.querySelectorAll('p')].map(text).find(t => han(t) >= 30);
+      if (d) setMeta(doc, 'meta[name="description"]', { name: 'description', content: String(d).slice(0, 180) });
+    }
+    if (!han(doc.title) && !zh.pageTitle && !(p.title && p.title['zh-TW'])) { const h1 = text(doc.body.querySelector('h1')); if (han(h1)) doc.title = h1 + ' \u2014 Casca'; }
+  }
   const title = doc.title, desc = getMeta(doc, 'meta[name="description"]');
   // 社群 / 搜尋標籤
   setMeta(doc, 'link[rel="canonical"]', { tag: 'link', rel: 'canonical', href: SITE + url });
   doc.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach(l => l.remove());
-  if (p.en) { // 互指:zh-Hant / en / x-default(= en;site內對非中文瀏覽器的預設就是英文)
-    for (const [hl, href] of [['zh-Hant', SITE + p.url], ['en', SITE + '/en' + p.url], ['x-default', SITE + '/en' + p.url]]) {
+  if (p.en) { // 互指:en = 根(也是 x-default)、zh-Hant = /zh/(2026-11-02 全站預設英文)
+    for (const [hl, href] of [['zh-Hant', SITE + '/zh' + p.url], ['en', SITE + p.url], ['x-default', SITE + p.url]]) {
       const l = doc.createElement('link'); l.setAttribute('rel', 'alternate'); l.setAttribute('hreflang', hl); l.setAttribute('href', href); doc.head.appendChild(l);
     }
   }

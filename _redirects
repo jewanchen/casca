@@ -26,3 +26,10 @@
 /terminal.html      /gate/                   301
 /terminal           /gate/                   301
 /airoute            /airoute/                301
+# 2026-11-02 全站預設英文:根 = 英文、中文在 /zh/;舊 /en/ 網址 301 回根(契約 2026-11-02_cascaio-default-english)
+/en                 /                        301
+/en/*               /:splat                  301
+/zh                 /zh/                     301
+/zh/aishutter       /zh/aishutter/           301
+/zh/aishutter/support  /zh/aishutter/support/  301
+/zh/airoute         /zh/airoute/             301
