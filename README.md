@@ -8,6 +8,15 @@
 > Admin: [casca-admin.cascaio.com](https://casca-admin.cascaio.com)
 > Technical paper: [Zenodo DOI — TBD](https://zenodo.org/) / [casca-technical-article.md](./casca-technical-article.md)
 
+## Casca AIShutter — the privacy shutter for AI
+
+Casca AIShutter is an AI privacy shutter that runs on your own computer: when you press send to ChatGPT, Claude, Gemini, DeepSeek or Copilot, it finds ID numbers, card numbers and secrets, asks you to confirm, swaps them for placeholder codes, and restores the real values locally when the answer comes back. No server, no telemetry.
+
+- Product page: https://cascaio.com/aishutter/ (zh) · https://cascaio.com/en/aishutter/ (en)
+- Install: [Chrome Web Store](https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc) · Windows app: casca@vastitw.com
+- Support: https://cascaio.com/aishutter/support/ · Privacy policy: https://cascaio.com/aishutter/privacy/
+- Sister products: [Casca Gate](https://cascaio.com/gate/) (LLM governance gateway) · [Casca AI Route](https://cascaio.com/airoute/) (the routing engine documented below)
+
 ## How it works
 
 Three-layer classification decides where each prompt goes:
