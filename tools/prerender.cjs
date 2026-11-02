@@ -12,7 +12,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SITE = 'https://cascaio.com';
 const siteJs = fs.readFileSync(path.join(ROOT, 'site.js'), 'utf8');
 const STORE = 'https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc';
-const ORG = { '@type': 'Organization', name: 'Vast Intelligence Limited', alternateName: '皓品智慧有限公司', url: SITE + '/', logo: SITE + '/FullLogo_Transparent_NoBuffer.png', email: 'casca@vastitw.com', sameAs: ['https://github.com/jewanchen/casca'] };
+const ORG = { '@type': 'Organization', name: 'Vast Intelligence Limited', alternateName: '皓品智慧有限公司', url: SITE + '/', address: { '@type': 'PostalAddress', addressLocality: 'Taipei', addressCountry: 'TW' }, logo: SITE + '/FullLogo_Transparent_NoBuffer.png', email: 'casca@vastitw.com', sameAs: ['https://github.com/jewanchen/casca'] };
 
 // 每頁:路徑、og 圖、有沒有英文版、(可選)標題 / 描述覆寫、JSON-LD 種類
 const PAGES = [

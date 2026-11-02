@@ -6,14 +6,14 @@
 'use strict';
 var SITE={
  'zh-TW':{nAiroute:'AI Route',nGate:'Gate',nAishutter:'AIShutter',nDocs:'文件',nContact:'聯絡',nLogin:'登入',nStart:'免費開始',
-  fTag:'Your Stack. Your data. Any LLM. — AI 路由基礎設施,台北與香港。',fProduct:'產品',fResources:'資源',fCompany:'公司',
+  fTag:'Your Stack. Your data. Any LLM. — AI 路由基礎設施,台北。',fProduct:'產品',fResources:'資源',fCompany:'公司',
   fRoute:'AI Route(路由與省錢)',fGate:'Gate(管制閘道)',fShutter:'AIShutter(隱私快門)',fDocs:'API 文件',fDash:'儀表板',fStatus:'服務狀態',
-  fPaper:'技術論文(Zenodo DOI)',fGithub:'GitHub',fIssues:'問題回報',fLinkedin:'創辦人 LinkedIn',fShutterSupport:'AIShutter 支援',
+  fPaper:'技術論文',fGithub:'GitHub',fIssues:'問題回報',fLinkedin:'創辦人 LinkedIn',fShutterSupport:'AIShutter 支援',
   fContact:'聯絡我們',fPress:'媒體',fPrivacy:'隱私權政策',fTerms:'服務條款',fDpa:'資料處理協議(DPA)',fMade:'台北製作。'},
  en:{nAiroute:'AI Route',nGate:'Gate',nAishutter:'AIShutter',nDocs:'Docs',nContact:'Contact',nLogin:'Log in',nStart:'Start free',
-  fTag:'Your Stack. Your data. Any LLM. — AI routing infrastructure, Taipei & Hong Kong.',fProduct:'Products',fResources:'Resources',fCompany:'Company',
+  fTag:'Your Stack. Your data. Any LLM. — AI routing infrastructure, Taipei, Taiwan.',fProduct:'Products',fResources:'Resources',fCompany:'Company',
   fRoute:'AI Route (routing & savings)',fGate:'Gate (governance gateway)',fShutter:'AIShutter (privacy shutter)',fDocs:'API docs',fDash:'Dashboard',fStatus:'Status',
-  fPaper:'Technical paper (Zenodo DOI)',fGithub:'GitHub',fIssues:'Issue tracker',fLinkedin:'Founder on LinkedIn',fShutterSupport:'AIShutter support',
+  fPaper:'Technical paper',fGithub:'GitHub',fIssues:'Issue tracker',fLinkedin:'Founder on LinkedIn',fShutterSupport:'AIShutter support',
   fContact:'Contact',fPress:'Press',fPrivacy:'Privacy policy',fTerms:'Terms of service',fDpa:'Data processing agreement (DPA)',fMade:'Made in Taipei.'}
 };
 var LOGO='/FullLogo_Transparent_NoBuffer.png';

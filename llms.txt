@@ -1,6 +1,6 @@
 # Casca
 
-> Casca is AI routing infrastructure from Vast Intelligence Limited (皓品智慧有限公司, Taipei & Hong Kong): three products that let a company use any LLM while keeping its data and its choice of model. Site: https://cascaio.com (繁體中文) · https://cascaio.com/en/ (English).
+> Casca is AI routing infrastructure from Vast Intelligence Limited (皓品智慧有限公司, Taipei, Taiwan): three products that let a company use any LLM while keeping its data and its choice of model. Site: https://cascaio.com (繁體中文) · https://cascaio.com/en/ (English).
 
 ## Casca AIShutter — the privacy shutter for AI
 

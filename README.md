@@ -139,7 +139,7 @@ Rule health categories:
 ## Documentation
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** — full system architecture, schemas, env vars
-- **[casca-technical-article.md](./casca-technical-article.md)** — published technical paper (Zenodo)
+- **[casca-technical-article.md](./casca-technical-article.md)** — technical paper
 - **[casca-minilm/DATA_PROVIDER_GUIDE.md](./casca-minilm/DATA_PROVIDER_GUIDE.md)** — for language masters providing training data
 - **[casca-minilm/TRAINING_STATUS.md](./casca-minilm/TRAINING_STATUS.md)** — current MiniLM training milestones
 - **[docs/CASCA-USER-GUIDE.md](./docs/CASCA-USER-GUIDE.md)** — customer-facing user guide
