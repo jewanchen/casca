@@ -14,7 +14,8 @@
 /docs/zapier    /casca-api-docs.html    200
 /gate           /gate/                  301
 # AIShutter (2026-10-22 renamed; updates feed stays until the desktop updater moves)
-/shutter/updates/*  /shutter/updates/:splat  200
+# 10/15–10/22 改名前打包的 beta 仍指舊路徑 → 一併轉新主機(user 2026-11-03 拍板)
+/shutter/updates/*  https://download.cascaio.com/aishutter/updates/:splat  301
 # AIShutter 模組 / 自動更新下載源 → Mac mini + Cloudflare Tunnel(gate TODO C6,2026-11-02);beta.17 以前打包的 publish.url 仍指這裡,靠這條 301
 /aishutter/updates/*  https://download.cascaio.com/aishutter/updates/:splat  301
 
