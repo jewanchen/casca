@@ -49,7 +49,7 @@
       <p class="lead" data-s="heroLead">你照常跟 AI 聊天。按下送出的那一刻,AIShutter 在你的電腦上找出身分證、卡號、金鑰,讓你看一眼、確認,換成代碼再送出。回答回來時,代碼在本機換回原文。真值從頭到尾不離開你的電腦。</p>
       <div class="ctas">
         <a class="btn primary" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChromeFree">加到 Chrome,免費</a>
-        <a class="btn ghost" href="mailto:casca@vastitw.com?subject=Casca%20AIShutter%20Windows%20beta" data-s="getWindows">索取 Windows 版</a>
+        <a class="btn ghost" href="https://download.cascaio.com/aishutter/download/windows" data-s="getWindows">下載 Windows 版</a>
       </div>
       <p class="fine" data-s="heroFine">支援 ChatGPT、Claude、Gemini、DeepSeek、Copilot 網頁版;Windows 版再加桌面 AI app 與命令列工具。</p>
     </div>
@@ -162,9 +162,10 @@
         <a class="btn primary" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChrome">加到 Chrome</a>
       </div>
       <div class="plan hi">
-        <div class="name" data-s="p2Name">個人版 · Windows</div><div class="price" data-s="p2Price">Beta 索取</div><p style="color:var(--ink-soft)" data-s="p2Desc">瀏覽器 + 桌面 AI app + 命令列,本機程式負責偵測、金庫與還原。</p>
+        <div class="name" data-s="p2Name">個人版 · Windows</div><div class="price" data-s="p2Price">Beta,免費</div><p style="color:var(--ink-soft)" data-s="p2Desc">瀏覽器 + 桌面 AI app + 命令列,本機程式負責偵測、金庫與還原。</p>
         <ul><li data-s="p2a">桌面 AI app 直接打字也攔</li><li data-s="p2b">回答裡代碼原地還原,滑過看真值</li><li data-s="p2c">加密金庫,跨介面共用</li><li data-s="p2d">零外連、零遙測</li></ul>
-        <a class="btn primary" href="mailto:casca@vastitw.com?subject=Casca%20AIShutter%20Windows%20beta" data-s="p2Cta">索取安裝檔</a>
+        <a class="btn primary" href="https://download.cascaio.com/aishutter/download/windows" data-s="p2Cta">下載安裝檔</a>
+        <p class="note" style="margin-top:10px" data-s="p2Note">Windows 10 / 11。安裝檔尚未簽章,第一次執行時 SmartScreen 會跳出警告:按「其他資訊」,再按「仍要執行」。</p>
       </div>
       <div class="plan">
         <div class="name" data-s="p3Name">企業版</div><div class="price" data-s="p3Price">洽詢</div><p style="color:var(--ink-soft)" data-s="p3Desc">個人版 + 受管模式 + AIShutter Center,客戶自架。</p>
@@ -194,7 +195,7 @@
 <section class="final" id="contact">
   <div class="wrap">
     <h2 data-s="finalH2">你的下一句話<br>真值留在你這裡。</h2>
-    <p data-s="finalP">現在就把 AIShutter 加到 Chrome;Windows 版與企業版,寫信給我們。</p>
+    <p data-s="finalP">現在就把 AIShutter 加到 Chrome,或直接下載 Windows 版;企業版請寫信給我們。</p>
     <div class="ctas">
       <a class="btn primary" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChromeFree">加到 Chrome,免費</a>
       <a class="btn ghost" href="mailto:casca@vastitw.com?subject=Casca%20AIShutter" data-s="contactUs">聯絡我們</a>
@@ -211,7 +212,7 @@
 'use strict';
 var STR={
  'zh-TW':{pageDesc:'Casca AIShutter 是在你自己電腦上運作的 AI 隱私快門:按下送出給 ChatGPT、Claude、Gemini、DeepSeek 或 Copilot 的那一刻,它找出身分證、卡號、金鑰等機密,先問你確認,換成代碼再送出,回答回來時在本機換回原文。沒有後端、沒有遙測。',
-  beta:'beta',navFeatures:'功能',navEnterprise:'企業版',navHow:'怎麼用',navGet:'下載',navPrivacy:'隱私權政策',addChrome:'加到 Chrome',addChromeFree:'加到 Chrome,免費',getWindows:'索取 Windows 版',copy:'複製',contactUs:'聯絡我們',
+  beta:'beta',navFeatures:'功能',navEnterprise:'企業版',navHow:'怎麼用',navGet:'下載',navPrivacy:'隱私權政策',addChrome:'加到 Chrome',addChromeFree:'加到 Chrome,免費',getWindows:'下載 Windows 版',copy:'複製',contactUs:'聯絡我們',
   heroEyebrow:'AI 的隱私快門',heroH1:'送出之前\n先遮住。',
   heroLead:'你照常跟 AI 聊天。按下送出的那一刻,AIShutter 在你的電腦上找出身分證、卡號、金鑰,讓你看一眼、確認,換成代碼再送出。回答回來時,代碼在本機換回原文。真值從頭到尾不離開你的電腦。',
   heroFine:'支援 ChatGPT、Claude、Gemini、DeepSeek、Copilot 網頁版;Windows 版再加桌面 AI app 與命令列工具。',
@@ -240,10 +241,10 @@ var STR={
   h1H:'安裝',h1P:'Chrome 一鍵加入;Windows 版多一個安裝檔。',h2H:'照常聊天',h2P:'打字、送出,跟平常一樣。',h3H:'有機密才問你',h3P:'一張卡,四個動作,通常一秒就過。',h4H:'回答自動還原',h4P:'代碼在你的電腦上換回原文,虛線底可查。',
   gEye:'下載',gH2:'從瀏覽器開始\n需要時再往下裝。',gLead:'同一個引擎、同一張卡,三種包裝。',
   p1Name:'瀏覽器版',p1Price:'免費',p1Desc:'Chrome 擴充。不裝任何程式,也能在五個 AI 網站上用。',p1a:'五個 AI 網站的送出前確認',p1b:'頁面內遮蔽與還原',p1c:'暫停與關閉存在瀏覽器本機',p1d:'12 種介面語言',
-  p2Name:'個人版 · Windows',p2Price:'Beta 索取',p2Desc:'瀏覽器 + 桌面 AI app + 命令列,本機程式負責偵測、金庫與還原。',p2a:'桌面 AI app 直接打字也攔',p2b:'回答裡代碼原地還原,滑過看真值',p2c:'加密金庫,跨介面共用',p2d:'零外連、零遙測',p2Cta:'索取安裝檔',
+  p2Name:'個人版 · Windows',p2Price:'Beta,免費',p2Desc:'瀏覽器 + 桌面 AI app + 命令列,本機程式負責偵測、金庫與還原。',p2a:'桌面 AI app 直接打字也攔',p2b:'回答裡代碼原地還原,滑過看真值',p2c:'加密金庫,跨介面共用',p2d:'零外連、零遙測',p2Cta:'下載安裝檔',p2Note:'Windows 10 / 11。安裝檔尚未簽章,第一次執行時 SmartScreen 會跳出警告:按「其他資訊」,再按「仍要執行」。',
   p3Name:'企業版',p3Price:'洽詢',p3Desc:'個人版 + 受管模式 + AIShutter Center,客戶自架。',p3a:'政策三層、分群派送',p3b:'型別 × 次數統計、稽核',p3c:'Docker 自架、HTTPS',p3d:'原文永不離開端點',p3Cta:'聯絡我們',
   honest:'AIShutter 無法偵測所有機密,請搭配人工複核與公司政策使用。它與 DLP 並存,不取代。',
-  finalH2:'你的下一句話\n真值留在你這裡。',finalP:'現在就把 AIShutter 加到 Chrome;Windows 版與企業版,寫信給我們。',
+  finalH2:'你的下一句話\n真值留在你這裡。',finalP:'現在就把 AIShutter 加到 Chrome,或直接下載 Windows 版;企業版請寫信給我們。',
   navFaq:'常見問題',navSupport:'支援',moreSupport:'更多:支援與說明 →',faqH2:'常見問題',
   q1:'更新後 Chrome 說擴充被停用,要我「同意」?',a1:'這一版新增了 Copilot 的新網域 copilot.com。Chrome 的規則是:擴充要存取新網站,必須請你再同意一次。按「啟用」就恢復,不會重設任何設定。',
   q2:'我沒有裝 Windows 程式,擴充還能用嗎?',a2:'可以。沒有本機程式時擴充走「瀏覽器模式」:五個 AI 網站照常出卡、遮蔽、還原;暫停、關閉、排除網站都存在這個瀏覽器本機。裝了 Windows 程式才會多出桌面 app 與命令列的保護。',
@@ -254,7 +255,7 @@ var STR={
   footTag:'裝在你電腦上的 AI 隱私快門。送出前確認,回答在本機還原。',footProduct:'產品',footCompany:'公司',footStore:'Chrome 線上應用程式商店',footMade:'台北製作。'
  },
  en:{pageDesc:'Casca AIShutter is an AI privacy shutter that runs on your own computer: when you press send to ChatGPT, Claude, Gemini, DeepSeek or Copilot, it finds ID numbers, card numbers and secrets, asks you to confirm, swaps them for placeholder codes, and restores the real values locally when the answer comes back. No server, no telemetry.',
-  beta:'beta',navFeatures:'Features',navEnterprise:'Enterprise',navHow:'How it works',navGet:'Get it',navPrivacy:'Privacy',addChrome:'Add to Chrome',addChromeFree:'Add to Chrome, free',getWindows:'Request Windows build',copy:'Copy',contactUs:'Contact us',
+  beta:'beta',navFeatures:'Features',navEnterprise:'Enterprise',navHow:'How it works',navGet:'Get it',navPrivacy:'Privacy',addChrome:'Add to Chrome',addChromeFree:'Add to Chrome, free',getWindows:'Download for Windows',copy:'Copy',contactUs:'Contact us',
   heroEyebrow:'The privacy shutter for AI',heroH1:'Mask it\nbefore you send it.',
   heroLead:'Chat with AI as you always do. The moment you press send, AIShutter finds ID numbers, card numbers and secrets on your own computer, shows you, and swaps them for placeholders before anything leaves. When the answer comes back, placeholders turn back into the real values locally. The real values never leave your machine.',
   heroFine:'Works with ChatGPT, Claude, Gemini, DeepSeek and Copilot on the web; the Windows build adds desktop AI apps and command-line tools.',
@@ -283,10 +284,10 @@ var STR={
   h1H:'Install',h1P:'One click in Chrome; the Windows build adds an installer.',h2H:'Chat as usual',h2P:'Type and send, like always.',h3H:'Asked only when needed',h3P:'One card, four actions, usually a second.',h4H:'Replies restore themselves',h4P:'Placeholders turn back into real values on your computer, dotted underline to check.',
   gEye:'Get it',gH2:'Start in the browser\ngo deeper when you need to.',gLead:'One engine, one card, three packages.',
   p1Name:'Browser',p1Price:'Free',p1Desc:'Chrome extension. Nothing to install; works on five AI sites.',p1a:'Pre-send confirmation on five AI sites',p1b:'In-page masking and restoring',p1c:'Pause and off stored in your browser',p1d:'12 interface languages',
-  p2Name:'Personal · Windows',p2Price:'Beta on request',p2Desc:'Browser + desktop AI apps + CLI, with a local agent for detection, vault and restoring.',p2a:'Catches typing straight into desktop AI apps',p2b:'Placeholders restored in place; hover for the value',p2c:'Encrypted vault shared across surfaces',p2d:'No outbound connection, no telemetry',p2Cta:'Request the installer',
+  p2Name:'Personal · Windows',p2Price:'Beta, free',p2Desc:'Browser + desktop AI apps + CLI, with a local agent for detection, vault and restoring.',p2a:'Catches typing straight into desktop AI apps',p2b:'Placeholders restored in place; hover for the value',p2c:'Encrypted vault shared across surfaces',p2d:'No outbound connection, no telemetry',p2Cta:'Download the installer',p2Note:'Windows 10 / 11. The installer is not code-signed yet. The first time you run it, SmartScreen shows a warning: click More info, then Run anyway.',
   p3Name:'Enterprise',p3Price:'Contact us',p3Desc:'Personal edition + managed mode + AIShutter Center, self-hosted.',p3a:'Three policy tiers, groups',p3b:'Type × count statistics, audit',p3c:'Docker self-hosting, HTTPS',p3d:'Original text never leaves the endpoint',p3Cta:'Contact us',
   honest:'AIShutter cannot detect everything; use it with human review and your organisation\'s policies. It works alongside DLP, not instead of it.',
-  finalH2:'Your next message\nwith the real values staying here.',finalP:'Add AIShutter to Chrome now; for the Windows build or Enterprise, write to us.',
+  finalH2:'Your next message\nwith the real values staying here.',finalP:'Add AIShutter to Chrome or download it for Windows now. For Enterprise, write to us.',
   navFaq:'FAQ',navSupport:'Support',moreSupport:'More: support & guides →',faqH2:'Frequently asked',
   q1:'After an update Chrome says the extension is disabled and asks me to accept?',a1:'This version added Copilot\'s new domain, copilot.com. Chrome requires your consent again whenever an extension gains access to a new site. Click Enable and everything comes back; no settings are reset.',
   q2:'I have not installed the Windows program. Does the extension still work?',a2:'Yes. Without the local program the extension runs in browser mode: the five AI sites still get the card, masking and restoring; pause, off and excluded sites are stored in this browser. The Windows program adds protection for desktop AI apps and the command line.',
