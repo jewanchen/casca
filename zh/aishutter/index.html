@@ -14,6 +14,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 <style>
+/* 擴充安裝鈕下方「也有 Edge / Chrome 版」小字 */
+.alt{font-size:.85rem;margin:0}.alt a{color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px}.alt a:hover{color:var(--ink)}
+.hero .alt{margin:-4px 0 10px}.plan .alt{margin-top:10px}.final .alt{margin-top:14px;text-align:center}
 /* demo card */
 .demo{position:relative;min-width:0}
 .chat{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:18px;display:flex;flex-direction:column;gap:12px}
@@ -39,7 +42,7 @@
 <link rel="canonical" href="https://cascaio.com/zh/aishutter/"><meta property="og:site_name" content="Casca"><meta property="og:locale" content="zh_TW"><meta property="og:image" content="https://cascaio.com/og/aishutter.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Casca AIShutter — Mask before you send. The privacy shutter for AI"><meta name="twitter:description" content="Casca AIShutter is an AI privacy shutter that runs on your own computer: when you press send to ChatGPT, Claude, Gemini, DeepSeek or Copilot, it finds ID numbers, card numbers and secrets, asks you to confirm, swaps them for placeholder codes, and restores the real values locally when the answer comes back. No server, no telemetry."><meta name="twitter:image" content="https://cascaio.com/og/aishutter.png"><link rel="alternate" hreflang="zh-Hant" href="https://cascaio.com/zh/aishutter/"><link rel="alternate" hreflang="en" href="https://cascaio.com/aishutter/"><link rel="alternate" hreflang="x-default" href="https://cascaio.com/aishutter/"><script type="application/ld+json" data-prerender="1">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Casca AIShutter","url":"https://cascaio.com/zh/aishutter/","description":"Casca AIShutter 是在你自己電腦上運作的 AI 隱私快門:按下送出給 ChatGPT、Claude、Gemini、DeepSeek 或 Copilot 的那一刻,它找出身分證、卡號、金鑰等機密,先問你確認,換成代碼再送出,回答回來時在本機換回原文。沒有後端、沒有遙測。","applicationCategory":"SecurityApplication","operatingSystem":"Windows, Chrome","inLanguage":"zh-Hant","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc","installUrl":"https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc","publisher":{"@type":"Organization","name":"Vast Intelligence Limited","alternateName":"皓品智慧有限公司","url":"https://cascaio.com/","address":{"@type":"PostalAddress","addressLocality":"Taipei","addressCountry":"TW"},"logo":"https://cascaio.com/FullLogo_Transparent_NoBuffer.png","email":"casca@vastitw.com","sameAs":["https://github.com/jewanchen/casca"]},"image":"https://cascaio.com/og/aishutter.png"}</script><script type="application/ld+json" data-prerender="1">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"更新後 Chrome 說擴充被停用,要我「同意」?","acceptedAnswer":{"@type":"Answer","text":"這一版新增了 Copilot 的新網域 copilot.com。Chrome 的規則是:擴充要存取新網站,必須請你再同意一次。按「啟用」就恢復,不會重設任何設定。"}},{"@type":"Question","name":"我沒有裝 Windows 程式,擴充還能用嗎?","acceptedAnswer":{"@type":"Answer","text":"可以。沒有本機程式時擴充走「瀏覽器模式」:五個 AI 網站照常出卡、遮蔽、還原;暫停、關閉、排除網站都存在這個瀏覽器本機。裝了 Windows 程式才會多出桌面 app 與命令列的保護。"}},{"@type":"Question","name":"支援哪些 AI?","acceptedAnswer":{"@type":"Answer","text":"網頁版:ChatGPT、Claude、Gemini、DeepSeek、Copilot。Windows 桌面 app:DeepSeek、Claude、ChatGPT。Microsoft Copilot 桌面 app 目前不支援(它的介面對外關閉,我們不做注入),請用 Copilot 網頁版。"}},{"@type":"Question","name":"它遮錯了怎麼辦?","acceptedAnswer":{"@type":"Answer","text":"卡上每一項都能單獨「這項不遮」,也可以「全部放行」送原文;按「辨識有誤 → 記住」之後,同一個值在這台電腦上不會再問。誤遮的紀錄只存本機,想回報可以寫信給我們。"}},{"@type":"Question","name":"我的資料會送去哪裡?","acceptedAnswer":{"@type":"Answer","text":"哪裡都不會。偵測在你的電腦記憶體裡進行,真值與代碼的對應存在本機的加密金庫,七天後自動清掉。擴充唯一的連線對象是同一台電腦上的 AIShutter 程式。企業版受管時公司也只看得到型別與次數。"}},{"@type":"Question","name":"怎麼暫停或關掉?","acceptedAnswer":{"@type":"Answer","text":"工具列小視窗有「暫停 1 小時」和「關閉快門」;卡上也有。關掉就是關掉,立刻生效,沒有例外;公司政策鎖定的型別除外。"}}]}</script></head>
 <body class="theme-aishutter">
 
-<nav id="site-nav" class="site"><div class="wrap"><a class="logo" href="/zh/"><span class="mark" aria-hidden="true">C</span><span>Casca</span></a><div class="links" id="site-links"><a href="/zh/airoute/" data-s="nAiroute">AI Route</a><a href="/gate/" data-s="nGate">Gate</a><a href="/zh/aishutter/" class="on" data-s="nAishutter">AIShutter</a><a href="/casca-api-docs.html" data-s="nDocs">文件</a><a href="/zh/#contact" data-s="nContact">聯絡</a></div><div class="cta"><button class="langsw" id="site-lang" type="button">EN</button><button class="navtoggle" id="site-toggle" type="button" aria-label="menu">☰</button><a class="btn ghost small" href="/casca-dashboard.html" data-s="nLogin" style="display:none" id="site-login">登入</a><a class="btn primary small" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChrome">加到 Chrome</a></div></div></nav>
+<nav id="site-nav" class="site"><div class="wrap"><a class="logo" href="/zh/"><span class="mark" aria-hidden="true">C</span><span>Casca</span></a><div class="links" id="site-links"><a href="/zh/airoute/" data-s="nAiroute">AI Route</a><a href="/gate/" data-s="nGate">Gate</a><a href="/zh/aishutter/" class="on" data-s="nAishutter">AIShutter</a><a href="/casca-api-docs.html" data-s="nDocs">文件</a><a href="/zh/#contact" data-s="nContact">聯絡</a></div><div class="cta"><button class="langsw" id="site-lang" type="button">EN</button><button class="navtoggle" id="site-toggle" type="button" aria-label="menu">☰</button><a class="btn ghost small" href="/casca-dashboard.html" data-s="nLogin" style="display:none" id="site-login">登入</a><a class="btn primary small" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="installExt">安裝擴充</a></div></div></nav>
 
 <header class="hero" id="top">
   <div class="wrap two">
@@ -48,9 +51,10 @@
       <h1 data-s="heroH1">送出之前<br>先遮住。</h1>
       <p class="lead" data-s="heroLead">你照常跟 AI 聊天。按下送出的那一刻,AIShutter 在你的電腦上找出身分證、卡號、金鑰,讓你看一眼、確認,換成代碼再送出。回答回來時,代碼在本機換回原文。真值從頭到尾不離開你的電腦。</p>
       <div class="ctas">
-        <a class="btn primary" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChromeFree">加到 Chrome,免費</a>
+        <a class="btn primary" data-ext="" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="installExtFree">安裝擴充,免費</a>
         <a class="btn ghost" href="https://download.cascaio.com/aishutter/download/windows" data-s="getWindows">下載 Windows 版</a>
       </div>
+      <p class="alt"><a data-ext-alt="" hidden="" href="https://microsoftedge.microsoft.com/addons/detail/gepnbinfnpapbdgihibdpclmhjjcpppa" target="_blank" rel="noopener" data-s="alsoEdge">也有 Edge 版</a></p>
       <p class="fine" data-s="heroFine">支援 ChatGPT、Claude、Gemini、DeepSeek、Copilot 網頁版;Windows 版再加桌面 AI app 與命令列工具。</p>
     </div>
     <div class="demo reveal">
@@ -159,7 +163,8 @@
       <div class="plan">
         <div class="name" data-s="p1Name">瀏覽器版</div><div class="price" data-s="p1Price">免費</div><p style="color:var(--ink-soft)" data-s="p1Desc">Chrome 擴充。不裝任何程式,也能在五個 AI 網站上用。</p>
         <ul><li data-s="p1a">五個 AI 網站的送出前確認</li><li data-s="p1b">頁面內遮蔽與還原</li><li data-s="p1c">暫停與關閉存在瀏覽器本機</li><li data-s="p1d">12 種介面語言</li></ul>
-        <a class="btn primary" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChrome">加到 Chrome</a>
+        <a class="btn primary" data-ext="" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="installExt">安裝擴充</a>
+        <p class="alt"><a data-ext-alt="" hidden="" href="https://microsoftedge.microsoft.com/addons/detail/gepnbinfnpapbdgihibdpclmhjjcpppa" target="_blank" rel="noopener" data-s="alsoEdge">也有 Edge 版</a></p>
       </div>
       <div class="plan hi">
         <div class="name" data-s="p2Name">個人版 · Windows</div><div class="price" data-s="p2Price">Beta,免費</div><p style="color:var(--ink-soft)" data-s="p2Desc">瀏覽器 + 桌面 AI app + 命令列,本機程式負責偵測、金庫與還原。</p>
@@ -197,9 +202,10 @@
     <h2 data-s="finalH2">你的下一句話<br>真值留在你這裡。</h2>
     <p data-s="finalP">現在就把 AIShutter 加到 Chrome,或直接下載 Windows 版;企業版請寫信給我們。</p>
     <div class="ctas">
-      <a class="btn primary" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="addChromeFree">加到 Chrome,免費</a>
+      <a class="btn primary" data-ext="" href="https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc" target="_blank" rel="noopener" data-s="installExtFree">安裝擴充,免費</a>
       <a class="btn ghost" href="mailto:casca@vastitw.com?subject=Casca%20AIShutter" data-s="contactUs">聯絡我們</a>
     </div>
+    <p class="alt"><a data-ext-alt="" hidden="" href="https://microsoftedge.microsoft.com/addons/detail/gepnbinfnpapbdgihibdpclmhjjcpppa" target="_blank" rel="noopener" data-s="alsoEdge">也有 Edge 版</a></p>
     <p style="margin-top:18px;font-size:.9rem;opacity:.85">casca@vastitw.com <button class="copybtn" id="copymail" type="button" data-s="copy">複製</button></p>
   </div>
 </section>
@@ -212,7 +218,7 @@
 'use strict';
 var STR={
  'zh-TW':{pageDesc:'Casca AIShutter 是在你自己電腦上運作的 AI 隱私快門:按下送出給 ChatGPT、Claude、Gemini、DeepSeek 或 Copilot 的那一刻,它找出身分證、卡號、金鑰等機密,先問你確認,換成代碼再送出,回答回來時在本機換回原文。沒有後端、沒有遙測。',
-  beta:'beta',navFeatures:'功能',navEnterprise:'企業版',navHow:'怎麼用',navGet:'下載',navPrivacy:'隱私權政策',addChrome:'加到 Chrome',addChromeFree:'加到 Chrome,免費',getWindows:'下載 Windows 版',copy:'複製',contactUs:'聯絡我們',
+  beta:'beta',navFeatures:'功能',navEnterprise:'企業版',navHow:'怎麼用',navGet:'下載',navPrivacy:'隱私權政策',installExt:'安裝擴充',installExtFree:'安裝擴充,免費',alsoEdge:'也有 Edge 版',alsoChrome:'也有 Chrome 版',getWindows:'下載 Windows 版',copy:'複製',contactUs:'聯絡我們',
   heroEyebrow:'AI 的隱私快門',heroH1:'送出之前\n先遮住。',
   heroLead:'你照常跟 AI 聊天。按下送出的那一刻,AIShutter 在你的電腦上找出身分證、卡號、金鑰,讓你看一眼、確認,換成代碼再送出。回答回來時,代碼在本機換回原文。真值從頭到尾不離開你的電腦。',
   heroFine:'支援 ChatGPT、Claude、Gemini、DeepSeek、Copilot 網頁版;Windows 版再加桌面 AI app 與命令列工具。',
@@ -255,7 +261,7 @@ var STR={
   footTag:'裝在你電腦上的 AI 隱私快門。送出前確認,回答在本機還原。',footProduct:'產品',footCompany:'公司',footStore:'Chrome 線上應用程式商店',footMade:'台北製作。'
  },
  en:{pageDesc:'Casca AIShutter is an AI privacy shutter that runs on your own computer: when you press send to ChatGPT, Claude, Gemini, DeepSeek or Copilot, it finds ID numbers, card numbers and secrets, asks you to confirm, swaps them for placeholder codes, and restores the real values locally when the answer comes back. No server, no telemetry.',
-  beta:'beta',navFeatures:'Features',navEnterprise:'Enterprise',navHow:'How it works',navGet:'Get it',navPrivacy:'Privacy',addChrome:'Add to Chrome',addChromeFree:'Add to Chrome, free',getWindows:'Download for Windows',copy:'Copy',contactUs:'Contact us',
+  beta:'beta',navFeatures:'Features',navEnterprise:'Enterprise',navHow:'How it works',navGet:'Get it',navPrivacy:'Privacy',installExt:'Install extension',installExtFree:'Install extension, free',alsoEdge:'Also available for Edge',alsoChrome:'Also available for Chrome',getWindows:'Download for Windows',copy:'Copy',contactUs:'Contact us',
   heroEyebrow:'The privacy shutter for AI',heroH1:'Mask it\nbefore you send it.',
   heroLead:'Chat with AI as you always do. The moment you press send, AIShutter finds ID numbers, card numbers and secrets on your own computer, shows you, and swaps them for placeholders before anything leaves. When the answer comes back, placeholders turn back into the real values locally. The real values never leave your machine.',
   heroFine:'Works with ChatGPT, Claude, Gemini, DeepSeek and Copilot on the web; the Windows build adds desktop AI apps and command-line tools.',
@@ -298,8 +304,13 @@ var STR={
   footTag:'The AI privacy shutter on your computer. Confirm before sending; restore locally in the reply.',footProduct:'Product',footCompany:'Company',footStore:'Chrome Web Store',footMade:'Made in Taipei.'
  }
 };
-var site=CascaSite.init({current:'aishutter',cta:{href:'https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc',s:'addChrome',target:true},str:STR});
+var site=CascaSite.init({current:'aishutter',cta:{href:'https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc',s:'installExt',target:true},str:STR});
 var t=site.t;
+/* 擴充安裝鈕(user 2026-11-11):一顆鈕依瀏覽器指到對應商店(Edge → Edge Add-ons,其餘 → Chrome 商店);偵測後下方小字給另一家。靜態 HTML 預設 Chrome、小字 hidden(prerender 不跑這段) */
+(function(){ var EDGE='https://microsoftedge.microsoft.com/addons/detail/gepnbinfnpapbdgihibdpclmhjjcpppa', CHROME='https://chromewebstore.google.com/detail/mhiefneljgjlecablgleapdpklpacehc', isEdge=/\bEdg\//.test(navigator.userAgent||'');
+  document.querySelectorAll('a[data-s="installExt"],a[data-s="installExtFree"]').forEach(function(a){ a.href=isEdge?EDGE:CHROME; });
+  document.querySelectorAll('a[data-ext-alt]').forEach(function(a){ var k=isEdge?'alsoChrome':'alsoEdge'; a.href=isEdge?CHROME:EDGE; a.setAttribute('data-s',k); a.textContent=t(k); a.hidden=false; });
+})();
 var cm=document.getElementById('copymail'); if(cm) cm.onclick=function(){ var b=this; try{ navigator.clipboard.writeText('casca@vastitw.com').then(function(){ b.textContent=site.lang()==='en'?'Copied':'已複製'; setTimeout(function(){ b.textContent=t('copy'); },1500); },function(){}); }catch(e){} };
 if('IntersectionObserver' in window&&window.matchMedia('(prefers-reduced-motion: no-preference)').matches){ var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.remove('pre'); io.unobserve(e.target); } }); },{threshold:.15}); document.querySelectorAll('.feat,.stat,.ent .cell,.step,.plan').forEach(function(el){ el.classList.add('reveal','pre'); io.observe(el); }); }
 })();
